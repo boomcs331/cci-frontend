@@ -1,7 +1,7 @@
 // Login validation utilities
 
 export interface LoginAttempt {
-  email: string;
+  username: string;
   timestamp: number;
   success: boolean;
   ip?: string;
@@ -10,13 +10,33 @@ export interface LoginAttempt {
 export interface ValidationResult {
   isValid: boolean;
   errors: {
-    email?: string;
+    username?: string;
     password?: string;
     general?: string;
   };
 }
 
-// Email validation
+// Username validation
+export const validateUsername = (username: string): string | undefined => {
+  if (!username) return 'กรุณากรอกชื่อผู้ใช้';
+  if (username.length < 3) return 'ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร';
+  if (username.length > 20) return 'ชื่อผู้ใช้ต้องไม่เกิน 20 ตัวอักษร';
+  
+  // Check for valid characters (letters, numbers, underscore)
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return 'ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข และ _';
+  }
+  
+  // Check for reserved usernames
+  const reservedUsernames = ['admin', 'root', 'system', 'null', 'undefined'];
+  if (reservedUsernames.includes(username.toLowerCase())) {
+    return 'ชื่อผู้ใช้นี้ไม่สามารถใช้ได้';
+  }
+  
+  return undefined;
+};
+
+// Email validation (still keep for other uses)
 export const validateEmail = (email: string): string | undefined => {
   if (!email) return 'กรุณากรอกอีเมล';
   
@@ -53,8 +73,8 @@ export class LoginRateLimit {
   private readonly blockDurationMs = 5 * 60 * 1000; // 5 minutes
 
   // Check if user is blocked
-  isBlocked(email: string): boolean {
-    const userAttempts = this.attempts.get(email.toLowerCase()) || [];
+  isBlocked(username: string): boolean {
+    const userAttempts = this.attempts.get(username.toLowerCase()) || [];
     const recentAttempts = userAttempts.filter(
       attempt => Date.now() - attempt.timestamp < this.windowMs
     );
@@ -70,12 +90,12 @@ export class LoginRateLimit {
   }
 
   // Record login attempt
-  recordAttempt(email: string, success: boolean): void {
-    const normalizedEmail = email.toLowerCase();
-    const attempts = this.attempts.get(normalizedEmail) || [];
+  recordAttempt(username: string, success: boolean): void {
+    const normalizedUsername = username.toLowerCase();
+    const attempts = this.attempts.get(normalizedUsername) || [];
     
     attempts.push({
-      email: normalizedEmail,
+      username: normalizedUsername,
       timestamp: Date.now(),
       success
     });
@@ -85,12 +105,12 @@ export class LoginRateLimit {
       attempt => Date.now() - attempt.timestamp < this.windowMs
     );
 
-    this.attempts.set(normalizedEmail, recentAttempts);
+    this.attempts.set(normalizedUsername, recentAttempts);
   }
 
   // Get remaining attempts
-  getRemainingAttempts(email: string): number {
-    const userAttempts = this.attempts.get(email.toLowerCase()) || [];
+  getRemainingAttempts(username: string): number {
+    const userAttempts = this.attempts.get(username.toLowerCase()) || [];
     const recentFailedAttempts = userAttempts.filter(
       attempt => 
         Date.now() - attempt.timestamp < this.windowMs && 
@@ -101,8 +121,8 @@ export class LoginRateLimit {
   }
 
   // Get time until unblock
-  getTimeUntilUnblock(email: string): number {
-    const userAttempts = this.attempts.get(email.toLowerCase()) || [];
+  getTimeUntilUnblock(username: string): number {
+    const userAttempts = this.attempts.get(username.toLowerCase()) || [];
     const recentFailedAttempts = userAttempts.filter(
       attempt => 
         Date.now() - attempt.timestamp < this.windowMs && 
@@ -123,20 +143,20 @@ export class LoginRateLimit {
 export const loginRateLimit = new LoginRateLimit();
 
 // Comprehensive login validation
-export const validateLoginForm = (email: string, password: string): ValidationResult => {
+export const validateLoginForm = (username: string, password: string): ValidationResult => {
   const errors: ValidationResult['errors'] = {};
 
-  // Validate email
-  const emailError = validateEmail(email);
-  if (emailError) errors.email = emailError;
+  // Validate username
+  const usernameError = validateUsername(username);
+  if (usernameError) errors.username = usernameError;
 
   // Validate password
   const passwordError = validatePassword(password);
   if (passwordError) errors.password = passwordError;
 
   // Check rate limiting
-  if (loginRateLimit.isBlocked(email)) {
-    const timeLeft = loginRateLimit.getTimeUntilUnblock(email);
+  if (loginRateLimit.isBlocked(username)) {
+    const timeLeft = loginRateLimit.getTimeUntilUnblock(username);
     const minutes = Math.ceil(timeLeft / (60 * 1000));
     errors.general = `บัญชีถูกล็อคชั่วคราว กรุณารอ ${minutes} นาทีแล้วลองใหม่`;
   }

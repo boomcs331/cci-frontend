@@ -81,6 +81,7 @@ export function clearSession(): void {
   localStorage.removeItem(PERMISSIONS_KEY);
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem('user_profile'); // Clear profile data too
 }
 
 /**
@@ -149,6 +150,121 @@ export function login(user: User, token?: string, permissions?: string[]): void 
   };
 
   saveSession(session);
+}
+
+/**
+ * Update user permissions from API
+ */
+export async function updateUserPermissionsFromApi(userId: string, token?: string): Promise<{
+  success: boolean;
+  permissions?: string[];
+  error?: string;
+}> {
+  try {
+    // Import getUserProfileApi dynamically to avoid circular dependency
+    const { getUserProfileApi } = await import('./api');
+    
+    console.log('🔄 Fetching user permissions from API for user:', userId);
+    
+    const response = await getUserProfileApi(userId, token);
+    
+    if (response.success && response.data) {
+      const permissions = response.data.permissions || [];
+      
+      // Update current session with new permissions
+      const currentSession = getSession();
+      if (currentSession) {
+        const updatedSession: Session = {
+          ...currentSession,
+          permissions
+        };
+        saveSession(updatedSession);
+        
+        console.log('✅ User permissions updated from API:', permissions);
+        return {
+          success: true,
+          permissions
+        };
+      }
+    }
+    
+    console.log('❌ Failed to fetch permissions from API:', response.error);
+    return {
+      success: false,
+      error: response.error || 'Failed to fetch permissions'
+    };
+    
+  } catch (error: any) {
+    console.error('❌ Error updating permissions from API:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error occurred'
+    };
+  }
+}
+
+/**
+ * Get stored user profile data
+ */
+export function getStoredUserProfile(): any | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const profileData = localStorage.getItem('user_profile');
+    return profileData ? JSON.parse(profileData) : null;
+  } catch (error) {
+    console.error('Error parsing stored profile:', error);
+    return null;
+  }
+}
+
+/**
+ * Save user profile data
+ */
+export function saveUserProfile(profileData: any): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem('user_profile', JSON.stringify(profileData));
+  } catch (error) {
+    console.error('Error saving profile data:', error);
+  }
+}
+
+/**
+ * Update user data in session with profile information
+ */
+export function updateUserWithProfile(profileData: any): boolean {
+  try {
+    const currentSession = getSession();
+    if (!currentSession) return false;
+
+    // Merge profile data with current user data
+    const updatedUser: User = {
+      ...currentSession.user,
+      ...profileData,
+      // Keep essential session data
+      id: currentSession.user.id,
+      username: currentSession.user.username,
+      email: currentSession.user.email
+    };
+
+    // Update session with merged data
+    const updatedSession: Session = {
+      ...currentSession,
+      user: updatedUser,
+      permissions: profileData.permissions || currentSession.permissions
+    };
+
+    saveSession(updatedSession);
+    saveUserProfile(profileData);
+    
+    console.log('✅ User session updated with profile data');
+    return true;
+  } catch (error) {
+    console.error('❌ Error updating user with profile:', error);
+    return false;
+  }
 }
 
 /**
