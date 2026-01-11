@@ -221,6 +221,8 @@ export default function RolesPage() {
     e.preventDefault();
     setAddLoading(true);
     
+    console.log('Adding role with permissions:', addFormData.permissionIds);
+    
     try {
       // สร้าง role พร้อม permissions ในครั้งเดียว
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`, {
@@ -235,6 +237,10 @@ export default function RolesPage() {
           permissionIds: addFormData.permissionIds
         }),
       });
+      
+      console.log('API Response status:', response.status);
+      const result = await response.json();
+      console.log('API Response data:', result);
       
       if (response.ok) {
         // รีเฟรช roles list
