@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 
 interface Lot {
   quantity: number;
@@ -380,12 +381,12 @@ export default function PCIncomePage() {
                         <tr key={lot.id}>
                           <td className="px-3 py-2">{lot.lotNo}</td>
                           <td className="px-3 py-2 text-center">
-                            <img 
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(lot.qrCode)}`}
-                              alt="QR"
-                              className="w-20 h-20 mx-auto cursor-pointer hover:opacity-80"
+                            <div 
+                              className="inline-block cursor-pointer hover:opacity-80"
                               onClick={() => { setSelectedLot(lot); setShowQRModal(true); }}
-                            />
+                            >
+                              <QRCodeGenerator value={lot.qrCode} size={80} className="mx-auto" />
+                            </div>
                           </td>
                           <td className="px-3 py-2 text-right">{parseFloat(lot.quantity).toLocaleString()}</td>
                           <td className="px-3 py-2 text-right">{parseFloat(lot.remainingQuantity).toLocaleString()}</td>
@@ -413,13 +414,9 @@ export default function PCIncomePage() {
 
             <div className="p-6 text-center">
               <div className="bg-white p-4 rounded-lg inline-block mb-4">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(selectedLot.qrCode)}`}
-                  alt="QR Code"
-                  className="w-64 h-64"
-                />
+                <QRCodeGenerator value={selectedLot.qrCode} size={256} />
               </div>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm text-gray-900 dark:text-white">
                 <div><span className="font-medium">เลข Lot:</span> {selectedLot.lotNo}</div>
                 <div><span className="font-medium">QR Code:</span> {selectedLot.qrCode}</div>
                 <div><span className="font-medium">จำนวน:</span> {parseFloat(selectedLot.quantity).toLocaleString()} {selectedLot.unit}</div>
@@ -449,21 +446,17 @@ export default function PCIncomePage() {
             </div>
 
             <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}} id="print-content">
-              <div className="grid grid-cols-3 gap-4" id="qr-grid">
+              <div className="grid grid-cols-5 gap-3" id="qr-grid">
                 {selectedReceiving.lots?.map((lot: any) => (
-                  <div key={lot.id} className="qr-sticker border-2 border-dashed border-gray-300 p-4 rounded-lg bg-white text-center break-inside-avoid">
-                    <div className="bg-white p-2 inline-block mb-2">
-                      <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(lot.qrCode)}`}
-                        alt="QR"
-                        className="w-32 h-32 mx-auto"
-                      />
+                  <div key={lot.id} className="qr-sticker border border-gray-300 p-2 rounded bg-white text-center break-inside-avoid">
+                    <div className="bg-white p-1 inline-block mb-1">
+                      <QRCodeGenerator value={lot.qrCode} size={100} className="mx-auto" />
                     </div>
-                    <div className="text-sm space-y-1">
-                      <div className="font-bold text-base">{selectedReceiving.material?.matCode}</div>
-                      <div className="text-xs text-gray-600">{selectedReceiving.material?.itemsName?.name}</div>
-                      <div className="font-semibold">Lot: {lot.lotNo}</div>
-                      <div>จำนวน: {parseFloat(lot.quantity).toLocaleString()} {selectedReceiving.unit}</div>
+                    <div className="text-xs space-y-0.5">
+                      <div className="font-bold text-xs truncate">{selectedReceiving.material?.matCode}</div>
+                      <div className="text-[10px] text-gray-600 truncate">{selectedReceiving.material?.itemsName?.name}</div>
+                      <div className="font-semibold text-xs">Lot: {lot.lotNo}</div>
+                      <div className="text-[10px]">{parseFloat(lot.quantity).toLocaleString()} {selectedReceiving.unit}</div>
                     </div>
                   </div>
                 ))}
@@ -476,14 +469,14 @@ export default function PCIncomePage() {
   );
 }
 
-// Print styles
+// Print styles - 20 QR codes per A4 page (4 columns x 5 rows)
 if (typeof window !== 'undefined') {
   const style = document.createElement('style');
   style.textContent = `
     @media print {
       @page {
         size: A4;
-        margin: 1cm;
+        margin: 0.5cm;
       }
       
       body * {
@@ -524,17 +517,31 @@ if (typeof window !== 'undefined') {
       #print-content {
         max-height: none !important;
         overflow: visible !important;
+        padding: 0.3cm !important;
       }
       
       #qr-grid {
         display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 0.5cm !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 0.3cm !important;
       }
       
       .qr-sticker {
         page-break-inside: avoid;
         break-inside: avoid;
+        border: 1px solid #ddd !important;
+        padding: 0.2cm !important;
+        height: auto !important;
+      }
+      
+      .qr-sticker img {
+        width: 2.5cm !important;
+        height: 2.5cm !important;
+      }
+      
+      .qr-sticker canvas {
+        width: 2.5cm !important;
+        height: 2.5cm !important;
       }
     }
   `;
