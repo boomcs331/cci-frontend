@@ -14,7 +14,8 @@ export default function PaginationSelector({ currentLimit }: PaginationSelectorP
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', '1');
     params.set('limit', newLimit);
-    router.push(`/pc?${params.toString()}`);
+    const currentPath = window.location.pathname;
+    router.push(`${currentPath}?${params.toString()}`);
   }, [router, searchParams]);
 
   return (

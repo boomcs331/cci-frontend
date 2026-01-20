@@ -19,6 +19,7 @@ interface Material {
   createBy: string;
   updateDate: string | null;
   updateBy: string | null;
+  supplierId?: number;
   materialsType: {
     id: number;
     code: string;
@@ -37,6 +38,20 @@ interface Material {
     createBy: string;
     updateDate: string | null;
     updateBy: string | null;
+  };
+  supplier?: {
+    id: number;
+    code: string;
+    name: string;
+    contact_person: string;
+    phone: string;
+    email: string;
+    address: string;
+    is_active: boolean;
+    create_date: string;
+    create_by: string;
+    update_date: string;
+    update_by: string | null;
   };
   stock: {
     materialId: number;
@@ -71,9 +86,14 @@ interface ApiResponse {
   timestamp: string;
 }
 
-async function getMaterials(page: number = 1, limit: number = 10): Promise<ApiResponse> {
+async function getMaterials(page: number = 1, limit: number = 10, filters: any = {}): Promise<ApiResponse> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
-  const url = `${apiUrl}/materials/?page=${page}&limit=${limit}`;
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+    ...filters
+  });
+  const url = `${apiUrl}/materials/?${params.toString()}`;
   
   const response = await fetch(url, {
     cache: 'no-store'
@@ -97,16 +117,23 @@ export default function PCPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingMaterial, setDeletingMaterial] = useState<Material | null>(null);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [materialTypes, setMaterialTypes] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<string>('admin');
+  const [searchValue, setSearchValue] = useState('');
+  const [unitValue, setUnitValue] = useState('');
+  const [statusValue, setStatusValue] = useState('');
   const [formData, setFormData] = useState({
     matCode: '',
     matTypeId: 1,
     defaultLocationId: 1,
+    supplierId: 0,
     name: '',
     description: '',
     lr: '',
@@ -118,6 +145,17 @@ export default function PCPage() {
   
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
+  
+  useEffect(() => {
+    if (showAddModal || showEditModal || showDeleteModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showAddModal, showEditModal, showDeleteModal]);
   
   const getMaterialTypes = async () => {
     const response = await fetch('http://localhost:3006/materials/types/all');
@@ -131,12 +169,19 @@ export default function PCPage() {
     return result.data;
   };
   
+  const getSuppliers = async () => {
+    const response = await fetch('http://localhost:3006/materials/suppliers/all');
+    const result = await response.json();
+    return result.data;
+  };
+  
   const handleEdit = (material: Material) => {
     setEditingMaterial(material);
     setFormData({
       matCode: material.matCode,
       matTypeId: material.matTypeId,
       defaultLocationId: material.defaultLocationId,
+      supplierId: material.supplierId || 0,
       name: material.itemsName?.name || '',
       description: material.itemsName?.description || '',
       lr: material.lr,
@@ -146,6 +191,35 @@ export default function PCPage() {
       createBy: material.createBy
     });
     setShowEditModal(true);
+  };
+  
+  const handleDelete = (material: Material) => {
+    setDeletingMaterial(material);
+    setShowDeleteModal(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!deletingMaterial) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3006/materials/${deletingMaterial.id}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        setShowDeleteModal(false);
+        setSubmitSuccess('ลบวัตถุดิบสำเร็จ');
+        const updatedResponse = await getMaterials(page, limit);
+        setApiResponse(updatedResponse);
+        setTimeout(() => setSubmitSuccess(null), 3000);
+      } else {
+        setSubmitError('เกิดข้อผิดพลาดในการลบวัตถุดิบ');
+        setTimeout(() => setSubmitError(null), 5000);
+      }
+    } catch (err) {
+      setSubmitError('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      setTimeout(() => setSubmitError(null), 5000);
+    }
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,6 +244,7 @@ export default function PCPage() {
           matCode: '',
           matTypeId: 1,
           defaultLocationId: 1,
+          supplierId: 0,
           name: '',
           description: '',
           lr: '',
@@ -207,14 +282,16 @@ export default function PCPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [materialsResponse, typesData, locationsData] = await Promise.all([
+        const [materialsResponse, typesData, locationsData, suppliersData] = await Promise.all([
           getMaterials(page, limit),
           getMaterialTypes(),
-          getLocations()
+          getLocations(),
+          getSuppliers()
         ]);
         setApiResponse(materialsResponse);
         setMaterialTypes(typesData);
         setLocations(locationsData);
+        setSuppliers(suppliersData);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -283,12 +360,103 @@ export default function PCPage() {
         <ComponentCard title={`All Materials (${apiResponse?.pagination?.total || 0})`}>
           <div className="flex justify-between items-center mb-4">
             <PaginationSelector currentLimit={limit} />
-            <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              เพิ่มวัตถุดิบ
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="ค้นหา..."
+                  value={searchValue}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  onChange={(e) => {
+                    setSearchValue(e.target.value);
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('search', e.target.value);
+                    } else {
+                      params.delete('search');
+                    }
+                    params.set('page', '1');
+                    window.history.replaceState({}, '', `?${params.toString()}`);
+                    const fetchData = async () => {
+                      const response = await getMaterials(1, limit, Object.fromEntries(params));
+                      setApiResponse(response);
+                    };
+                    fetchData();
+                  }}
+                />
+                <select
+                  value={unitValue}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  onChange={(e) => {
+                    setUnitValue(e.target.value);
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('unit', e.target.value);
+                    } else {
+                      params.delete('unit');
+                    }
+                    params.set('page', '1');
+                    window.history.replaceState({}, '', `?${params.toString()}`);
+                    const fetchData = async () => {
+                      const response = await getMaterials(1, limit, Object.fromEntries(params));
+                      setApiResponse(response);
+                    };
+                    fetchData();
+                  }}
+                >
+                  <option value="">ทุกหน่วย</option>
+                  <option value="KG">KG</option>
+                  <option value="PCS">PCS</option>
+                  <option value="M">M</option>
+                </select>
+                <select
+                  value={statusValue}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  onChange={(e) => {
+                    setStatusValue(e.target.value);
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('isActive', e.target.value);
+                    } else {
+                      params.delete('isActive');
+                    }
+                    params.set('page', '1');
+                    window.history.replaceState({}, '', `?${params.toString()}`);
+                    const fetchData = async () => {
+                      const response = await getMaterials(1, limit, Object.fromEntries(params));
+                      setApiResponse(response);
+                    };
+                    fetchData();
+                  }}
+                >
+                  <option value="">ทุกสถานะ</option>
+                  <option value="true">ใช้งาน</option>
+                  <option value="false">ไม่ใช้งาน</option>
+                </select>
+                <button
+                  onClick={() => {
+                    setSearchValue('');
+                    setUnitValue('');
+                    setStatusValue('');
+                    window.history.replaceState({}, '', `?page=1&limit=${limit}`);
+                    const fetchData = async () => {
+                      const response = await getMaterials(1, limit);
+                      setApiResponse(response);
+                    };
+                    fetchData();
+                  }}
+                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+                >
+                  ล้าง
+                </button>
+              </div>
+              <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                เพิ่มวัตถุดิบ
+              </button>
+            </div>
           </div>
           {apiResponse?.data && apiResponse.data.length > 0 ? (
             <div className="overflow-x-auto">
@@ -322,10 +490,26 @@ export default function PCPage() {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
                       <div className="flex items-center gap-1">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m0 0l4-4m-4 4l4 4" />
+                        </svg>
+                        ขนาดล็อต
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         ที่เก็บ
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        ผู้จัดจำหน่าย
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
@@ -383,10 +567,23 @@ export default function PCPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{material.unit}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {material.lotSize?.toLocaleString() || '0'}
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
                           {material.defaultLocation.name}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {material.supplier ? (
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-white">{material.supplier.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{material.supplier.code}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {material.stock?.totalQty?.toLocaleString() || '0'}
@@ -413,7 +610,7 @@ export default function PCPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button className="p-1 text-red-600 hover:bg-red-100 rounded">
+                          <button onClick={() => handleDelete(material)} className="p-1 text-red-600 hover:bg-red-100 rounded">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -468,9 +665,9 @@ export default function PCPage() {
       </div>
       
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">เพิ่มวัตถุดิบใหม่</h3>
               <button 
                 onClick={() => setShowAddModal(false)}
@@ -482,7 +679,8 @@ export default function PCPage() {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+              <form onSubmit={handleSubmit} className="space-y-5">
               {submitError && (
                 <Alert
                   variant="error"
@@ -575,6 +773,20 @@ export default function PCPage() {
                 </div>
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้จัดจำหน่าย</label>
+                <select 
+                  value={formData.supplierId} 
+                  onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})} 
+                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ขนาดล็อต</label>
@@ -608,15 +820,16 @@ export default function PCPage() {
                   ยกเลิก
                 </button>
               </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}
       
       {showEditModal && editingMaterial && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">แก้ไขวัตถุดิบ</h3>
               <button 
                 onClick={() => setShowEditModal(false)}
@@ -628,7 +841,8 @@ export default function PCPage() {
               </button>
             </div>
             
-            <form onSubmit={async (e) => {
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+              <form onSubmit={async (e) => {
               e.preventDefault();
               try {
                 const updateData = {
@@ -637,6 +851,7 @@ export default function PCPage() {
                   description: formData.description,
                   matTypeId: formData.matTypeId,
                   defaultLocationId: formData.defaultLocationId,
+                  supplierId: formData.supplierId,
                   lr: formData.lr,
                   lotSize: formData.lotSize,
                   unit: formData.unit,
@@ -734,6 +949,20 @@ export default function PCPage() {
                 />
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้จัดจำหน่าย</label>
+                <select 
+                  value={formData.supplierId} 
+                  onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})} 
+                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หน่วย</label>
@@ -780,7 +1009,50 @@ export default function PCPage() {
                   ยกเลิก
                 </button>
               </div>
-            </form>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showDeleteModal && deletingMaterial && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">ยืนยันการลบ</h3>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300">
+                คุณต้องการลบวัตถุดิบ <strong>{deletingMaterial.matCode}</strong> หรือไม่?
+              </p>
+              <p className="text-sm text-red-600 mt-2">
+                การดำเนินการนี้ไม่สามารถย้อนกลับได้
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={confirmDelete}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-lg transition-colors"
+              >
+                ลบ
+              </button>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2.5 rounded-lg transition-colors"
+              >
+                ยกเลิก
+              </button>
+            </div>
           </div>
         </div>
       )}
