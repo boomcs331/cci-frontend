@@ -187,7 +187,7 @@ export default function PermissionsPage() {
       });
       
       if (response.ok) {
-        let data = {};
+        let data: any = {};
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
@@ -196,7 +196,7 @@ export default function PermissionsPage() {
         setShowDeleteModal(false);
         setAlert({variant: 'success', title: 'สำเร็จ', message: data.message || 'ลบ Permission เรียบร้อยแล้ว'});
       } else {
-        const data = await response.json();
+        const data: any = await response.json();
         setAlert({variant: 'error', title: 'เกิดข้อผิดพลาด', message: data.message || 'ไม่สามารถลบ Permission ได้'});
       }
     } catch (error) {

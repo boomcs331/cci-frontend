@@ -5,6 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import Alert from "@/components/ui/alert/Alert";
+import { getApiUrl, getApiBaseUrl } from "@/utils/api";
 
 interface Material {
   id: number;
@@ -87,7 +88,7 @@ interface ApiResponse {
 }
 
 async function getMaterials(page: number = 1, limit: number = 10, filters: any = {}): Promise<ApiResponse> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+  const apiUrl = getApiBaseUrl();
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
@@ -158,19 +159,19 @@ export default function PCPage() {
   }, [showAddModal, showEditModal, showDeleteModal]);
   
   const getMaterialTypes = async () => {
-    const response = await fetch('http://localhost:3006/materials/types/all');
+    const response = await fetch(getApiUrl('/materials/types/all'));
     const result = await response.json();
     return result.data;
   };
   
   const getLocations = async () => {
-    const response = await fetch('http://localhost:3006/materials/locations/all');
+    const response = await fetch(getApiUrl('/materials/locations/all'));
     const result = await response.json();
     return result.data;
   };
   
   const getSuppliers = async () => {
-    const response = await fetch('http://localhost:3006/materials/suppliers/all');
+    const response = await fetch(getApiUrl('/materials/suppliers/all'));
     const result = await response.json();
     return result.data;
   };
@@ -202,7 +203,7 @@ export default function PCPage() {
     if (!deletingMaterial) return;
     
     try {
-      const response = await fetch(`http://localhost:3006/materials/${deletingMaterial.id}`, {
+      const response = await fetch(getApiUrl(`/materials/${deletingMaterial.id}`), {
         method: 'DELETE'
       });
       
@@ -228,7 +229,7 @@ export default function PCPage() {
     setSubmitSuccess(null);
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/materials`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -858,7 +859,7 @@ export default function PCPage() {
                   isActive: true,
                   updateBy: currentUser
                 };
-                const response = await fetch(`http://localhost:3006/materials/${editingMaterial.id}`, {
+                const response = await fetch(getApiUrl(`/materials/${editingMaterial.id}`), {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updateData)

@@ -8,6 +8,7 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { setSession } from "@/utils/session";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +35,7 @@ export default function SignInForm() {
       
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('session', JSON.stringify(data));
+        setSession(data); // ใช้ setSession แทน localStorage.setItem
         setAlert({variant: "success", title: "เข้าสู่ระบบสำเร็จ", message: "กำลังนำคุณไปยังหน้าแรก..."});
         setTimeout(() => router.push('/'), 1500);
       } else {

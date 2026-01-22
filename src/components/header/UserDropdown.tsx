@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
+import { clearSession } from "@/utils/session";
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
   const handleLogout = () => {
-    localStorage.removeItem('session');
+    clearSession(); // ใช้ clearSession แทน localStorage.removeItem
     router.push('/signin');
   };
 

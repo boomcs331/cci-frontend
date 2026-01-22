@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import { getSession } from "@/utils/session";
 
 export default function SessionPage() {
   const [sessionData, setSessionData] = useState<any>(null);
@@ -10,10 +11,9 @@ export default function SessionPage() {
   useEffect(() => {
     const getSessionData = () => {
       try {
-        const session = localStorage.getItem('session');
+        const session = getSession(); // ใช้ getSession ที่จะตรวจสอบ expiration
         if (session) {
-          const parsedSession = JSON.parse(session);
-          setSessionData(parsedSession);
+          setSessionData(session);
         }
       } catch (error) {
         console.error('Failed to parse session:', error);
@@ -58,6 +58,7 @@ export default function SessionPage() {
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Session Details</h3>
                   <div className="space-y-2 text-sm">
                     <div><span className="font-medium">Token:</span> {sessionData.token ? `${sessionData.token.substring(0, 20)}...` : 'N/A'}</div>
+                    <div><span className="font-medium">Expires At:</span> {sessionData.expiresAt ? new Date(sessionData.expiresAt).toLocaleString('th-TH') : 'N/A'}</div>
                     <div><span className="font-medium">Created:</span> {sessionData.user?.createdAt ? new Date(sessionData.user.createdAt).toLocaleString() : 'N/A'}</div>
                     <div><span className="font-medium">Updated:</span> {sessionData.user?.updatedAt ? new Date(sessionData.user.updatedAt).toLocaleString() : 'N/A'}</div>
                     <div><span className="font-medium">Last Login:</span> {sessionData.user?.lastLoginAt ? new Date(sessionData.user.lastLoginAt).toLocaleString() : 'Never'}</div>

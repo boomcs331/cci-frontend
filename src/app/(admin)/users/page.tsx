@@ -109,7 +109,9 @@ export default function UsersPage() {
         }
       } catch (error) {
         console.error('Failed to fetch users:', error);
-        console.error('Error details:', error.message);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+        }
         setUsers([]);
       } finally {
         setLoading(false);
@@ -394,7 +396,7 @@ export default function UsersPage() {
       
       if (response.ok) {
         // Check if response has content before parsing JSON
-        let data = {};
+        let data: any = {};
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
@@ -402,7 +404,7 @@ export default function UsersPage() {
         setUsers(users.filter(user => user.id !== deletingUser.id));
         setAlert({variant: 'success', title: 'สำเร็จ', message: data.message || 'ลบผู้ใช้งานเรียบร้อยแล้ว'});
       } else {
-        let data = {};
+        let data: any = {};
         try {
           data = await response.json();
         } catch (jsonError) {
@@ -427,8 +429,8 @@ export default function UsersPage() {
     console.log('User ID:', editingUser.id);
     console.log('API URL:', `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/users/${editingUser.id}`);
     
-    // ลบ roleId ออกถ้ามี
-    const { roleId, ...requestData } = editFormData;
+    // ลบ roleId ออกถ้ามี (ใช้ type assertion)
+    const { roleId, ...requestData } = editFormData as any;
     console.log('Request body:', requestData);
     
     try {

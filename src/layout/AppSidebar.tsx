@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
+import { getSession, getUserPermissions, isAdmin } from "@/utils/session";
 import {
   BoxCubeIcon,
   CalenderIcon,
@@ -78,43 +79,19 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     if (!isClient) return;
 
-    const session = localStorage.getItem('session');
+    const session = getSession(); // ใช้ getSession ที่จะตรวจสอบ expiration
     if (!session) {
       router.push('/signin');
     } else {
-      try {
-        const sessionData = JSON.parse(session);
-        const permissions: string[] = [];
-
-        // รวม permissions จากทุก roles ของ user
-        sessionData.user?.roles?.forEach((role: any) => {
-          role.permissions?.forEach((permission: any) => {
-            if (!permissions.includes(permission.code)) {
-              permissions.push(permission.code);
-            }
-          });
-        });
-
-        setUserPermissions(permissions);
-      } catch (error) {
-        console.error('Failed to parse session:', error);
-      }
+      const permissions = getUserPermissions();
+      setUserPermissions(permissions);
     }
   }, [router, isClient]);
 
   // ตรวจสอบสิทธิ์การเข้าถึง Users Management (เฉพาะ role id = 1)
   const hasUsersManagementAccess = () => {
     if (!isClient) return false;
-
-    try {
-      const session = localStorage.getItem('session');
-      if (!session) return false;
-
-      const sessionData = JSON.parse(session);
-      return sessionData.user?.roles?.some((role: any) => role.id === "1");
-    } catch (error) {
-      return false;
-    }
+    return isAdmin();
   };
 
   // ตรวจสอบว่า submenu ใดมี active path
