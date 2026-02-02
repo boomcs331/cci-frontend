@@ -35,6 +35,11 @@ export default function PCIncomePage() {
   const [quantity, setQuantity] = useState<number>(0);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<string>('admin');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterMaterial, setFilterMaterial] = useState<string>('');
+  const [filterSupplier, setFilterSupplier] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -52,8 +57,15 @@ export default function PCIncomePage() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        let url = `/materials/transactions/receivings?page=${page}&limit=${limit}`;
+        if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+        if (filterMaterial) url += `&materialId=${filterMaterial}`;
+        if (filterSupplier) url += `&supplierId=${filterSupplier}`;
+        if (filterDateFrom) url += `&dateFrom=${filterDateFrom}`;
+        if (filterDateTo) url += `&dateTo=${filterDateTo}`;
+
         const [rcvRes, matsRes, locsRes, suppsRes] = await Promise.all([
-          fetch(getApiUrl(`/materials/transactions/receivings?page=${page}&limit=${limit}`)),
+          fetch(getApiUrl(url)),
           fetch(getApiUrl('/materials/all')),
           fetch(getApiUrl('/materials/locations/all')),
           fetch(getApiUrl('/materials/suppliers/all'))
@@ -81,7 +93,7 @@ export default function PCIncomePage() {
     if (session) {
       setCurrentUser(session.user?.username || 'admin');
     }
-  }, [page, limit]);
+  }, [page, limit, searchTerm, filterMaterial, filterSupplier, filterDateFrom, filterDateTo]);
 
   useEffect(() => {
     if (showDetailModal || showAddModal || showQRModal || showPrintAllModal) {
@@ -185,7 +197,52 @@ export default function PCIncomePage() {
     <div>
       <PageBreadcrumb pageTitle="รายการรับเข้า" />
       <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">รายการรับเข้าวัตถุดิบ</h2>
+          </div>
+        </div>
+
         <ComponentCard title={`รายการรับเข้าวัตถุดิบ (${pagination?.total || 0})`}>
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+            <input
+              type="text"
+              placeholder="ค้นหา (เลขที่ใบรับ, PO)"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+            <select
+              value={filterMaterial}
+              onChange={(e) => setFilterMaterial(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">ทุกวัตถุดิบ</option>
+              {materials.map(m => <option key={m.id} value={m.id}>{m.matCode}</option>)}
+            </select>
+            <select
+              value={filterSupplier}
+              onChange={(e) => setFilterSupplier(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">ทุกซัพพลายเออร์</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="วันที่เริ่มต้น"
+            />
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="วันที่สิ้นสุด"
+            />
+          </div>
           <div className="flex justify-between items-center mb-4">
             <PaginationSelector currentLimit={limit} />
             <button

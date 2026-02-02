@@ -62,6 +62,15 @@ const navItems: NavItem[] = [
       { name: "รายงาน", path: "/pc/report", pro: false, permission: "CAN_READ" },
     ],
   },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Production",
+    permission: "CAN_READ",
+    subItems: [
+      { name: "Products", path: "/production/products", pro: false, permission: "CAN_READ" },
+      { name: "BOM", path: "/production/bom", pro: false, permission: "CAN_READ" },
+    ],
+  },
 ];
 
 

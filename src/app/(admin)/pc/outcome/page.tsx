@@ -13,7 +13,12 @@ export default function PCOutcomePage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [selectedMaterials, setSelectedMaterials] = useState<{id: number, quantity: number}[]>([]);
   const [materialId, setMaterialId] = useState<number | null>(null);
+  const [materialSearch, setMaterialSearch] = useState<string>('');
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const [quantity, setQuantity] = useState<number>(0);
   const [remark, setRemark] = useState<string>('');
   const [department, setDepartment] = useState<string>('');
@@ -29,17 +34,20 @@ export default function PCOutcomePage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [outRes, matsRes] = await Promise.all([
+        const [outRes, matsRes, prodsRes] = await Promise.all([
           fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`),
-          fetch('http://localhost:3006/materials/all')
+          fetch('http://localhost:3006/materials/all'),
+          fetch('http://localhost:3006/products?page=1&limit=100')
         ]);
         const outData = await outRes.json();
         const matsData = await matsRes.json();
+        const prodsData = await prodsRes.json();
         if (outData.success) {
           setOutcomes(outData.data || []);
           setPagination(outData.pagination);
         }
         setMaterials(matsData.data || []);
+        setProducts(prodsData.data || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -71,48 +79,39 @@ export default function PCOutcomePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!materialId) {
-      alert('กรุณาเลือกวัตถุดิบ');
-      return;
-    }
-
-    if (quantity === 0) {
-      alert('กรุณาระบุจำนวน');
+    if (selectedMaterials.length === 0) {
+      alert('กรุณาเลือกวัตถุดิบอย่างน้อย 1 รายการ');
       return;
     }
 
     setSubmitLoading(true);
     try {
-      const payload: any = {
-        materialId,
-        quantity,
-        createBy: currentUser
-      };
+      for (const item of selectedMaterials) {
+        const payload: any = {
+          materialId: item.id,
+          quantity: item.quantity,
+          createBy: currentUser
+        };
 
-      if (department.trim()) payload.department = department.trim();
-      if (workOrderNo.trim()) payload.workOrderNo = workOrderNo.trim();
-      if (remark.trim()) payload.remark = remark.trim();
+        if (department.trim()) payload.department = department.trim();
+        if (workOrderNo.trim()) payload.workOrderNo = workOrderNo.trim();
+        if (remark.trim()) payload.remark = remark.trim();
 
-      const response = await fetch('http://localhost:3006/materials/transactions/issue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(`จ่ายออกสำเร็จ! เลขที่ใบจ่าย: ${result.data.issueNo}`);
-        setShowAddModal(false);
-        resetForm();
-        const outRes = await fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`);
-        const outData = await outRes.json();
-        if (outData.success) {
-          setOutcomes(outData.data || []);
-          setPagination(outData.pagination);
-        }
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'เกิดข้อผิดพลาด');
+        await fetch('http://localhost:3006/materials/transactions/issue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      
+      alert(`จ่ายออกสำเร็จ! จ่ายทั้งหมด ${selectedMaterials.length} รายการ`);
+      setShowAddModal(false);
+      resetForm();
+      const outRes = await fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`);
+      const outData = await outRes.json();
+      if (outData.success) {
+        setOutcomes(outData.data || []);
+        setPagination(outData.pagination);
       }
     } catch (err) {
       alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
@@ -121,12 +120,20 @@ export default function PCOutcomePage() {
     }
   };
 
+  const filteredMaterials = materials.filter(m => 
+    materialSearch === '' || 
+    m.matCode.toLowerCase().includes(materialSearch.toLowerCase()) ||
+    (m.itemsName?.name || '').toLowerCase().includes(materialSearch.toLowerCase())
+  );
+
   const resetForm = () => {
     setMaterialId(null);
+    setMaterialSearch('');
     setQuantity(0);
     setRemark('');
     setDepartment('');
     setWorkOrderNo('');
+    setSelectedMaterials([]);
   };
 
   if (loading) {
@@ -144,6 +151,12 @@ export default function PCOutcomePage() {
     <div>
       <PageBreadcrumb pageTitle="รายการจ่ายออก" />
       <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">รายการจ่ายออกวัตถุดิบ</h2>
+          </div>
+        </div>
+
         <ComponentCard title={`รายการจ่ายออก (${pagination?.total || 0})`}>
           <div className="flex justify-between items-center mb-4">
             <PaginationSelector currentLimit={limit} />
@@ -247,18 +260,180 @@ export default function PCOutcomePage() {
 
             <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">เลือกสินค้า (BOM)</label>
+                  <select 
+                    value={selectedProduct?.id || ''}
+                    onChange={(e) => {
+                      const product = products.find(p => p.id === Number(e.target.value));
+                      setSelectedProduct(product || null);
+                      if (product && product.boms) {
+                        const pcBoms = product.boms.filter((b: any) => b.material.materialsType?.name === 'PC');
+                        setSelectedMaterials(pcBoms.map((bom: any) => ({
+                          id: bom.material.id,
+                          quantity: parseFloat(bom.quantityPerUnit)
+                        })));
+                      } else {
+                        setSelectedMaterials([]);
+                      }
+                    }}
+                    className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                  >
+                    <option value="">-- เลือกสินค้า --</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.productCode} - {p.productName}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedProduct && selectedProduct.boms && selectedProduct.boms.length > 0 && (
+                  <div className="col-span-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">วัตถุดิบใน BOM (PC):</h4>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const pcBoms = selectedProduct.boms.filter((b: any) => b.material.materialsType?.name === 'PC');
+                          if (pcBoms.length === 0) {
+                            alert('ไม่มีวัตถุดิบประเภท PC ใน BOM');
+                            return;
+                          }
+                          if (!confirm(`ต้องการจ่ายวัตถุดิบ PC ทั้งหมด ${pcBoms.length} รายการ?`)) return;
+                          
+                          setSubmitLoading(true);
+                          try {
+                            for (const bom of pcBoms) {
+                              const payload: any = {
+                                materialId: bom.material.id,
+                                quantity: parseFloat(bom.quantityPerUnit),
+                                createBy: currentUser
+                              };
+                              if (department.trim()) payload.department = department.trim();
+                              if (workOrderNo.trim()) payload.workOrderNo = workOrderNo.trim();
+                              if (remark.trim()) payload.remark = remark.trim();
+                              
+                              await fetch('http://localhost:3006/materials/transactions/issue', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                              });
+                            }
+                            alert('จ่ายวัตถุดิบ PC ทั้งหมดสำเร็จ!');
+                            setShowAddModal(false);
+                            resetForm();
+                            const outRes = await fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`);
+                            const outData = await outRes.json();
+                            if (outData.success) {
+                              setOutcomes(outData.data || []);
+                              setPagination(outData.pagination);
+                            }
+                          } catch (err) {
+                            alert('เกิดข้อผิดพลาด');
+                          } finally {
+                            setSubmitLoading(false);
+                          }
+                        }}
+                        className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                      >
+                        จ่าย PC ทั้งหมด
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {selectedProduct.boms
+                        .filter((bom: any) => bom.material.materialsType?.name === 'PC')
+                        .map((bom: any) => (
+                        <div key={bom.id} className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded border">
+                          <div>
+                            <span className="font-medium text-gray-900 dark:text-white">{bom.material.matCode}</span>
+                            <span className="text-xs text-gray-500 ml-2">{bom.material.materialsType?.name}</span>
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                            {parseFloat(bom.quantityPerUnit).toLocaleString()} {bom.unit}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMaterialId(bom.material.id);
+                              setMaterialSearch(`${bom.material.matCode} - ${bom.material.materialsType?.name || 'ไม่มีชื่อ'}`);
+                              setQuantity(parseFloat(bom.quantityPerUnit));
+                            }}
+                            className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                          >
+                            เลือก
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วัตถุดิบ *</label>
-                    <select value={materialId ?? ''} onChange={(e) => setMaterialId(Number(e.target.value))} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" required>
-                      <option value="">-- เลือกวัตถุดิบ --</option>
-                      {materials.map(m => <option key={m.id} value={m.id}>{m.matCode} - {m.itemsName?.name || 'ไม่มีชื่อ'}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">จำนวน *</label>
-                    <input type="number" value={quantity || ''} onChange={(e) => setQuantity(Number(e.target.value))} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" required min="0" step="0.01" />
+                    <div className="space-y-2">
+                      {selectedProduct && selectedProduct.boms && selectedProduct.boms
+                        .filter((bom: any) => bom.material.materialsType?.name === 'PC')
+                        .map((bom: any) => {
+                          const isChecked = selectedMaterials.some(m => m.id === bom.material.id);
+                          const selectedItem = selectedMaterials.find(m => m.id === bom.material.id);
+                          return (
+                            <div key={bom.id} className="flex items-center gap-3 p-3 border rounded-lg bg-white dark:bg-gray-800">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedMaterials([...selectedMaterials, {id: bom.material.id, quantity: parseFloat(bom.quantityPerUnit)}]);
+                                  } else {
+                                    setSelectedMaterials(selectedMaterials.filter(m => m.id !== bom.material.id));
+                                  }
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900 dark:text-white">{bom.material.matCode}</div>
+                                <div className="text-xs text-gray-500">{bom.material.materialsType?.name}</div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={selectedItem?.quantity || parseFloat(bom.quantityPerUnit)}
+                                  onChange={(e) => {
+                                    const newQty = Number(e.target.value);
+                                    if (isChecked) {
+                                      setSelectedMaterials(selectedMaterials.map(m => 
+                                        m.id === bom.material.id ? {...m, quantity: newQty} : m
+                                      ));
+                                    }
+                                  }}
+                                  disabled={!isChecked}
+                                  className="w-24 h-9 rounded border px-2 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-900 disabled:opacity-50"
+                                  min="0"
+                                  step="0.01"
+                                />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">{bom.unit}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const mat = materials.find(m => m.id === bom.material.id);
+                                    if (mat && mat.lotSize) {
+                                      if (isChecked) {
+                                        setSelectedMaterials(selectedMaterials.map(m => 
+                                          m.id === bom.material.id ? {...m, quantity: mat.lotSize} : m
+                                        ));
+                                      }
+                                    }
+                                  }}
+                                  disabled={!isChecked}
+                                  className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 disabled:opacity-50"
+                                >
+                                  Lot
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
 
                   <div>
