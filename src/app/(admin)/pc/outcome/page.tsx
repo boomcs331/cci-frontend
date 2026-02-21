@@ -123,7 +123,7 @@ export default function PCOutcomePage() {
   const filteredMaterials = materials.filter(m => 
     materialSearch === '' || 
     m.matCode.toLowerCase().includes(materialSearch.toLowerCase()) ||
-    (m.itemsName?.name || '').toLowerCase().includes(materialSearch.toLowerCase())
+    (m.matName || '').toLowerCase().includes(materialSearch.toLowerCase())
   );
 
   const resetForm = () => {
@@ -192,7 +192,7 @@ export default function PCOutcomePage() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{new Date(out.issueDate).toLocaleDateString('th-TH')}</td>
                       <td className="px-4 py-3 text-sm">
                         <div className="font-medium text-gray-900 dark:text-white">{out.material?.matCode}</div>
-                        <div className="text-xs text-gray-500">{out.material?.itemsName?.name}</div>
+                        <div className="text-xs text-gray-500">{out.material?.matName}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {out.department || '-'}

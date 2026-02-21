@@ -19,11 +19,21 @@ import {
   UserCircleIcon,
 } from "../icons/index";
 
+type SubMenuItem = {
+  name: string;
+  path: string;
+  pro?: boolean;
+  new?: boolean;
+  permission?: string;
+  isCollapsible?: boolean;
+  items?: { name: string; path: string; permission?: string }[];
+};
+
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean; permission?: string }[];
+  subItems?: SubMenuItem[];
   permission?: string;
 };
 
@@ -32,12 +42,6 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/",
-  },
-
-  {
-    icon: <UserCircleIcon />,
-    name: "Session",
-    path: "/session",
   },
   {
     icon: <UserCircleIcon />,
@@ -69,7 +73,47 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Products", path: "/production/products", pro: false, permission: "CAN_READ" },
       { name: "BOM", path: "/production/bom", pro: false, permission: "CAN_READ" },
+      { name: "จ่ายวัตถุดิบออก", path: "/production/material-issues", pro: false, permission: "CAN_CREATE" },
     ],
+  },
+  {
+    icon: <TableIcon />,
+    name: "Master Data",
+    permission: "CAN_READ",
+    subItems: [
+      {
+        name: "Materials",
+        path: "",
+        isCollapsible: true,
+        permission: "CAN_READ",
+        items: [
+          { name: "ประเภทวัตถุดิบ", path: "/master-data/material-types", permission: "CAN_READ" },
+          { name: "สถานที่เก็บ", path: "/master-data/locations", permission: "CAN_READ" },
+          { name: "ผู้จัดจำหน่าย", path: "/master-data/suppliers", permission: "CAN_READ" },
+          { name: "โมเดล", path: "/master-data/models", permission: "CAN_READ" },
+          { name: "ประเภทการส่ง", path: "/master-data/delivery-types", permission: "CAN_READ" },
+          { name: "หน่วย", path: "/master-data/units", permission: "CAN_READ" },
+          { name: "จุดขนถ่าย", path: "/master-data/loading-points", permission: "CAN_READ" },
+          { name: "สายการผลิต", path: "/master-data/process-lines", permission: "CAN_READ" },
+        ],
+      },
+      {
+        name: "Production",
+        path: "",
+        isCollapsible: true,
+        permission: "CAN_READ",
+        items: [
+          { name: "ประเภทผลิตภัณฑ์", path: "/master-data/product-types", permission: "CAN_READ" },
+          { name: "สถานที่เก็บผลิตภัณฑ์", path: "/master-data/product-locations", permission: "CAN_READ" },
+          { name: "ลูกค้า", path: "/master-data/customers", permission: "CAN_READ" },
+          { name: "ประเภทการส่งผลิตภัณฑ์", path: "/master-data/product-delivery-types", permission: "CAN_READ" },
+          { name: "โมเดลผลิตภัณฑ์", path: "/master-data/product-models", permission: "CAN_READ" },
+          { name: "หน่วยผลิตภัณฑ์", path: "/master-data/product-units", permission: "CAN_READ" },
+          { name: "จุดขนถ่ายผลิตภัณฑ์", path: "/master-data/product-loading-points", permission: "CAN_READ" },
+          { name: "สายการผลิตผลิตภัณฑ์", path: "/master-data/product-process-lines", permission: "CAN_READ" },
+        ],
+      },
+    ],  
   },
 ];
 
@@ -245,39 +289,73 @@ const AppSidebar: React.FC = () => {
                 }}
               >
                 <ul className="mt-2 space-y-1 ml-9">
-                  {nav.subItems.map((subItem) => (
+                  {nav.subItems.map((subItem, subIndex) => (
                     <li key={subItem.name}>
-                      <Link
-                        href={subItem.path}
-                        className={`menu-dropdown-item ${isActive(subItem.path)
-                          ? "menu-dropdown-item-active"
-                          : "menu-dropdown-item-inactive"
-                          }`}
-                      >
-                        {subItem.name}
-                        <span className="flex items-center gap-1 ml-auto">
-                          {subItem.new && (
-                            <span
-                              className={`ml-auto ${isActive(subItem.path)
-                                ? "menu-dropdown-badge-active"
-                                : "menu-dropdown-badge-inactive"
-                                } menu-dropdown-badge `}
-                            >
-                              new
-                            </span>
+                      {subItem.isCollapsible && subItem.items ? (
+                        <div>
+                          <button
+                            onClick={() => {
+                              const key = `${menuType}-${index}-${subIndex}`;
+                              setOpenNestedSubmenu(prev => ({ ...prev, [key]: !prev[key] }));
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                          >
+                            {subItem.name}
+                            <ChevronDownIcon
+                              className={`w-4 h-4 transition-transform ${openNestedSubmenu[`${menuType}-${index}-${subIndex}`] ? 'rotate-180' : ''}`}
+                            />
+                          </button>
+                          {openNestedSubmenu[`${menuType}-${index}-${subIndex}`] && (
+                            <ul className="ml-4 mt-1 space-y-1">
+                              {subItem.items.map((nestedItem) => (
+                                <li key={nestedItem.name}>
+                                  <Link
+                                    href={nestedItem.path}
+                                    className={`menu-dropdown-item ${isActive(nestedItem.path)
+                                      ? "menu-dropdown-item-active"
+                                      : "menu-dropdown-item-inactive"
+                                      }`}
+                                  >
+                                    {nestedItem.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
                           )}
-                          {subItem.pro && (
-                            <span
-                              className={`ml-auto ${isActive(subItem.path)
-                                ? "menu-dropdown-badge-active"
-                                : "menu-dropdown-badge-inactive"
-                                } menu-dropdown-badge `}
-                            >
-                              pro
-                            </span>
-                          )}
-                        </span>
-                      </Link>
+                        </div>
+                      ) : (
+                        <Link
+                          href={subItem.path}
+                          className={`menu-dropdown-item ${isActive(subItem.path)
+                            ? "menu-dropdown-item-active"
+                            : "menu-dropdown-item-inactive"
+                            }`}
+                        >
+                          {subItem.name}
+                          <span className="flex items-center gap-1 ml-auto">
+                            {subItem.new && (
+                              <span
+                                className={`ml-auto ${isActive(subItem.path)
+                                  ? "menu-dropdown-badge-active"
+                                  : "menu-dropdown-badge-inactive"
+                                  } menu-dropdown-badge `}
+                              >
+                                new
+                              </span>
+                            )}
+                            {subItem.pro && (
+                              <span
+                                className={`ml-auto ${isActive(subItem.path)
+                                  ? "menu-dropdown-badge-active"
+                                  : "menu-dropdown-badge-inactive"
+                                  } menu-dropdown-badge `}
+                              >
+                                pro
+                              </span>
+                            )}
+                          </span>
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -293,6 +371,7 @@ const AppSidebar: React.FC = () => {
     type: "main" | "others";
     index: number;
   } | null>(null);
+  const [openNestedSubmenu, setOpenNestedSubmenu] = useState<Record<string, boolean>>({});
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
     {}
   );
@@ -304,24 +383,27 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     if (!isClient) return;
 
-    // Check if the current path matches any submenu item
     let submenuMatched = false;
     const items = filterMenuByPermissions(navItems);
     items.forEach((nav, index) => {
       if (nav.subItems) {
-        nav.subItems.forEach((subItem) => {
-          if (isActive(subItem.path)) {
-            setOpenSubmenu({
-              type: "main",
-              index,
+        nav.subItems.forEach((subItem, subIndex) => {
+          if (subItem.isCollapsible && subItem.items) {
+            subItem.items.forEach((nestedItem) => {
+              if (isActive(nestedItem.path)) {
+                setOpenSubmenu({ type: "main", index });
+                setOpenNestedSubmenu(prev => ({ ...prev, [`main-${index}-${subIndex}`]: true }));
+                submenuMatched = true;
+              }
             });
+          } else if (isActive(subItem.path)) {
+            setOpenSubmenu({ type: "main", index });
             submenuMatched = true;
           }
         });
       }
     });
 
-    // If no submenu item matches, close the open submenu
     if (!submenuMatched) {
       setOpenSubmenu(null);
     }

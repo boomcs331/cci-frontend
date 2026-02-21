@@ -41,7 +41,7 @@ export default function ReceivingTable({
               </td>
               <td className="px-4 py-3 text-sm">
                 <div className="font-medium text-gray-900 dark:text-white">{rcv.material?.matCode}</div>
-                <div className="text-xs text-gray-500">{rcv.material?.itemsName?.name}</div>
+                <div className="text-xs text-gray-500">{rcv.material?.matName}</div>
               </td>
               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{rcv.supplier?.name || '-'}</td>
               <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">

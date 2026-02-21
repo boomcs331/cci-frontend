@@ -10,17 +10,20 @@ import { getApiUrl, getApiBaseUrl } from "@/utils/api";
 interface Material {
   id: number;
   matCode: string;
+  matName: string;
   matTypeId: number;
   defaultLocationId: number;
   lr: string;
   lotSize: number;
   unit: string;
+  minStock?: number;
   isActive: boolean;
   createDate: string;
   createBy: string;
   updateDate: string | null;
   updateBy: string | null;
   supplierId?: number;
+  scale?: number;
   materialsType: {
     id: number;
     code: string;
@@ -29,6 +32,18 @@ interface Material {
     createBy: string;
     updateDate: string | null;
     updateBy: string | null;
+  };
+  model?: {
+    id: number;
+    name: string;
+  };
+  deliveryType?: {
+    id: number;
+    name: string;
+  };
+  unitMaster?: {
+    id: number;
+    name: string;
   };
   defaultLocation: {
     id: number;
@@ -39,6 +54,10 @@ interface Material {
     createBy: string;
     updateDate: string | null;
     updateBy: string | null;
+  };
+  loadingPoint?: {
+    id: number;
+    name: string;
   };
   supplier?: {
     id: number;
@@ -53,6 +72,10 @@ interface Material {
     create_by: string;
     update_date: string;
     update_by: string | null;
+  };
+  processLine?: {
+    id: number;
+    name: string;
   };
   stock: {
     materialId: number;
@@ -126,6 +149,11 @@ export default function PCPage() {
   const [materialTypes, setMaterialTypes] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [models, setModels] = useState<any[]>([]);
+  const [deliveryTypes, setDeliveryTypes] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [loadingPoints, setLoadingPoints] = useState<any[]>([]);
+  const [processLines, setProcessLines] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<string>('admin');
   const [searchValue, setSearchValue] = useState('');
   const [unitValue, setUnitValue] = useState('');
@@ -135,11 +163,17 @@ export default function PCPage() {
     matTypeId: 1,
     defaultLocationId: 1,
     supplierId: 0,
+    modelId: 0,
+    deliveryTypeId: 0,
+    unitId: 0,
+    loadingPointId: 0,
+    processLineId: 0,
     name: '',
     description: '',
     lr: '',
     lotSize: 0,
-    unit: 'KG',
+    scale: '',
+    minStock: 0,
     initialStock: 0,
     createBy: ''
   });
@@ -159,21 +193,51 @@ export default function PCPage() {
   }, [showAddModal, showEditModal, showDeleteModal]);
   
   const getMaterialTypes = async () => {
-    const response = await fetch(getApiUrl('/materials/types/all'));
+    const response = await fetch(getApiUrl('/masters/materials-types/all'));
     const result = await response.json();
-    return result.data;
+    return result.data || [];
   };
   
   const getLocations = async () => {
-    const response = await fetch(getApiUrl('/materials/locations/all'));
+    const response = await fetch(getApiUrl('/masters/materials-locations/all'));
     const result = await response.json();
-    return result.data;
+    return result.data || [];
   };
   
   const getSuppliers = async () => {
-    const response = await fetch(getApiUrl('/materials/suppliers/all'));
+    const response = await fetch(getApiUrl('/masters/suppliers/all'));
     const result = await response.json();
-    return result.data;
+    return result.data || [];
+  };
+
+  const getModels = async () => {
+    const response = await fetch(getApiUrl('/masters/models/all'));
+    const result = await response.json();
+    return result.data || [];
+  };
+
+  const getDeliveryTypes = async () => {
+    const response = await fetch(getApiUrl('/masters/delivery-types/all'));
+    const result = await response.json();
+    return result.data || [];
+  };
+
+  const getUnits = async () => {
+    const response = await fetch(getApiUrl('/masters/units/all'));
+    const result = await response.json();
+    return result.data || [];
+  };
+
+  const getLoadingPoints = async () => {
+    const response = await fetch(getApiUrl('/masters/loading-points/all'));
+    const result = await response.json();
+    return result.data || [];
+  };
+
+  const getProcessLines = async () => {
+    const response = await fetch(getApiUrl('/masters/process-lines/all'));
+    const result = await response.json();
+    return result.data || [];
   };
   
   const handleEdit = (material: Material) => {
@@ -183,11 +247,17 @@ export default function PCPage() {
       matTypeId: material.matTypeId,
       defaultLocationId: material.defaultLocationId,
       supplierId: material.supplierId || 0,
-      name: material.itemsName?.name || '',
-      description: material.itemsName?.description || '',
+      modelId: material.model?.id || 0,
+      deliveryTypeId: material.deliveryType?.id || 0,
+      unitId: material.unitMaster?.id || 0,
+      loadingPointId: material.loadingPoint?.id || 0,
+      processLineId: material.processLine?.id || 0,
+      name: material.matName || '',
+      description: '',
       lr: material.lr,
       lotSize: material.lotSize,
-      unit: material.unit,
+      scale: material.scale?.toString() || '',
+      minStock: material.minStock || 0,
       initialStock: 0,
       createBy: material.createBy
     });
@@ -229,11 +299,32 @@ export default function PCPage() {
     setSubmitSuccess(null);
     
     try {
-      const apiUrl = getApiBaseUrl();
-      const response = await fetch(`${apiUrl}/materials`, {
+      const payload: any = {
+        matCode: formData.matCode,
+        matName: formData.name,
+        matTypeId: formData.matTypeId,
+        defaultLocationId: formData.defaultLocationId,
+        lr: formData.lr,
+        lotSize: formData.lotSize,
+        minStock: formData.minStock || 0,
+        initialStock: formData.initialStock || 0,
+        isActive: true,
+        createBy: currentUser
+      };
+
+      if (formData.supplierId && formData.supplierId > 0) payload.supplierId = formData.supplierId;
+      if (formData.modelId && formData.modelId > 0) payload.modelId = formData.modelId;
+      if (formData.deliveryTypeId && formData.deliveryTypeId > 0) payload.deliveryTypeId = formData.deliveryTypeId;
+      if (formData.unitId && formData.unitId > 0) payload.unitId = formData.unitId;
+      if (formData.loadingPointId && formData.loadingPointId > 0) payload.loadingPointId = formData.loadingPointId;
+      if (formData.processLineId && formData.processLineId > 0) payload.processLineId = formData.processLineId;
+      if (formData.scale && formData.scale.trim()) payload.scale = formData.scale.trim();
+      if (formData.description && formData.description.trim()) payload.description = formData.description.trim();
+
+      const response = await fetch(getApiUrl('/materials'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       
       if (response.ok) {
@@ -246,11 +337,17 @@ export default function PCPage() {
           matTypeId: 1,
           defaultLocationId: 1,
           supplierId: 0,
+          modelId: 0,
+          deliveryTypeId: 0,
+          unitId: 0,
+          loadingPointId: 0,
+          processLineId: 0,
           name: '',
           description: '',
           lr: '',
           lotSize: 0,
-          unit: 'KG',
+          scale: '',
+          minStock: 0,
           initialStock: 0,
           createBy: currentUser
         });
@@ -283,16 +380,26 @@ export default function PCPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [materialsResponse, typesData, locationsData, suppliersData] = await Promise.all([
+        const [materialsResponse, typesData, locationsData, suppliersData, modelsData, deliveryTypesData, unitsData, loadingPointsData, processLinesData] = await Promise.all([
           getMaterials(page, limit),
           getMaterialTypes(),
           getLocations(),
-          getSuppliers()
+          getSuppliers(),
+          getModels(),
+          getDeliveryTypes(),
+          getUnits(),
+          getLoadingPoints(),
+          getProcessLines()
         ]);
         setApiResponse(materialsResponse);
         setMaterialTypes(typesData);
         setLocations(locationsData);
         setSuppliers(suppliersData);
+        setModels(modelsData);
+        setDeliveryTypes(deliveryTypesData);
+        setUnits(unitsData);
+        setLoadingPoints(loadingPointsData);
+        setProcessLines(processLinesData);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -307,7 +414,7 @@ export default function PCPage() {
   if (loading) {
     return (
       <div>
-        <PageBreadcrumb pageTitle="Materials Management" />
+        <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
         <div className="space-y-6">
           <ComponentCard title="ข้อมูลวัตถุดิบ">
             <div className="text-center py-8">กำลังโหลด...</div>
@@ -320,7 +427,7 @@ export default function PCPage() {
   if (error) {
     return (
       <div>
-        <PageBreadcrumb pageTitle="Materials Management" />
+        <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
         <div className="space-y-6">
           <ComponentCard title="ข้อมูลวัตถุดิบ">
             <div className="text-center py-8 text-red-500">
@@ -334,7 +441,7 @@ export default function PCPage() {
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="Materials Management" />
+      <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
       <div className="space-y-6">
         {submitSuccess && (
           <Alert
@@ -358,16 +465,15 @@ export default function PCPage() {
           </div>
         </div>
         
-        <ComponentCard title={`All Materials (${apiResponse?.pagination?.total || 0})`}>
-          <div className="flex justify-between items-center mb-4">
+        <ComponentCard title={`วัตถุดิบทั้งหมด (${apiResponse?.pagination?.total || 0})`}>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
             <PaginationSelector currentLimit={limit} />
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                 <input
                   type="text"
                   placeholder="ค้นหา..."
                   value={searchValue}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full sm:w-auto"
                   onChange={(e) => {
                     setSearchValue(e.target.value);
                     const params = new URLSearchParams(searchParams.toString());
@@ -387,7 +493,7 @@ export default function PCPage() {
                 />
                 <select
                   value={unitValue}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full sm:w-auto"
                   onChange={(e) => {
                     setUnitValue(e.target.value);
                     const params = new URLSearchParams(searchParams.toString());
@@ -412,7 +518,7 @@ export default function PCPage() {
                 </select>
                 <select
                   value={statusValue}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full sm:w-auto"
                   onChange={(e) => {
                     setStatusValue(e.target.value);
                     const params = new URLSearchParams(searchParams.toString());
@@ -446,12 +552,32 @@ export default function PCPage() {
                     };
                     fetchData();
                   }}
-                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm w-full sm:w-auto"
                 >
                   ล้าง
                 </button>
-              </div>
-              <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+              <button onClick={() => {
+                setFormData({
+                  matCode: '',
+                  matTypeId: 1,
+                  defaultLocationId: 1,
+                  supplierId: 0,
+                  modelId: 0,
+                  deliveryTypeId: 0,
+                  unitId: 0,
+                  loadingPointId: 0,
+                  processLineId: 0,
+                  name: '',
+                  description: '',
+                  lr: '',
+                  lotSize: 0,
+                  scale: '',
+                  minStock: 0,
+                  initialStock: 0,
+                  createBy: currentUser
+                });
+                setShowAddModal(true);
+              }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full sm:w-auto justify-center">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
@@ -460,158 +586,46 @@ export default function PCPage() {
             </div>
           </div>
           {apiResponse?.data && apiResponse.data.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full table-auto">
+            <div className="overflow-x-auto -mx-6 px-6">
+              <table className="w-full table-auto min-w-max">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                        </svg>
-                        รหัสวัตถุดิบ
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        ประเภท
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        หน่วย
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m0 0l4-4m-4 4l4 4" />
-                        </svg>
-                        ขนาดล็อต
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        ที่เก็บ
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        ผู้จัดจำหน่าย
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        คงเหลือ
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        ใช้ได้
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        จอง
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        สถานะ
-                      </div>
-                    </th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">
-                      จัดการ
-                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">รหัสวัตถุดิบ</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ชื่อวัตถุดิบ</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">โมเดล</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ประเภทการส่ง</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ขนาดล็อต</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">หน่วย</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">Scale</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ที่เก็บ</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">จุดขนถ่าย</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ผู้จัดจำหน่าย</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">สายการผลิต</th>
+                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap sticky right-0 bg-gray-50 dark:bg-gray-800">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {apiResponse.data.map((material) => (
                     <tr key={material.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        <div>
-                          <div className="font-medium">{material.matCode}</div>
-                          {material.itemsName?.name && (
-                            <div className="text-blue-600 dark:text-blue-400 font-medium">{material.itemsName.name}</div>
-                          )}
-                          <div className="text-gray-500 dark:text-gray-400">ID: {material.id}</div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                          {material.materialsType.name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{material.unit}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {material.lotSize?.toLocaleString() || '0'}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                          {material.defaultLocation.name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {material.supplier ? (
-                          <div>
-                            <div className="font-medium text-gray-900 dark:text-white">{material.supplier.name}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">{material.supplier.code}</div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-500">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {material.stock?.totalQty?.toLocaleString() || '0'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {material.stock?.availableQty?.toLocaleString() || '0'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {material.stock?.reservedQty?.toLocaleString() || '0'}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          material.isActive
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                        }`}>
-                          {material.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.deliveryType?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.lotSize?.toLocaleString() || '0'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.unitMaster?.name || material.unit || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.scale || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.defaultLocation?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.loadingPoint?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.supplier?.name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.processLine?.name || '-'}</td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap sticky right-0 bg-white dark:bg-gray-900">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => handleEdit(material)} className="p-1 text-blue-600 hover:bg-blue-100 rounded">
+                          <button onClick={() => handleEdit(material)} className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => handleDelete(material)} className="p-1 text-red-600 hover:bg-red-100 rounded">
+                          <button onClick={() => handleDelete(material)} className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -753,12 +767,16 @@ export default function PCPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หน่วย</label>
-                  <input 
-                    type="text" 
-                    value={formData.unit} 
-                    onChange={(e) => setFormData({...formData, unit: e.target.value})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
+                  <select 
+                    value={formData.unitId} 
+                    onChange={(e) => setFormData({...formData, unitId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {units && units.map(unit => (
+                      <option key={unit.id} value={unit.id}>{unit.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LR</label>
@@ -771,6 +789,85 @@ export default function PCPage() {
                     <option value="L">L</option>
                     <option value="R">R</option>
                   </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">โมเดล</label>
+                  <select 
+                    value={formData.modelId} 
+                    onChange={(e) => setFormData({...formData, modelId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {models && models.map(model => (
+                      <option key={model.id} value={model.id}>{model.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภทการส่ง</label>
+                  <select 
+                    value={formData.deliveryTypeId} 
+                    onChange={(e) => setFormData({...formData, deliveryTypeId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {deliveryTypes && deliveryTypes.map(type => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จุดขนถ่าย</label>
+                  <select 
+                    value={formData.loadingPointId} 
+                    onChange={(e) => setFormData({...formData, loadingPointId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {loadingPoints && loadingPoints.map(point => (
+                      <option key={point.id} value={point.id}>{point.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สายการผลิต</label>
+                  <select 
+                    value={formData.processLineId} 
+                    onChange={(e) => setFormData({...formData, processLineId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {processLines && processLines.map(line => (
+                      <option key={line.id} value={line.id}>{line.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scale</label>
+                  <input 
+                    type="text" 
+                    value={formData.scale} 
+                    onChange={(e) => setFormData({...formData, scale: e.target.value})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
+                  <input 
+                    type="number" 
+                    value={formData.minStock.toString()} 
+                    onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  />
                 </div>
               </div>
               
@@ -815,7 +912,28 @@ export default function PCPage() {
                 </button>
                 <button 
                   type="button" 
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormData({
+                      matCode: '',
+                      matTypeId: 1,
+                      defaultLocationId: 1,
+                      supplierId: 0,
+                      modelId: 0,
+                      deliveryTypeId: 0,
+                      unitId: 0,
+                      loadingPointId: 0,
+                      processLineId: 0,
+                      name: '',
+                      description: '',
+                      lr: '',
+                      lotSize: 0,
+                      scale: '',
+                      minStock: 0,
+                      initialStock: 0,
+                      createBy: currentUser
+                    });
+                  }}
                   className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2.5 rounded-lg transition-colors"
                 >
                   ยกเลิก
@@ -848,19 +966,24 @@ export default function PCPage() {
               try {
                 const updateData = {
                   matCode: formData.matCode,
-                  name: formData.name,
-                  description: formData.description,
+                  matName: formData.name || '',
+                  description: formData.description || '',
                   matTypeId: formData.matTypeId,
                   defaultLocationId: formData.defaultLocationId,
-                  supplierId: formData.supplierId,
-                  lr: formData.lr,
-                  lotSize: formData.lotSize,
-                  unit: formData.unit,
-                  isActive: true,
-                  updateBy: currentUser
+                  supplierId: formData.supplierId || 0,
+                  modelId: formData.modelId || 0,
+                  deliveryTypeId: formData.deliveryTypeId || 0,
+                  unitId: formData.unitId || 0,
+                  loadingPointId: formData.loadingPointId || 0,
+                  processLineId: formData.processLineId || 0,
+                  lr: formData.lr || '',
+                  lotSize: formData.lotSize || 0,
+                  scale: formData.scale || '',
+                  minStock: formData.minStock || 0,
+                  isActive: true
                 };
                 const response = await fetch(getApiUrl(`/materials/${editingMaterial.id}`), {
-                  method: 'PUT',
+                  method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updateData)
                 });
@@ -958,7 +1081,7 @@ export default function PCPage() {
                   className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
                 >
                   <option value="0">ไม่ระบุ</option>
-                  {suppliers.map(supplier => (
+                  {suppliers && suppliers.map(supplier => (
                     <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
                   ))}
                 </select>
@@ -967,12 +1090,74 @@ export default function PCPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หน่วย</label>
-                  <input 
-                    type="text" 
-                    value={formData.unit} 
-                    onChange={(e) => setFormData({...formData, unit: e.target.value})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
+                  <select 
+                    value={formData.unitId} 
+                    onChange={(e) => setFormData({...formData, unitId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {units && units.map(unit => (
+                      <option key={unit.id} value={unit.id}>{unit.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">โมเดล</label>
+                  <select 
+                    value={formData.modelId} 
+                    onChange={(e) => setFormData({...formData, modelId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {models && models.map(model => (
+                      <option key={model.id} value={model.id}>{model.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภทการส่ง</label>
+                  <select 
+                    value={formData.deliveryTypeId} 
+                    onChange={(e) => setFormData({...formData, deliveryTypeId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {deliveryTypes && deliveryTypes.map(type => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จุดขนถ่าย</label>
+                  <select 
+                    value={formData.loadingPointId} 
+                    onChange={(e) => setFormData({...formData, loadingPointId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {loadingPoints && loadingPoints.map(point => (
+                      <option key={point.id} value={point.id}>{point.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สายการผลิต</label>
+                  <select 
+                    value={formData.processLineId} 
+                    onChange={(e) => setFormData({...formData, processLineId: parseInt(e.target.value)})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {processLines && processLines.map(line => (
+                      <option key={line.id} value={line.id}>{line.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LR</label>
@@ -985,6 +1170,27 @@ export default function PCPage() {
                     <option value="L">L</option>
                     <option value="R">R</option>
                   </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scale</label>
+                  <input 
+                    type="text" 
+                    value={formData.scale} 
+                    onChange={(e) => setFormData({...formData, scale: e.target.value})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
+                  <input 
+                    type="number" 
+                    value={formData.minStock.toString()} 
+                    onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
+                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  />
                 </div>
               </div>
               

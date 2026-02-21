@@ -44,12 +44,20 @@ export default function PCIncomePage() {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
 
-  const handleMaterialChange = (matId: number) => {
+  const handleMaterialChange = async (matId: number) => {
     setMaterialId(matId);
     const selectedMaterial = materials.find(m => m.id === matId);
     if (selectedMaterial) {
-      if (selectedMaterial.supplierId) setSupplierId(selectedMaterial.supplierId);
-      if (selectedMaterial.defaultLocationId) setLocationId(selectedMaterial.defaultLocationId);
+      if (selectedMaterial.supplierId) {
+        const res = await fetch(getApiUrl(`/masters/suppliers/${selectedMaterial.supplierId}`));
+        const data = await res.json();
+        if (data.success) setSupplierId(data.data.id);
+      }
+      if (selectedMaterial.defaultLocationId) {
+        const res = await fetch(getApiUrl(`/masters/materials-locations/${selectedMaterial.defaultLocationId}`));
+        const data = await res.json();
+        if (data.success) setLocationId(data.data.id);
+      }
     }
   };
 
@@ -66,9 +74,9 @@ export default function PCIncomePage() {
 
         const [rcvRes, matsRes, locsRes, suppsRes] = await Promise.all([
           fetch(getApiUrl(url)),
-          fetch(getApiUrl('/materials/all')),
-          fetch(getApiUrl('/materials/locations/all')),
-          fetch(getApiUrl('/materials/suppliers/all'))
+          fetch(getApiUrl('/materials')),
+          fetch(getApiUrl('/masters/materials-locations/all')),
+          fetch(getApiUrl('/masters/suppliers/all'))
         ]);
         const rcvData = await rcvRes.json();
         const matsData = await matsRes.json();
@@ -81,6 +89,7 @@ export default function PCIncomePage() {
         setMaterials(matsData.data || []);
         setLocations(locsData.data || []);
         setSuppliers(suppsData.data || []);
+        console.log('Locations:', locsData);
       } catch (err) {
         console.error(err);
       } finally {

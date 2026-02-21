@@ -46,6 +46,11 @@ export default function AddReceivingModal({
 }: AddReceivingModalProps) {
   if (!show) return null;
 
+  const selectedMaterial = materials.find(m => m.id === materialId);
+  const filteredSuppliers = selectedMaterial?.supplierId 
+    ? suppliers.filter(s => s.id === selectedMaterial.supplierId)
+    : suppliers;
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -75,7 +80,7 @@ export default function AddReceivingModal({
                   <option value="">-- เลือกวัตถุดิบ --</option>
                   {materials.map(m => (
                     <option key={m.id} value={m.id}>
-                      {m.matCode} - {m.itemsName?.name || 'ไม่มีชื่อ'}
+                      {m.matCode} - {m.matName || 'ไม่มีชื่อ'}
                     </option>
                   ))}
                 </select>
@@ -98,10 +103,11 @@ export default function AddReceivingModal({
                   value={supplierId} 
                   onChange={(e) => setSupplierId(Number(e.target.value))} 
                   className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                  disabled={!materialId}
                 >
                   <option value={0}>ไม่ระบุ</option>
-                  {suppliers.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
+                  {filteredSuppliers && filteredSuppliers.map(s => (
+                    <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
                   ))}
                 </select>
               </div>

@@ -37,7 +37,7 @@ export default function ReceivingDetailModal({
           <div className="grid grid-cols-2 gap-4">
             <div><span className="font-medium">เลขที่ใบรับ:</span> {receiving.receivingNo}</div>
             <div><span className="font-medium">วันที่รับ:</span> {new Date(receiving.receivingDate).toLocaleString('th-TH')}</div>
-            <div><span className="font-medium">วัตถุดิบ:</span> {receiving.material?.matCode} - {receiving.material?.itemsName?.name}</div>
+            <div><span className="font-medium">วัตถุดิบ:</span> {receiving.material?.matCode} - {receiving.material?.matName}</div>
             <div><span className="font-medium">ซัพพลายเออร์:</span> {receiving.supplier?.name || '-'}</div>
             <div><span className="font-medium">จำนวนรวม:</span> {parseFloat(receiving.totalQuantity).toLocaleString()} {receiving.unit}</div>
             <div><span className="font-medium">PO:</span> {receiving.poNo || '-'}</div>
