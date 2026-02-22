@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import AlertComponent from "@/components/ui/alert/Alert";
 
 export default function ProductBOMPage() {
   const params = useParams();
@@ -15,6 +16,7 @@ export default function ProductBOMPage() {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ materialId: '', quantityPerUnit: '', unit: 'PCS' });
   const [saving, setSaving] = useState(false);
+  const [alertMsg, setAlertMsg] = useState<{variant: "success" | "error" | "warning" | "info", title: string, message: string} | null>(null);
 
   useEffect(() => {
     fetchProduct();
@@ -51,19 +53,28 @@ export default function ProductBOMPage() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setAlertMsg(null);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${productId}/bom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+      const result = await response.json();
       if (response.ok) {
-        setShowModal(false);
-        setFormData({ materialId: '', quantityPerUnit: '', unit: 'PCS' });
-        fetchProduct();
+        setAlertMsg({variant: "success", title: "สำเร็จ", message: result.message || 'เพิ่มวัตถุดิบสำเร็จ'});
+        setTimeout(() => {
+          setShowModal(false);
+          setFormData({ materialId: '', quantityPerUnit: '', unit: 'PCS' });
+          setAlertMsg(null);
+          fetchProduct();
+        }, 1500);
+      } else {
+        setAlertMsg({variant: "error", title: "เกิดข้อผิดพลาด", message: result.message || JSON.stringify(result)});
       }
     } catch (error) {
       console.error(error);
+      setAlertMsg({variant: "error", title: "เกิดข้อผิดพลาด", message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ'});
     } finally {
       setSaving(false);
     }
@@ -75,11 +86,16 @@ export default function ProductBOMPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${productId}/bom/${bomId}`, {
         method: 'DELETE',
       });
+      const result = await response.json();
       if (response.ok) {
+        alert(result.message || 'ลบวัตถุดิบสำเร็จ');
         fetchProduct();
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + (result.message || JSON.stringify(result)));
       }
     } catch (error) {
       console.error(error);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
     }
   };
 
@@ -90,13 +106,22 @@ export default function ProductBOMPage() {
   return (
     <div>
       <PageBreadcrumb pageTitle={`BOM - ${product?.productName}`} />
+      {alertMsg && (
+        <div className="mb-6">
+          <AlertComponent variant={alertMsg.variant} title={alertMsg.title} message={alertMsg.message} />
+        </div>
+      )}
       <ComponentCard title={`รายการวัตถุดิบ (${boms.length})`}>
         <div className="mb-4 flex justify-between items-center">
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">รหัสสินค้า: {product?.productCode}</p>
             <p className="text-sm text-gray-600 dark:text-gray-400">ชื่อสินค้า: {product?.productName}</p>
           </div>
-          <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
+          <button onClick={() => {
+            setShowModal(true);
+            setFormData({ materialId: '', quantityPerUnit: '', unit: 'PCS' });
+            setAlertMsg(null);
+          }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md">
             เพิ่มวัตถุดิบ
           </button>
         </div>
@@ -149,6 +174,9 @@ export default function ProductBOMPage() {
               </button>
             </div>
             <form onSubmit={handleAdd} className="p-6 space-y-4">
+              {alertMsg && (
+                <AlertComponent variant={alertMsg.variant} title={alertMsg.title} message={alertMsg.message} />
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">วัตถุดิบ <span className="text-red-500">*</span></label>
                 <select value={formData.materialId} onChange={(e) => setFormData({...formData, materialId: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" required>

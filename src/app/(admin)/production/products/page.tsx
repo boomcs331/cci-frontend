@@ -190,15 +190,12 @@ export default function ProductsPage() {
     setSaving(true);
     try {
       const { bom, ...productData } = formData;
-      console.log('Sending data:', productData);
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
       });
-      console.log('Response status:', response.status);
       const result = await response.json();
-      console.log('Response data:', result);
       if (response.ok && result.data?.id) {
         if (bom.length > 0) {
           const bomResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${result.data.id}/bom`, {
@@ -206,9 +203,17 @@ export default function ProductsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: bom }),
           });
-          if (!bomResponse.ok) {
-            console.error('BOM creation failed');
+          if (bomResponse.ok) {
+            const bomResult = await bomResponse.json();
+            alert(bomResult.message || result.message || 'เพิ่ลสินค้าสำเร็จ');
+          } else {
+            const bomResult = await bomResponse.json();
+            alert('เกิดข้อผิดพลาด: ' + (bomResult.message || JSON.stringify(bomResult)));
+            setSaving(false);
+            return;
           }
+        } else {
+          alert(result.message || 'เพิ่มสินค้าสำเร็จ');
         }
         setShowAddModal(false);
         setFormData({ productCode: '', productName: '', description: '', productTypeId: null, defaultLocationId: null, lr: '', lotSize: null, minStock: null, customerId: null, modelId: null, deliveryTypeId: null, unitId: null, scale: '', loadingPointId: null, processLineId: null, isActive: true, bom: [] });
@@ -234,23 +239,35 @@ export default function ProductsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
       });
+      const result = await response.json();
       if (response.ok) {
         if (bom.length > 0) {
           const bomResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${selectedProduct.id}/bom`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: bom }),
+            body: JSON.stringify(bom),
           });
-          if (!bomResponse.ok) {
-            console.error('BOM update failed');
+          if (bomResponse.ok) {
+            const bomResult = await bomResponse.json();
+            alert(bomResult.message || result.message || 'อัพเดทสินค้าสำเร็จ');
+          } else {
+            const bomResult = await bomResponse.json();
+            alert('เกิดข้อผิดพลาด: ' + (bomResult.message || JSON.stringify(bomResult)));
+            setSaving(false);
+            return;
           }
+        } else {
+          alert(result.message || 'อัพเดทสินค้าสำเร็จ');
         }
         setShowEditModal(false);
         setSelectedProduct(null);
         fetchProducts();
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + (result.message || JSON.stringify(result)));
       }
     } catch (error) {
       console.error(error);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
     } finally {
       setSaving(false);
     }
@@ -286,11 +303,16 @@ export default function ProductsPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${id}`, {
         method: 'DELETE',
       });
+      const result = await response.json();
       if (response.ok) {
+        alert(result.message || 'ลบสินค้าสำเร็จ');
         fetchProducts();
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + (result.message || JSON.stringify(result)));
       }
     } catch (error) {
       console.error(error);
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
     }
   };
 

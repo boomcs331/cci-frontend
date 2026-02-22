@@ -72,8 +72,6 @@ const navItems: NavItem[] = [
     permission: "CAN_READ",
     subItems: [
       { name: "Products", path: "/production/products", pro: false, permission: "CAN_READ" },
-      { name: "BOM", path: "/production/bom", pro: false, permission: "CAN_READ" },
-      { name: "จ่ายวัตถุดิบออก", path: "/production/material-issues", pro: false, permission: "CAN_CREATE" },
     ],
   },
   {
