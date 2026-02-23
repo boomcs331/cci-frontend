@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -9,7 +9,7 @@ import { getApiUrl } from "@/utils/api";
 
 interface Item { id: number; code: string; name: string; description: string; createDate: string; createBy: string; updateDate: string | null; updateBy: string | null; }
 
-export default function Page() {
+function PageContent() {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -124,5 +124,13 @@ export default function Page() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="text-center py-8">กำลังโหลด...</div>}>
+      <PageContent />
+    </Suspense>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -29,7 +29,7 @@ interface ApiResponse {
   };
 }
 
-export default function UnitsPage() {
+function PageContent() {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -167,5 +167,13 @@ export default function UnitsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="text-center py-8">กำลังโหลด...</div>}>
+      <PageContent />
+    </Suspense>
   );
 }
