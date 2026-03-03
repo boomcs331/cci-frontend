@@ -1,13 +1,31 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.min.css";
 
 interface Product {
   id: number;
   productCode: string;
   productName: string;
+}
+
+interface Material {
+  id: number;
+  matCode: string;
+  matName: string;
+}
+
+interface Reservation {
+  id: number;
+  planId: number;
+  materialId: number;
+  reservedQuantity: string;
+  lotNumber: string | null;
+  receiveDate: string | null;
+  material: Material;
 }
 
 interface PlanItem {
@@ -28,6 +46,7 @@ interface ProductionPlan {
   remarks?: string;
   createDate: string;
   items?: PlanItem[];
+  reservations?: Reservation[];
 }
 
 const statusConfig = {
@@ -41,14 +60,29 @@ export default function PCSchedulePage() {
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<ProductionPlan | null>(null);
   const [editingPlan, setEditingPlan] = useState<ProductionPlan | null>(null);
   const [form, setForm] = useState({ planName: "", planDate: "", remarks: "", items: [] as PlanItem[] });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const datePickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPlans();
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    if (showModal && datePickerRef.current) {
+      flatpickr(datePickerRef.current, {
+        dateFormat: "Y-m-d",
+        onChange: (selectedDates, dateStr) => {
+          setForm({ ...form, planDate: dateStr });
+        },
+        defaultDate: form.planDate || undefined
+      });
+    }
+  }, [showModal]);
 
   const fetchPlans = async () => {
     try {
@@ -148,6 +182,19 @@ export default function PCSchedulePage() {
     setShowModal(true);
   };
 
+  const handleViewDetail = async (plan: ProductionPlan) => {
+    try {
+      const res = await fetch(`http://localhost:3006/production-plans/${plan.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedPlan(data);
+        setShowDetailModal(true);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
   const addItem = () => setForm({ ...form, items: [...form.items, { productId: 0, quantity: 0, unit: "ชิ้น", remarks: "" }] });
   const updateItem = (index: number, field: keyof PlanItem, value: any) => {
     if (field === "quantity" && value < 0) return;
@@ -160,31 +207,43 @@ export default function PCSchedulePage() {
   return (
     <div>
       <PageBreadcrumb pageTitle="จัดงานล่วงหน้า" />
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">แผนการผลิต</h2>
+          </div>
+        </div>
+
         {message && <Alert variant={message.type} title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"} message={message.text} />}
+        
         <ComponentCard title={`แผนการผลิตทั้งหมด (${plans.length})`}>
-          <div className="flex justify-end mb-3">
-            <button onClick={() => { setShowModal(true); setEditingPlan(null); setForm({ planName: "", planDate: "", remarks: "", items: [] }); }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">เพิ่มแผนใหม่</button>
+          <div className="flex justify-end mb-4">
+            <button onClick={() => { setShowModal(true); setEditingPlan(null); setForm({ planName: "", planDate: "", remarks: "", items: [] }); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              เพิ่มแผนใหม่
+            </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-auto">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800">
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-900 dark:text-white w-32">รหัสแผน</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อแผน</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-900 dark:text-white w-32">วันที่</th>
-                  <th className="px-3 py-2 text-center text-sm font-medium text-gray-900 dark:text-white w-24">สถานะ</th>
-                  <th className="px-3 py-2 text-center text-sm font-medium text-gray-900 dark:text-white w-24">สินค้า</th>
-                  <th className="px-3 py-2 text-center text-sm font-medium text-gray-900 dark:text-white w-40">จัดการ</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">รหัสแผน</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อแผน</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สินค้า</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {plans.map((plan) => (
                   <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white font-medium">{plan.planCode}</td>
-                    <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{plan.planName}</td>
-                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-400">{new Date(plan.planDate).toLocaleDateString("th-TH")}</td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{plan.planCode}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{plan.planName}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{new Date(plan.planDate).toLocaleDateString("th-TH")}</td>
+                    <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                         plan.status === "draft" ? "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-400" :
                         plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :
@@ -192,16 +251,22 @@ export default function PCSchedulePage() {
                         "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
                       }`}>{statusConfig[plan.status].label}</span>
                     </td>
-                    <td className="px-3 py-2 text-center text-sm text-gray-600 dark:text-gray-400">{plan.items?.length || 0}</td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">{plan.items?.length || 0}</td>
+                    <td className="px-4 py-3 text-center">
                       {plan.status === "draft" && (
                         <>
-                          <button onClick={() => handleEdit(plan)} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded mr-1">แก้ไข</button>
-                          <button onClick={() => handleReserve(plan.id)} className="px-2 py-1 text-xs text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 rounded">จอง</button>
+                          <button onClick={() => handleEdit(plan)} className="px-3 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded mr-1">แก้ไข</button>
+                          <button onClick={() => handleReserve(plan.id)} className="px-3 py-1 text-xs text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 rounded">จอง</button>
                         </>
                       )}
                       {plan.status === "reserved" && (
-                        <button onClick={() => handleConfirm(plan.id)} className="px-2 py-1 text-xs text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded">ยืนยัน</button>
+                        <>
+                          <button onClick={() => handleViewDetail(plan)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded mr-1">ดูรายละเอียด</button>
+                          <button onClick={() => handleConfirm(plan.id)} className="px-3 py-1 text-xs text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded">ยืนยัน</button>
+                        </>
+                      )}
+                      {plan.status === "confirmed" && (
+                        <button onClick={() => handleViewDetail(plan)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">ดูรายละเอียด</button>
                       )}
                     </td>
                   </tr>
@@ -214,48 +279,144 @@ export default function PCSchedulePage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
-            <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อแผน *</label>
-                <input type="text" value={form.planName} onChange={(e) => setForm({ ...form, planName: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันที่ *</label>
-                <input type="date" value={form.planDate} onChange={(e) => setForm({ ...form, planDate: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมายเหตุ</label>
-                <textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" rows={2} />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">รายการสินค้า *</label>
-                  <button type="button" onClick={addItem} className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">+ เพิ่ม</button>
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ชื่อแผน *</label>
+                  <input type="text" value={form.planName} onChange={(e) => setForm({ ...form, planName: e.target.value })} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" required />
                 </div>
-                <div className="space-y-2">
-                  {form.items.map((item, i) => (
-                    <div key={`item-${i}-${item.productId}`} className="flex gap-2 p-2 border border-gray-200 dark:border-gray-700 rounded">
-                      <select value={item.productId} onChange={(e) => updateItem(i, "productId", +e.target.value)} className="flex-1 rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required>
-                        <option value={0}>เลือกสินค้า</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
-                      </select>
-                      <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-20 rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
-                      <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-16 rounded border border-gray-300 dark:border-gray-600 px-2 py-1 text-xs bg-white dark:bg-gray-900 text-gray-800 dark:text-white" />
-                      <button type="button" onClick={() => removeItem(i)} className="px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">วันที่ *</label>
+                  <div className="relative">
+                    <input 
+                      ref={datePickerRef}
+                      type="text" 
+                      value={form.planDate} 
+                      onChange={(e) => setForm({ ...form, planDate: e.target.value })} 
+                      className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
+                      placeholder="เลือกวันที่"
+                      required 
+                    />
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">หมายเหตุ</label>
+                  <textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" rows={3} />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">รายการสินค้า *</label>
+                    <button type="button" onClick={addItem} className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">+ เพิ่ม</button>
+                  </div>
+                  <div className="space-y-2">
+                    {form.items.map((item, i) => (
+                      <div key={`item-${i}-${item.productId}`} className="flex gap-2 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                        <select value={item.productId} onChange={(e) => updateItem(i, "productId", +e.target.value)} className="flex-1 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required>
+                          <option value={0}>เลือกสินค้า</option>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
+                        </select>
+                        <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
+                        <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-20 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        <button type="button" onClick={() => removeItem(i)} className="px-3 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-4 border-t">
+                  <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">บันทึก</button>
+                  <button type="button" onClick={() => setShowModal(false)} className="px-6 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg">ยกเลิก</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDetailModal && selectedPlan && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">รายละเอียดแผนการผลิต - {selectedPlan.planCode}</h3>
+              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">ชื่อแผน</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedPlan.planName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">วันที่</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{new Date(selectedPlan.planDate).toLocaleDateString("th-TH")}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">รายการสินค้า</h4>
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">สินค้า</th>
+                          <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">จำนวน</th>
+                          <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">หน่วย</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {selectedPlan.items?.map((item, i) => (
+                          <tr key={i}>
+                            <td className="px-4 py-3 text-gray-900 dark:text-white">{item.product?.productName || "-"}</td>
+                            <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.quantity}</td>
+                            <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {selectedPlan.reservations && selectedPlan.reservations.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Material ที่จอง (QR No.)</h4>
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">รหัส Material</th>
+                            <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">ชื่อ Material</th>
+                            <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">จำนวนที่จอง</th>
+                            <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">Lot No.</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {selectedPlan.reservations.map((res) => (
+                            <tr key={res.id}>
+                              <td className="px-4 py-3 text-gray-900 dark:text-white font-medium">{res.material.matCode}</td>
+                              <td className="px-4 py-3 text-gray-900 dark:text-white">{res.material.matName}</td>
+                              <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{parseFloat(res.reservedQuantity).toFixed(2)}</td>
+                              <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{res.lotNumber || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2 pt-3">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-1.5 rounded-lg">บันทึก</button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium py-1.5 rounded-lg">ยกเลิก</button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
