@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
@@ -10,6 +11,15 @@ interface Product {
   id: number;
   productCode: string;
   productName: string;
+  bom?: BOMItem[];
+}
+
+interface BOMItem {
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  quantity: number;
+  unit: string;
 }
 
 interface Material {
@@ -35,6 +45,7 @@ interface PlanItem {
   unit: string;
   remarks?: string;
   product?: Product;
+  bom?: BOMItem[];
 }
 
 interface ProductionPlan {
@@ -57,6 +68,7 @@ const statusConfig = {
 };
 
 export default function PCSchedulePage() {
+  const router = useRouter();
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -195,9 +207,37 @@ export default function PCSchedulePage() {
     }
   };
 
-  const addItem = () => setForm({ ...form, items: [...form.items, { productId: 0, quantity: 0, unit: "ชิ้น", remarks: "" }] });
-  const updateItem = (index: number, field: keyof PlanItem, value: any) => {
+  const addItem = () => setForm({ ...form, items: [...form.items, { productId: 0, quantity: 0, unit: "ชิ้น", remarks: "", bom: [] }] });
+  const updateItem = async (index: number, field: keyof PlanItem, value: any) => {
     if (field === "quantity" && value < 0) return;
+    
+    if (field === "productId" && value > 0) {
+      try {
+        const res = await fetch(`http://localhost:3006/products/${value}/bom`);
+        if (res.ok) {
+          const result = await res.json();
+          const bomData = (result.data || []).map((item: any) => ({
+            materialId: item.materialId,
+            materialCode: item.material?.matCode || '',
+            materialName: item.material?.matName || '',
+            quantity: parseFloat(item.quantityPerUnit || 0),
+            unit: item.unit || ''
+          }));
+          
+          const newItems = [...form.items];
+          newItems[index] = { 
+            ...newItems[index], 
+            [field]: value,
+            bom: bomData
+          };
+          setForm({ ...form, items: newItems });
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching BOM:", error);
+      }
+    }
+    
     const newItems = [...form.items];
     newItems[index] = { ...newItems[index], [field]: value };
     setForm({ ...form, items: newItems });
@@ -217,7 +257,13 @@ export default function PCSchedulePage() {
         {message && <Alert variant={message.type} title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"} message={message.text} />}
         
         <ComponentCard title={`แผนการผลิตทั้งหมด (${plans.length})`}>
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between mb-4">
+            <button onClick={() => router.push('/pc/reservations')} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              ดูรายการจอง Material
+            </button>
             <button onClick={() => { setShowModal(true); setEditingPlan(null); setForm({ planName: "", planDate: "", remarks: "", items: [] }); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -261,12 +307,12 @@ export default function PCSchedulePage() {
                       )}
                       {plan.status === "reserved" && (
                         <>
-                          <button onClick={() => handleViewDetail(plan)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded mr-1">ดูรายละเอียด</button>
+                          <button onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded mr-1">ดูรายละเอียด</button>
                           <button onClick={() => handleConfirm(plan.id)} className="px-3 py-1 text-xs text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded">ยืนยัน</button>
                         </>
                       )}
                       {plan.status === "confirmed" && (
-                        <button onClick={() => handleViewDetail(plan)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">ดูรายละเอียด</button>
+                        <button onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">ดูรายละเอียด</button>
                       )}
                     </td>
                   </tr>
@@ -318,16 +364,53 @@ export default function PCSchedulePage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">รายการสินค้า *</label>
                     <button type="button" onClick={addItem} className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">+ เพิ่ม</button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {form.items.map((item, i) => (
-                      <div key={`item-${i}-${item.productId}`} className="flex gap-2 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
-                        <select value={item.productId} onChange={(e) => updateItem(i, "productId", +e.target.value)} className="flex-1 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required>
-                          <option value={0}>เลือกสินค้า</option>
-                          {products.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
-                        </select>
-                        <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
-                        <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-20 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                        <button type="button" onClick={() => removeItem(i)} className="px-3 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
+                      <div key={`item-${i}-${item.productId}`} className="border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                        <div className="flex gap-2 p-3">
+                          <select value={item.productId} onChange={(e) => updateItem(i, "productId", +e.target.value)} className="flex-1 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required>
+                            <option value={0}>เลือกสินค้า</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
+                          </select>
+                          <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
+                          <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-20 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                          <button type="button" onClick={() => removeItem(i)} className="px-3 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
+                        </div>
+                        {item.productId > 0 && (
+                          <div className="px-3 pb-3">
+                            {item.bom && item.bom.length > 0 ? (
+                              <>
+                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Material ที่ต้องใช้:</div>
+                                <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                  <table className="w-full text-xs">
+                                    <thead className="bg-gray-100 dark:bg-gray-700">
+                                      <tr>
+                                        <th className="px-2 py-1 text-left text-gray-700 dark:text-gray-300">รหัส</th>
+                                        <th className="px-2 py-1 text-left text-gray-700 dark:text-gray-300">ชื่อ Material</th>
+                                        <th className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">ต่อหน่วย</th>
+                                        <th className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">รวม</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                      {item.bom.map((bom, bi) => (
+                                        <tr key={bi}>
+                                          <td className="px-2 py-1 text-gray-900 dark:text-white">{bom.materialCode}</td>
+                                          <td className="px-2 py-1 text-gray-900 dark:text-white">{bom.materialName}</td>
+                                          <td className="px-2 py-1 text-right text-gray-900 dark:text-white">{bom.quantity} {bom.unit}</td>
+                                          <td className="px-2 py-1 text-right font-medium text-gray-900 dark:text-white">{(bom.quantity * (item.quantity || 0)).toFixed(2)} {bom.unit}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded border border-amber-200 dark:border-amber-800">
+                                ⚠️ สินค้านี้ยังไม่มี BOM (Bill of Materials) กรุณาเพิ่ม BOM ก่อนสร้างแผนการผลิต
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
