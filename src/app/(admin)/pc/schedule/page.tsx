@@ -78,6 +78,7 @@ export default function PCSchedulePage() {
   const [form, setForm] = useState({ planName: "", planDate: "", remarks: "", items: [] as PlanItem[] });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const datePickerRef = useRef<HTMLInputElement>(null);
+  const flatpickrInstance = useRef<any>(null);
 
   useEffect(() => {
     fetchPlans();
@@ -85,14 +86,21 @@ export default function PCSchedulePage() {
   }, []);
 
   useEffect(() => {
-    if (showModal && datePickerRef.current) {
-      flatpickr(datePickerRef.current, {
+    if (showModal && datePickerRef.current && !flatpickrInstance.current) {
+      flatpickrInstance.current = flatpickr(datePickerRef.current, {
         dateFormat: "Y-m-d",
         onChange: (selectedDates, dateStr) => {
-          setForm({ ...form, planDate: dateStr });
+          setForm(prev => ({ ...prev, planDate: dateStr }));
         },
-        defaultDate: form.planDate || undefined
+        defaultDate: form.planDate || new Date(),
+        clickOpens: true,
+        allowInput: false
       });
+    }
+    
+    if (!showModal && flatpickrInstance.current) {
+      flatpickrInstance.current.destroy();
+      flatpickrInstance.current = null;
     }
   }, [showModal]);
 
