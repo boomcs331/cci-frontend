@@ -13,6 +13,11 @@ export default function ReceivingTable({
   onPrintAll, 
   getStatusBadge 
 }: ReceivingTableProps) {
+  // Debug: ดูโครงสร้างข้อมูล
+  if (receivings.length > 0) {
+    console.log('Receiving data sample:', receivings[0]);
+  }
+
   if (receivings.length === 0) {
     return <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลรายการรับเข้า</div>;
   }
@@ -26,6 +31,7 @@ export default function ReceivingTable({
             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่รับ</th>
             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วัตถุดิบ</th>
             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ซัพพลายเออร์</th>
+            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่ผลิต</th>
             <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน</th>
             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">PO</th>
             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
@@ -44,6 +50,9 @@ export default function ReceivingTable({
                 <div className="text-xs text-gray-500">{rcv.material?.matName}</div>
               </td>
               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{rcv.supplier?.name || '-'}</td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                {rcv.lots?.[0]?.incomeSupplireDate ? new Date(rcv.lots[0].incomeSupplireDate).toLocaleDateString('th-TH') : '-'}
+              </td>
               <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">
                 {parseFloat(rcv.totalQuantity).toLocaleString()} {rcv.unit}
               </td>

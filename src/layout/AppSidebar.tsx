@@ -63,6 +63,7 @@ const navItems: NavItem[] = [
       { name: "รายการรับเข้า", path: "/pc/income", pro: false, permission: "CAN_CREATE" },
       { name: "รายการจ่ายออก", path: "/pc/outcome", pro: false, permission: "CAN_READ" },
       { name: "จัดงานล่วงหน้า", path: "/pc/schedule", pro: false, permission: "CAN_READ" },
+      { name: "Stock คงเหลือ", path: "/pc/stock", pro: false, permission: "CAN_READ" },
       { name: "รายงาน", path: "/pc/report", pro: false, permission: "CAN_READ" },
     ],
   },

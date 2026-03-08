@@ -41,6 +41,9 @@ export default function ReceivingDetailModal({
             <div><span className="font-medium">ซัพพลายเออร์:</span> {receiving.supplier?.name || '-'}</div>
             <div><span className="font-medium">จำนวนรวม:</span> {parseFloat(receiving.totalQuantity).toLocaleString()} {receiving.unit}</div>
             <div><span className="font-medium">PO:</span> {receiving.poNo || '-'}</div>
+            {receiving.lots?.[0]?.incomeSupplireDate && (
+              <div><span className="font-medium">วันที่ผลิต:</span> {new Date(receiving.lots[0].incomeSupplireDate).toLocaleDateString('th-TH')}</div>
+            )}
             <div className="col-span-2"><span className="font-medium">หมายเหตุ:</span> {receiving.remark || '-'}</div>
           </div>
 
@@ -52,6 +55,7 @@ export default function ReceivingDetailModal({
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <th className="px-3 py-2 text-left">Lot No</th>
                     <th className="px-3 py-2 text-center">QR Code</th>
+                    <th className="px-3 py-2 text-left">วันที่ผลิต</th>
                     <th className="px-3 py-2 text-right">จำนวน</th>
                     <th className="px-3 py-2 text-right">คงเหลือ</th>
                     <th className="px-3 py-2 text-left">สถานะ</th>
@@ -68,6 +72,9 @@ export default function ReceivingDetailModal({
                         >
                           <QRCodeGenerator value={lot.qrCode} size={80} className="mx-auto" />
                         </div>
+                      </td>
+                      <td className="px-3 py-2 text-sm">
+                        {lot.incomeSupplireDate ? new Date(lot.incomeSupplireDate).toLocaleDateString('th-TH') : '-'}
                       </td>
                       <td className="px-3 py-2 text-right">{parseFloat(lot.quantity).toLocaleString()}</td>
                       <td className="px-3 py-2 text-right">{parseFloat(lot.remainingQuantity).toLocaleString()}</td>

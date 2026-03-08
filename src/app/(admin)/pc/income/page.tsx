@@ -31,6 +31,7 @@ export default function PCIncomePage() {
   const [supplierId, setSupplierId] = useState<number>(0);
   const [poNo, setPoNo] = useState<string>('');
   const [remark, setRemark] = useState<string>('');
+  const [mfgDate, setMfgDate] = useState<string>('');
   const [locationId, setLocationId] = useState<number>(1);
   const [quantity, setQuantity] = useState<number>(0);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -140,6 +141,7 @@ export default function PCIncomePage() {
       if (supplierId && supplierId > 0) payload.supplierId = supplierId;
       if (poNo && poNo.trim()) payload.poNo = poNo.trim();
       if (remark && remark.trim()) payload.remark = remark.trim();
+      if (mfgDate) payload.mfgDate = mfgDate;
 
       const response = await fetch(getApiUrl('/materials/transactions/receive'), {
         method: 'POST',
@@ -169,6 +171,7 @@ export default function PCIncomePage() {
     setSupplierId(0);
     setPoNo('');
     setRemark('');
+    setMfgDate('');
     setLocationId(1);
     setQuantity(0);
   };
@@ -297,6 +300,8 @@ export default function PCIncomePage() {
         setRemark={setRemark}
         submitLoading={submitLoading}
         onMaterialChange={handleMaterialChange}
+        mfgDate={mfgDate}
+        setMfgDate={setMfgDate}
       />
 
       <ReceivingDetailModal
