@@ -40,18 +40,16 @@ function PageContent() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(getApiUrl(`/masters/suppliers`));
+      const response = await fetch(getApiUrl(`/masters/suppliers?page=${page}&limit=${limit}`));
       const result = await response.json();
-      const apiData = result.data?.data || result.data || [];
-      const total = result.data?.total || apiData.length;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedData = apiData.slice(startIndex, endIndex);
-      setApiResponse({ 
-        data: paginatedData, 
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } 
-      });
+      if (result.success && result.data) {
+        setApiResponse({ 
+          data: result.data.data || result.data,
+          pagination: result.data.pagination || { page, limit, total: result.data.length, totalPages: 1 }
+        });
+      }
     } catch (error) {
       setMessage({ type: "error", text: "เกิดข้อผิดพลาดในการโหลดข้อมูล" });
     } finally {

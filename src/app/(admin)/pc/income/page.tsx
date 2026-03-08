@@ -74,7 +74,7 @@ export default function PCIncomePage() {
 
         const [rcvRes, matsRes, locsRes, suppsRes] = await Promise.all([
           fetch(getApiUrl(url)),
-          fetch(getApiUrl('/materials')),
+          fetch(getApiUrl('/materials/all')),
           fetch(getApiUrl('/masters/materials-locations/all')),
           fetch(getApiUrl('/masters/suppliers/all'))
         ]);

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 interface AddReceivingModalProps {
   show: boolean;
@@ -44,12 +44,21 @@ export default function AddReceivingModal({
   submitLoading,
   onMaterialChange
 }: AddReceivingModalProps) {
+  const [materialSearch, setMaterialSearch] = useState('');
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
+
   if (!show) return null;
 
   const selectedMaterial = materials.find(m => m.id === materialId);
   const filteredSuppliers = selectedMaterial?.supplierId 
     ? suppliers.filter(s => s.id === selectedMaterial.supplierId)
     : suppliers;
+
+  const filteredMaterials = materials.filter(m => 
+    materialSearch === '' || 
+    m.matCode.toLowerCase().includes(materialSearch.toLowerCase()) ||
+    (m.matName || '').toLowerCase().includes(materialSearch.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
@@ -71,19 +80,38 @@ export default function AddReceivingModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วัตถุดิบ *</label>
-                <select 
-                  value={materialId ?? ''} 
-                  onChange={(e) => onMaterialChange(Number(e.target.value))} 
-                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
-                  required
-                >
-                  <option value="">-- เลือกวัตถุดิบ --</option>
-                  {materials.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.matCode} - {m.matName || 'ไม่มีชื่อ'}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={materialSearch || (selectedMaterial ? `${selectedMaterial.matCode} - ${selectedMaterial.matName || ''}` : '')}
+                    onChange={(e) => {
+                      setMaterialSearch(e.target.value);
+                      setShowMaterialDropdown(true);
+                    }}
+                    onFocus={() => setShowMaterialDropdown(true)}
+                    placeholder="ค้นหารหัสหรือชื่อวัตถุดิบ"
+                    className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    required
+                  />
+                  {showMaterialDropdown && filteredMaterials.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredMaterials.slice(0, 50).map((mat) => (
+                        <div
+                          key={mat.id}
+                          onClick={() => {
+                            onMaterialChange(mat.id);
+                            setMaterialSearch(`${mat.matCode} - ${mat.matName || ''}`);
+                            setShowMaterialDropdown(false);
+                          }}
+                          className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                        >
+                          <div className="font-medium text-gray-900 dark:text-white">{mat.matCode}</div>
+                          <div className="text-xs text-gray-500">{mat.matName}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">จำนวน *</label>

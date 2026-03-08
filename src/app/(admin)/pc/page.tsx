@@ -174,7 +174,6 @@ export default function PCPage() {
     lotSize: 0,
     scale: '',
     minStock: 0,
-    initialStock: 0,
     createBy: ''
   });
   
@@ -258,7 +257,6 @@ export default function PCPage() {
       lotSize: material.lotSize,
       scale: material.scale?.toString() || '',
       minStock: material.minStock || 0,
-      initialStock: 0,
       createBy: material.createBy
     });
     setShowEditModal(true);
@@ -307,7 +305,6 @@ export default function PCPage() {
         lr: formData.lr,
         lotSize: formData.lotSize,
         minStock: formData.minStock || 0,
-        initialStock: formData.initialStock || 0,
         isActive: true,
         createBy: currentUser
       };
@@ -348,7 +345,6 @@ export default function PCPage() {
           lotSize: 0,
           scale: '',
           minStock: 0,
-          initialStock: 0,
           createBy: currentUser
         });
         setTimeout(() => setSubmitSuccess(null), 3000);
@@ -573,7 +569,6 @@ export default function PCPage() {
                   lotSize: 0,
                   scale: '',
                   minStock: 0,
-                  initialStock: 0,
                   createBy: currentUser
                 });
                 setShowAddModal(true);
@@ -875,7 +870,11 @@ export default function PCPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้จัดจำหน่าย</label>
                 <select 
                   value={formData.supplierId} 
-                  onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})} 
+                  onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})}
+                  onFocus={async () => {
+                    const suppliersData = await getSuppliers();
+                    setSuppliers(suppliersData);
+                  }}
                   className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
                 >
                   <option value="0">ไม่ระบุ</option>
@@ -885,25 +884,14 @@ export default function PCPage() {
                 </select>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ขนาดล็อต</label>
-                  <input 
-                    type="number" 
-                    value={formData.lotSize.toString()} 
-                    onChange={(e) => setFormData({...formData, lotSize: parseInt(e.target.value) || 0})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จำนวนเริ่มต้น</label>
-                  <input 
-                    type="number" 
-                    value={formData.initialStock.toString()} 
-                    onChange={(e) => setFormData({...formData, initialStock: parseInt(e.target.value) || 0})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ขนาดล็อต</label>
+                <input 
+                  type="number" 
+                  value={formData.lotSize.toString()} 
+                  onChange={(e) => setFormData({...formData, lotSize: parseInt(e.target.value) || 0})} 
+                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                />
               </div>
               
               <div className="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-600">
@@ -930,7 +918,6 @@ export default function PCPage() {
                       lotSize: 0,
                       scale: '',
                       minStock: 0,
-                      initialStock: 0,
                       createBy: currentUser
                     });
                   }}
