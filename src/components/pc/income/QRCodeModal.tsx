@@ -30,7 +30,8 @@ export default function QRCodeModal({ show, onClose, lot }: QRCodeModalProps) {
             <QRCodeGenerator value={lot.qrCode} size={256} />
           </div>
           <div className="space-y-2 text-sm text-gray-900 dark:text-white">
-            <div><span className="font-medium">เลข Lot:</span> {lot.lotNo}</div>
+            <div><span className="font-medium">เลข LOT:</span> {lot.lotNo}</div>
+            <div><span className="font-medium">เลข LOT Supplier:</span> {lot.lotPdNo}</div>
             <div><span className="font-medium">QR Code:</span> {lot.qrCode}</div>
             <div><span className="font-medium">จำนวน:</span> {parseFloat(lot.quantity).toLocaleString()} {lot.unit}</div>
             <div><span className="font-medium">คงเหลือ:</span> {parseFloat(lot.remainingQuantity).toLocaleString()} {lot.unit}</div>

@@ -77,6 +77,8 @@ export default function PCSchedulePage() {
   const [editingPlan, setEditingPlan] = useState<ProductionPlan | null>(null);
   const [form, setForm] = useState({ planName: "", planDate: "", remarks: "", items: [] as PlanItem[] });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [productSearches, setProductSearches] = useState<{[key: number]: string}>({});
+  const [showProductDropdowns, setShowProductDropdowns] = useState<{[key: number]: boolean}>({});
   const datePickerRef = useRef<HTMLInputElement>(null);
   const flatpickrInstance = useRef<any>(null);
 
@@ -373,13 +375,50 @@ export default function PCSchedulePage() {
                     <button type="button" onClick={addItem} className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">+ เพิ่ม</button>
                   </div>
                   <div className="space-y-3">
-                    {form.items.map((item, i) => (
+                    {form.items.map((item, i) => {
+                      const selectedProduct = products.find(p => p.id === item.productId);
+                      const productSearch = productSearches[i] || '';
+                      const filteredProducts = products.filter(p => 
+                        productSearch === '' || 
+                        p.productCode.toLowerCase().includes(productSearch.toLowerCase()) ||
+                        p.productName.toLowerCase().includes(productSearch.toLowerCase())
+                      );
+                      
+                      return (
                       <div key={`item-${i}-${item.productId}`} className="border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
                         <div className="flex gap-2 p-3">
-                          <select value={item.productId} onChange={(e) => updateItem(i, "productId", +e.target.value)} className="flex-1 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required>
-                            <option value={0}>เลือกสินค้า</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.productName}</option>)}
-                          </select>
+                          <div className="flex-1 relative">
+                            <input
+                              type="text"
+                              value={productSearch || (selectedProduct ? `${selectedProduct.productCode} - ${selectedProduct.productName}` : '')}
+                              onChange={(e) => {
+                                setProductSearches({...productSearches, [i]: e.target.value});
+                                setShowProductDropdowns({...showProductDropdowns, [i]: true});
+                              }}
+                              onFocus={() => setShowProductDropdowns({...showProductDropdowns, [i]: true})}
+                              placeholder="ค้นหารหัสหรือชื่อสินค้า"
+                              className="w-full h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              required
+                            />
+                            {showProductDropdowns[i] && filteredProducts.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                {filteredProducts.slice(0, 50).map((p) => (
+                                  <div
+                                    key={p.id}
+                                    onClick={() => {
+                                      updateItem(i, "productId", p.id);
+                                      setProductSearches({...productSearches, [i]: `${p.productCode} - ${p.productName}`});
+                                      setShowProductDropdowns({...showProductDropdowns, [i]: false});
+                                    }}
+                                    className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                  >
+                                    <div className="font-medium text-gray-900 dark:text-white">{p.productCode}</div>
+                                    <div className="text-xs text-gray-500">{p.productName}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
                           <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-20 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                           <button type="button" onClick={() => removeItem(i)} className="px-3 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
@@ -420,7 +459,8 @@ export default function PCSchedulePage() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="flex gap-3 pt-4 border-t">

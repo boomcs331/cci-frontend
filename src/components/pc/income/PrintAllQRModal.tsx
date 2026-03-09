@@ -132,7 +132,8 @@ export default function PrintAllQRModal({ show, onClose, receiving }: PrintAllQR
                   <div className="font-bold text-xs truncate">{receiving.material?.matCode}</div>
                   <div className="text-[10px] text-gray-600 truncate">{receiving.material?.matName}</div>
                   <div className="text-[10px] text-gray-600 truncate">ผู้ขาย: {receiving.supplier?.name || '-'}</div>
-                  <div className="font-semibold text-xs">Lot: {lot.lotNo}</div>
+                  <div className="font-semibold text-xs">LOT: {lot.lotNo}</div>
+                  <div className="font-semibold text-xs">LOT Supplier: {lot.lotPdNo}</div>
                   <div className="text-[10px]">{parseFloat(lot.quantity).toLocaleString()} {receiving.unit}</div>
                 </div>
               </div>

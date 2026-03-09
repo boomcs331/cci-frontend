@@ -54,6 +54,7 @@ export default function ReceivingDetailModal({
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <th className="px-3 py-2 text-left">Lot No</th>
+                    <th className="px-3 py-2 text-left">LOT Supplier</th>
                     <th className="px-3 py-2 text-center">QR Code</th>
                     <th className="px-3 py-2 text-left">วันที่ผลิต</th>
                     <th className="px-3 py-2 text-right">จำนวน</th>
@@ -65,6 +66,7 @@ export default function ReceivingDetailModal({
                   {receiving.lots?.map((lot: any) => (
                     <tr key={lot.id}>
                       <td className="px-3 py-2">{lot.lotNo}</td>
+                      <td className="px-3 py-2">{lot.lotPdNo}</td>
                       <td className="px-3 py-2 text-center">
                         <div 
                           className="inline-block cursor-pointer hover:opacity-80"
