@@ -170,8 +170,26 @@ export default function AddReceivingModal({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">เลข Lot (Auto)</label>
+                <input 
+                  type="text" 
+                  value="จะถูกสร้างอัตโนมัติ (PC20260101-001)" 
+                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" 
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต (Auto)</label>
+                <input 
+                  type="text" 
+                  value="จะถูกสร้างอัตโนมัติ (PD20260101-001)" 
+                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" 
+                  disabled
+                />
+              </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต (MFG Date)</label>
                 <div className="relative">
                   <input 
                     ref={mfgDatePickerRef}
