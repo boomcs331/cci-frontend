@@ -1,11 +1,15 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import PaginationSelector from "@/components/pagination/PaginationSelector";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
 
 interface Product {
   id: number;
@@ -61,15 +65,17 @@ interface ProductionPlan {
 }
 
 const statusConfig = {
-  draft: { label: "ร่าง", color: "light" },
-  reserved: { label: "จองแล้ว", color: "warning" },
-  confirmed: { label: "ยืนยันแล้ว", color: "success" },
-  cancelled: { label: "ยกเลิก", color: "error" },
+  draft: { label: "ร่าง", color: "light", en: "Draft" },
+  reserved: { label: "จองแล้ว", color: "warning", en: "Reserved" },
+  confirmed: { label: "ยืนยันแล้ว", color: "success", en: "Confirmed" },
+  cancelled: { label: "ยกเลิก", color: "error", en: "Cancelled" },
 };
 
 export default function PCSchedulePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
+  const [pagination, setPagination] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -79,13 +85,20 @@ export default function PCSchedulePage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [productSearches, setProductSearches] = useState<{[key: number]: string}>({});
   const [showProductDropdowns, setShowProductDropdowns] = useState<{[key: number]: boolean}>({});
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
   const datePickerRef = useRef<HTMLInputElement>(null);
   const flatpickrInstance = useRef<any>(null);
+
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '10');
 
   useEffect(() => {
     fetchPlans();
     fetchProducts();
-  }, []);
+  }, [page, limit, searchTerm, filterStatus, filterDateFrom, filterDateTo]);
 
   useEffect(() => {
     if (showModal && datePickerRef.current && !flatpickrInstance.current) {
@@ -108,13 +121,55 @@ export default function PCSchedulePage() {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch("http://localhost:3006/production-plans");
+      // Fetch all plans without pagination parameters first
+      const res = await fetch(`http://localhost:3006/production-plans`);
       if (res.ok) {
         const data = await res.json();
-        setPlans(Array.isArray(data) ? data : data.data || []);
+        console.log('API Response:', data);
+        
+        let allPlans = [];
+        if (Array.isArray(data)) {
+          allPlans = data;
+        } else if (data.data && Array.isArray(data.data)) {
+          allPlans = data.data;
+        }
+        
+        // Apply filters on frontend
+        let filtered = allPlans;
+        if (searchTerm) {
+          filtered = filtered.filter((p: ProductionPlan) => 
+            p.planCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.planName?.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        }
+        if (filterStatus) {
+          filtered = filtered.filter((p: ProductionPlan) => p.status.toLowerCase() === filterStatus.toLowerCase());
+        }
+        if (filterDateFrom) {
+          filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) >= new Date(filterDateFrom));
+        }
+        if (filterDateTo) {
+          filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) <= new Date(filterDateTo));
+        }
+        
+        // Calculate pagination
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / limit);
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedPlans = filtered.slice(startIndex, endIndex);
+        
+        setPlans(paginatedPlans);
+        setPagination({
+          total,
+          totalPages,
+          currentPage: page,
+          limit
+        });
       }
     } catch (error) {
       console.error("Error:", error);
+      setPlans([]);
     }
   };
 
@@ -179,24 +234,7 @@ export default function PCSchedulePage() {
     }
   };
 
-  const handleConfirm = async (id: number) => {
-    try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/confirm`, { method: "POST" });
-      if (res.ok) {
-        setMessage({ type: "success", text: "ยืนยันแผนสำเร็จ" });
-        fetchPlans();
-        setTimeout(() => setMessage(null), 3000);
-      } else {
-        const errorData = await res.json().catch(() => ({ message: "ไม่สามารถยืนยันแผนได้" }));
-        setMessage({ type: "error", text: errorData.message || "ไม่สามารถยืนยันแผนได้" });
-        setTimeout(() => setMessage(null), 5000);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setMessage({ type: "error", text: "เกิดข้อผิดพลาดในการเชื่อมต่อ" });
-      setTimeout(() => setMessage(null), 5000);
-    }
-  };
+
 
   const handleEdit = (plan: ProductionPlan) => {
     setEditingPlan(plan);
@@ -212,6 +250,120 @@ export default function PCSchedulePage() {
         setSelectedPlan(data);
         setShowDetailModal(true);
       }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
+  const handleExportPDF = async (plan: ProductionPlan) => {
+    try {
+      const res = await fetch(`http://localhost:3006/production-plans/${plan.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      const pdf = new jsPDF();
+      const qrDataUrl = await QRCode.toDataURL(data.planCode, { width: 150, margin: 1 });
+      
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(18);
+      pdf.text("Production Plan", 105, 20, { align: "center" });
+      
+      pdf.addImage(qrDataUrl, "PNG", 80, 30, 50, 50);
+      
+      pdf.setFontSize(14);
+      pdf.text(data.planCode, 105, 90, { align: "center" });
+      
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Plan Name: ${data.planName}`, 20, 105);
+      pdf.text(`Date: ${new Date(data.planDate).toLocaleDateString('en-GB')}`, 20, 115);
+      const status = data.status as keyof typeof statusConfig;
+      pdf.text(`Status: ${statusConfig[status]?.en || data.status}`, 20, 125);
+      
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Products:", 20, 140);
+      
+      let y = 150;
+      pdf.setFont("helvetica", "normal");
+      data.items?.forEach((item: any, i: number) => {
+        pdf.text(`${i + 1}. ${item.product?.productName || '-'} - ${item.quantity} ${item.unit}`, 25, y);
+        y += 10;
+      });
+      
+      pdf.save(`Plan_${data.planCode}.pdf`);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
+  const handleExportAllPDF = async () => {
+    try {
+      const doc = new jsPDF();
+      
+      const qrData = [];
+      
+      for (const plan of plans) {
+        const res = await fetch(`http://localhost:3006/production-plans/${plan.id}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        
+        const qrDataUrl = await QRCode.toDataURL(data.planCode, { width: 200, margin: 1 });
+        qrData.push({
+          qr: qrDataUrl,
+          code: data.planCode,
+          name: data.planName,
+          date: new Date(data.planDate).toLocaleDateString('en-GB'),
+          status: statusConfig[data.status as keyof typeof statusConfig]?.en || data.status
+        });
+      }
+      
+      const itemsPerRow = 4;
+      const itemsPerPage = 20; // 5 rows x 4 columns
+      const itemWidth = 48;
+      const itemHeight = 55;
+      const startX = 10;
+      const startY = 10;
+      const gapX = 2;
+      const gapY = 2;
+      
+      qrData.forEach((item, index) => {
+        if (index > 0 && index % itemsPerPage === 0) {
+          doc.addPage();
+        }
+        
+        const pageIndex = index % itemsPerPage;
+        const row = Math.floor(pageIndex / itemsPerRow);
+        const col = pageIndex % itemsPerRow;
+        
+        const x = startX + col * (itemWidth + gapX);
+        const y = startY + row * (itemHeight + gapY);
+        
+        // Border
+        doc.setDrawColor(200);
+        doc.rect(x, y, itemWidth, itemHeight);
+        
+        // QR Code
+        const qrSize = 35;
+        const qrX = x + (itemWidth - qrSize) / 2;
+        const qrY = y + 2;
+        doc.addImage(item.qr, 'PNG', qrX, qrY, qrSize, qrSize);
+        
+        // Text
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(item.code, x + itemWidth / 2, y + qrSize + 5, { align: 'center' });
+        
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        const nameLines = doc.splitTextToSize(item.name, itemWidth - 4);
+        doc.text(nameLines[0] || '', x + itemWidth / 2, y + qrSize + 10, { align: 'center' });
+        
+        doc.setFontSize(6);
+        doc.text(item.date, x + itemWidth / 2, y + qrSize + 14, { align: 'center' });
+        doc.text(item.status, x + itemWidth / 2, y + qrSize + 17, { align: 'center' });
+      });
+      
+      doc.save(`Production_Plans_QR_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error("Error:", error);
     }
@@ -266,15 +418,64 @@ export default function PCSchedulePage() {
 
         {message && <Alert variant={message.type} title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"} message={message.text} />}
         
-        <ComponentCard title={`แผนการผลิตทั้งหมด (${plans.length})`}>
-          <div className="flex justify-between mb-4">
-            <button onClick={() => router.push('/pc/reservations')} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              ดูรายการจอง Material
-            </button>
-            <button onClick={() => { setShowModal(true); setEditingPlan(null); setForm({ planName: "", planDate: "", remarks: "", items: [] }); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+        <ComponentCard title={`แผนการผลิตทั้งหมด (${pagination?.total || 0})`}>
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              placeholder="ค้นหา (รหัส, ชื่อแผน)"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">ทุกสถานะ</option>
+              <option value="draft">ร่าง</option>
+              <option value="reserved">จองแล้ว</option>
+              <option value="confirmed">ยืนยันแล้ว</option>
+              <option value="cancelled">ยกเลิก</option>
+            </select>
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="วันที่เริ่มต้น"
+            />
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              placeholder="วันที่สิ้นสุด"
+            />
+          </div>
+          <div className="flex justify-between items-center mb-4">
+            <PaginationSelector currentLimit={limit} />
+            <div className="flex gap-2">
+              <button onClick={() => router.push('/pc/reservations')} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                ดูรายการจอง Material
+              </button>
+              <button onClick={handleExportAllPDF} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export ทั้งหมด PDF
+              </button>
+            </div>
+            <button onClick={() => { 
+              setShowModal(true); 
+              setEditingPlan(null); 
+              setForm({ planName: "", planDate: "", remarks: "", items: [] }); 
+              setProductSearches({});
+              setShowProductDropdowns({});
+            }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -309,27 +510,71 @@ export default function PCSchedulePage() {
                     </td>
                     <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">{plan.items?.length || 0}</td>
                     <td className="px-4 py-3 text-center">
-                      {plan.status === "draft" && (
-                        <>
-                          <button onClick={() => handleEdit(plan)} className="px-3 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded mr-1">แก้ไข</button>
-                          <button onClick={() => handleReserve(plan.id)} className="px-3 py-1 text-xs text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 rounded">จอง</button>
-                        </>
-                      )}
-                      {plan.status === "reserved" && (
-                        <>
-                          <button onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded mr-1">ดูรายละเอียด</button>
-                          <button onClick={() => handleConfirm(plan.id)} className="px-3 py-1 text-xs text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded">ยืนยัน</button>
-                        </>
-                      )}
-                      {plan.status === "confirmed" && (
-                        <button onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">ดูรายละเอียด</button>
-                      )}
+                      <div className="flex gap-1 justify-center">
+                        {plan.status === "draft" && (
+                          <>
+                            <button onClick={() => handleEdit(plan)} className="px-3 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">แก้ไข</button>
+                            <button onClick={() => handleReserve(plan.id)} className="px-3 py-1 text-xs text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 rounded">จอง</button>
+                          </>
+                        )}
+                        {(plan.status === "reserved" || plan.status === "confirmed") && (
+                          <button onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">ดูรายละเอียด</button>
+                        )}
+                        <button onClick={() => handleExportPDF(plan)} className="px-3 py-1 text-xs text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded">PDF</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                แสดง {((page - 1) * limit) + 1} ถึง {Math.min(page * limit, pagination.total)} จาก {pagination.total} รายการ
+              </div>
+              <div className="flex items-center">
+                <a 
+                  href={`?page=${Math.max(1, page - 1)}&limit=${limit}`} 
+                  className={`mr-2.5 flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
+                    page <= 1 ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  ก่อนหน้า
+                </a>
+                <div className="flex items-center gap-2">
+                  {page > 3 && <span className="px-2">...</span>}
+                  {Array.from({ length: Math.min(3, pagination.totalPages) }, (_, i) => {
+                    const pageNum = i + Math.max(page - 1, 1);
+                    if (pageNum > pagination.totalPages) return null;
+                    return (
+                      <a 
+                        key={pageNum} 
+                        href={`?page=${pageNum}&limit=${limit}`} 
+                        className={`px-4 py-2 rounded ${
+                          page === pageNum
+                            ? "bg-brand-500 text-white"
+                            : "text-gray-700 dark:text-gray-400"
+                        } flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500`}
+                      >
+                        {pageNum}
+                      </a>
+                    );
+                  })}
+                  {page < pagination.totalPages - 2 && <span className="px-2">...</span>}
+                </div>
+                <a 
+                  href={`?page=${Math.min(pagination.totalPages, page + 1)}&limit=${limit}`} 
+                  className={`ml-2.5 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
+                    page >= pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  ถัดไป
+                </a>
+              </div>
+            </div>
+          )}
         </ComponentCard>
       </div>
 

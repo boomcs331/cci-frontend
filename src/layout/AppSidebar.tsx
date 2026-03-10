@@ -62,6 +62,8 @@ const navItems: NavItem[] = [
       { name: "ข้อมูลวัตถุดิบ", path: "/pc", pro: false, permission: "CAN_READ" },
       { name: "รายการรับเข้า", path: "/pc/income", pro: false, permission: "CAN_CREATE" },
       { name: "รายการจ่ายออก", path: "/pc/outcome", pro: false, permission: "CAN_READ" },
+      { name: "รายการจอง", path: "/pc/reservations", pro: false, permission: "CAN_READ" },
+      { name: "แผนผลิตที่จองสำเร็จแล้ว", path: "/pc/schedule/reservations", pro: false, permission: "CAN_READ" },
       { name: "Stock คงเหลือ", path: "/pc/stock", pro: false, permission: "CAN_READ" },
       { name: "รายงาน", path: "/pc/report", pro: false, permission: "CAN_READ" },
     ],

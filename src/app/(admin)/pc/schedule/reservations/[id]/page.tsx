@@ -42,7 +42,7 @@ interface PlanDetail {
   reservations?: Reservation[];
 }
 
-export default function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [data, setData] = useState<PlanDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,12 +59,12 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
     fetchData();
   }, [id]);
 
-  const handleReserve = async () => {
-    if (!confirm('ต้องการจองวัตถุดิบสำหรับแผนการผลิตนี้หรือไม่?')) return;
+  const handleConfirmAndIssue = async () => {
+    if (!confirm('ต้องการยืนยันและจ่ายออกวัตถุดิบหรือไม่? (จะตัด stock จริง)')) return;
     
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/reserve`, {
+      const res = await fetch(`http://localhost:3006/production-plans/${id}/confirm-and-issue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -74,33 +74,10 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
         throw new Error(error.message || 'เกิดข้อผิดพลาด');
       }
       
-      alert('จองวัตถุดิบสำเร็จ');
+      alert('ยืนยันและจ่ายออกวัตถุดิบสำเร็จ');
       fetchData();
     } catch (err: any) {
-      alert(err.message || 'เกิดข้อผิดพลาดในการจองวัตถุดิบ');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-  const handleCancel = async () => {
-    if (!confirm('ต้องการยกเลิกแผนการผลิตนี้หรือไม่? (จะคืนวัตถุดิบที่จองไว้)')) return;
-    
-    setLoading(true);
-    try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!res.ok) throw new Error('เกิดข้อผิดพลาด');
-      
-      alert('ยกเลิกแผนการผลิตสำเร็จ');
-      fetchData();
-    } catch (err) {
-      alert('เกิดข้อผิดพลาดในการยกเลิกแผนการผลิต');
+      alert(err.message || 'เกิดข้อผิดพลาดในการยืนยันและจ่ายออก');
     } finally {
       setLoading(false);
     }
@@ -110,7 +87,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิต" />
+      <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิตที่จองแล้ว" />
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex justify-between items-center">
@@ -129,14 +106,12 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
             <div>
               <span className="text-sm text-gray-600 dark:text-gray-400">สถานะ:</span>
               <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
-                data.status === 'draft' ? 'bg-gray-200 text-gray-800' :
-                data.status === 'reserved' ? 'bg-blue-200 text-blue-800' :
+                data.status === 'reserved' ? 'bg-orange-200 text-orange-800' :
                 data.status === 'confirmed' ? 'bg-green-200 text-green-800' :
-                'bg-red-200 text-red-800'
+                'bg-gray-200 text-gray-800'
               }`}>
-                {data.status === 'draft' ? 'ร่าง' :
-                 data.status === 'reserved' ? 'จองแล้ว' :
-                 data.status === 'confirmed' ? 'ยืนยันแล้ว' : 'ยกเลิก'}
+                {data.status === 'reserved' ? 'จองแล้ว' :
+                 data.status === 'confirmed' ? 'ยืนยันแล้ว' : data.status}
               </span>
             </div>
             {data.remarks && (
@@ -227,28 +202,18 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
 
           <div className="flex justify-between mt-6">
             <div className="flex gap-2">
-              {data.status === 'draft' && (
+              {data.status === 'reserved' && (
                 <button
-                  onClick={handleReserve}
+                  onClick={handleConfirmAndIssue}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
-                  {loading ? 'กำลังดำเนินการ...' : 'จองวัตถุดิบ'}
-                </button>
-              )}
-
-              {(data.status === 'draft' || data.status === 'reserved') && (
-                <button
-                  onClick={handleCancel}
-                  disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
-                  {loading ? 'กำลังดำเนินการ...' : 'ยกเลิกแผน'}
+                  {loading ? 'กำลังดำเนินการ...' : 'ยืนยันและจ่ายออก'}
                 </button>
               )}
             </div>
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push('/pc/schedule/reservations')}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
             >
               ย้อนกลับ
