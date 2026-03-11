@@ -55,14 +55,18 @@ export default function AddReceivingModal({
   const mfgDatePickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (show && mfgDatePickerRef.current) {
-      flatpickr(mfgDatePickerRef.current, {
-        dateFormat: "Y-m-d",
-        onChange: (selectedDates, dateStr) => {
-          setMfgDate?.(dateStr);
-        },
-        defaultDate: mfgDate || undefined
-      });
+    if (show) {
+      setMaterialSearch('');
+      setShowMaterialDropdown(false);
+      if (mfgDatePickerRef.current) {
+        flatpickr(mfgDatePickerRef.current, {
+          dateFormat: "Y-m-d",
+          onChange: (selectedDates, dateStr) => {
+            setMfgDate?.(dateStr);
+          },
+          defaultDate: mfgDate || undefined
+        });
+      }
     }
   }, [show]);
 
@@ -102,7 +106,7 @@ export default function AddReceivingModal({
                 <div className="relative">
                   <input
                     type="text"
-                    value={materialSearch || (selectedMaterial ? `${selectedMaterial.matCode} - ${selectedMaterial.matName || ''}` : '')}
+                    value={materialId && !materialSearch ? (selectedMaterial ? `${selectedMaterial.matCode} - ${selectedMaterial.matName || ''}` : '') : materialSearch}
                     onChange={(e) => {
                       setMaterialSearch(e.target.value);
                       setShowMaterialDropdown(true);

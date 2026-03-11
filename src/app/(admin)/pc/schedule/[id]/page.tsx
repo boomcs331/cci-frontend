@@ -6,6 +6,7 @@ import ComponentCard from '@/components/common/ComponentCard';
 
 interface Material {
   materialId: number;
+  materialCode: string;
   materialName: string;
   requiredQuantity: number;
   availableQty: number;
@@ -194,31 +195,40 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                 <table className="w-full table-auto">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material Name</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">ต้องการ</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">คงเหลือ</th>
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {item.materials.map((m) => (
-                      <tr key={m.materialId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                          {m.requiredQuantity} {m.unit}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                          {m.availableQty} {m.unit}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {m.availableQty >= m.requiredQuantity ? (
-                            <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
-                          ) : (
-                            <span className="text-red-600 dark:text-red-400 text-xl">✗</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {item.materials.map((m) => {
+                      const ratio = m.requiredQuantity > 0 ? m.availableQty / m.requiredQuantity : 0;
+                      const bgColor = ratio <= 1 ? 'bg-red-50 dark:bg-red-900/20' :
+                                      ratio <= 2 ? 'bg-orange-50 dark:bg-orange-900/20' :
+                                      ratio <= 3 ? 'bg-green-50 dark:bg-green-900/20' :
+                                      'bg-blue-50 dark:bg-blue-900/20';
+                      return (
+                        <tr key={m.materialId} className={`hover:opacity-80 ${bgColor}`}>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td> 
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {m.requiredQuantity} {m.unit}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {m.availableQty} {m.unit}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {m.availableQty >= m.requiredQuantity ? (
+                              <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
+                            ) : (
+                              <span className="text-red-600 dark:text-red-400 text-xl">✗</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

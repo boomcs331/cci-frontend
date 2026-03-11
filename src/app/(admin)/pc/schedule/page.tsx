@@ -32,6 +32,14 @@ interface Material {
   matName: string;
 }
 
+interface InsufficientMaterial {
+  materialCode: string;
+  materialName: string;
+  required: number;
+  available: number;
+  unit: string;
+}
+
 interface Reservation {
   id: number;
   planId: number;
@@ -83,6 +91,8 @@ export default function PCSchedulePage() {
   const [editingPlan, setEditingPlan] = useState<ProductionPlan | null>(null);
   const [form, setForm] = useState({ planName: "", planDate: "", remarks: "", items: [] as PlanItem[] });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [insufficientMaterials, setInsufficientMaterials] = useState<InsufficientMaterial[]>([]);
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [productSearches, setProductSearches] = useState<{[key: number]: string}>({});
   const [showProductDropdowns, setShowProductDropdowns] = useState<{[key: number]: boolean}>({});
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -218,14 +228,32 @@ export default function PCSchedulePage() {
   const handleReserve = async (id: number) => {
     try {
       const res = await fetch(`http://localhost:3006/production-plans/${id}/reserve`, { method: "POST" });
-      if (res.ok) {
+      const data = await res.json();
+      
+      // ตรวจสอบ success จาก response body ไม่ใช่ res.ok
+      if (res.ok && data.success !== false) {
         setMessage({ type: "success", text: "จอง Material สำเร็จ" });
         fetchPlans();
         setTimeout(() => setMessage(null), 3000);
       } else {
-        const errorData = await res.json().catch(() => ({ message: "ไม่สามารถจอง Material ได้" }));
-        setMessage({ type: "error", text: errorData.message || "ไม่สามารถจอง Material ได้" });
-        setTimeout(() => setMessage(null), 5000);
+        // ตรวจสอบว่ามี insufficientMaterials array จาก API
+        if (data.insufficientMaterials && Array.isArray(data.insufficientMaterials) && data.insufficientMaterials.length > 0) {
+          // ใช้ข้อมูลจาก API โดยตรง
+          const materials: InsufficientMaterial[] = data.insufficientMaterials.map((item: any) => ({
+            materialCode: item.materialCode,
+            materialName: item.materialName,
+            required: parseFloat(item.required),
+            available: parseFloat(item.available),
+            unit: item.unit || 'หน่วย'
+          }));
+          
+          setInsufficientMaterials(materials);
+          setShowInsufficientModal(true);
+        } else {
+          // ถ้าไม่มี insufficientMaterials แสดง error message ธรรมดา
+          setMessage({ type: "error", text: data.message || "ไม่สามารถจอง Material ได้" });
+          setTimeout(() => setMessage(null), 5000);
+        }
       }
     } catch (error) {
       console.error("Error:", error);
@@ -287,7 +315,18 @@ export default function PCSchedulePage() {
       pdf.setFont("helvetica", "normal");
       data.items?.forEach((item: any, i: number) => {
         pdf.text(`${i + 1}. ${item.product?.productName || '-'} - ${item.quantity} ${item.unit}`, 25, y);
-        y += 10;
+        y += 8;
+        if (item.bom && item.bom.length > 0) {
+          pdf.setFontSize(9);
+          pdf.text('Materials:', 30, y);
+          y += 6;
+          item.bom.forEach((bom: any) => {
+            pdf.text(`- ${bom.materialCode}: ${bom.materialName} (${(bom.quantity * item.quantity).toFixed(2)} ${bom.unit})`, 35, y);
+            y += 5;
+          });
+          pdf.setFontSize(11);
+          y += 3;
+        }
       });
       
       pdf.save(`Plan_${data.planCode}.pdf`);
@@ -308,12 +347,19 @@ export default function PCSchedulePage() {
         const data = await res.json();
         
         const qrDataUrl = await QRCode.toDataURL(data.planCode, { width: 200, margin: 1 });
+        
+        const materialCodes = data.items?.flatMap((item: any) => 
+          item.bom?.map((bom: any) => bom.materialCode) || []
+        ).filter((code: string) => code) || [];
+        const materials = materialCodes.length > 0 ? materialCodes.join(', ') : 'N/A';
+        
         qrData.push({
           qr: qrDataUrl,
           code: data.planCode,
           name: data.planName,
           date: new Date(data.planDate).toLocaleDateString('en-GB'),
-          status: statusConfig[data.status as keyof typeof statusConfig]?.en || data.status
+          status: statusConfig[data.status as keyof typeof statusConfig]?.en || data.status,
+          materials: materials.substring(0, 50) + (materials.length > 50 ? '...' : '')
         });
       }
       
@@ -361,6 +407,10 @@ export default function PCSchedulePage() {
         doc.setFontSize(6);
         doc.text(item.date, x + itemWidth / 2, y + qrSize + 14, { align: 'center' });
         doc.text(item.status, x + itemWidth / 2, y + qrSize + 17, { align: 'center' });
+        
+        doc.setFontSize(5);
+        const matLines = doc.splitTextToSize(`Mat: ${item.materials}`, itemWidth - 4);
+        doc.text(matLines[0] || '', x + itemWidth / 2, y + qrSize + 20, { align: 'center' });
       });
       
       doc.save(`Production_Plans_QR_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -370,6 +420,23 @@ export default function PCSchedulePage() {
   };
 
   const addItem = () => setForm({ ...form, items: [...form.items, { productId: 0, quantity: 0, unit: "ชิ้น", remarks: "", bom: [] }] });
+  
+  const debugMaterial = async (materialCode: string) => {
+    try {
+      const res = await fetch(`http://localhost:3006/production-plans/debug/material/${materialCode}`);
+      const data = await res.json();
+      console.log('=== Debug Material Data ===');
+      console.log('Material:', data.material);
+      console.log('Stock:', data.stock);
+      console.log('Lots:', data.lots);
+      console.log('Reservations:', data.reservations);
+      console.log('Summary:', data.summary);
+      alert(JSON.stringify(data.summary, null, 2));
+    } catch (error) {
+      console.error('Debug error:', error);
+    }
+  };
+  
   const updateItem = async (index: number, field: keyof PlanItem, value: any) => {
     if (field === "quantity" && value < 0) return;
     
@@ -416,7 +483,13 @@ export default function PCSchedulePage() {
           </div>
         </div>
 
-        {message && <Alert variant={message.type} title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"} message={message.text} />}
+        {message && message.type === "success" && (
+          <Alert 
+            variant={message.type} 
+            title="สำเร็จ" 
+            message={message.text} 
+          />
+        )}
         
         <ComponentCard title={`แผนการผลิตทั้งหมด (${pagination?.total || 0})`}>
           <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -491,6 +564,7 @@ export default function PCSchedulePage() {
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สินค้า</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">Material</th>
                   <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">จัดการ</th>
                 </tr>
               </thead>
@@ -509,6 +583,9 @@ export default function PCSchedulePage() {
                       }`}>{statusConfig[plan.status].label}</span>
                     </td>
                     <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">{plan.items?.length || 0}</td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">
+                      {plan.items?.reduce((acc, item) => acc + (item.bom?.length || 0), 0) || 0}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex gap-1 justify-center">
                         {plan.status === "draft" && (
@@ -753,11 +830,38 @@ export default function PCSchedulePage() {
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {selectedPlan.items?.map((item, i) => (
-                          <tr key={i}>
-                            <td className="px-4 py-3 text-gray-900 dark:text-white">{item.product?.productName || "-"}</td>
-                            <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.quantity}</td>
-                            <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.unit}</td>
-                          </tr>
+                          <React.Fragment key={i}>
+                            <tr>
+                              <td className="px-4 py-3 text-gray-900 dark:text-white">{item.product?.productName || "-"}</td>
+                              <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.quantity}</td>
+                              <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.unit}</td>
+                            </tr>
+                            {item.bom && item.bom.length > 0 && (
+                              <tr>
+                                <td colSpan={3} className="px-4 py-2 bg-gray-50 dark:bg-gray-800">
+                                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Material ที่ต้องใช้:</div>
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-gray-600 dark:text-gray-400">
+                                        <th className="px-2 py-1 text-left">รหัส Material</th>
+                                        <th className="px-2 py-1 text-left">ชื่อ Material</th>
+                                        <th className="px-2 py-1 text-right">จำนวน</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {item.bom.map((bom, bi) => (
+                                        <tr key={bi}>
+                                          <td className="px-2 py-1 text-gray-900 dark:text-white">{bom.materialCode}</td>
+                                          <td className="px-2 py-1 text-gray-900 dark:text-white">{bom.materialName}</td>
+                                          <td className="px-2 py-1 text-right text-gray-900 dark:text-white">{(bom.quantity * item.quantity).toFixed(2)} {bom.unit}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -791,6 +895,64 @@ export default function PCSchedulePage() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInsufficientModal && insufficientMaterials.length > 0 && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-red-500 dark:border-red-600 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-3">
+                <span className="text-4xl">⛔</span>
+                <h3 className="text-2xl font-bold text-red-600 dark:text-red-400">ไม่สามารถจองได้</h3>
+              </div>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-2">
+                วัตถุดิบต่อไปนี้มีจำนวนไม่เพียงพอ กรุณาเติม Stock ก่อนทำการจองใหม่
+              </p>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 p-6">
+              <div className="space-y-4">
+                {insufficientMaterials.map((m, idx) => (
+                  <div key={idx} className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-bold text-lg text-gray-900 dark:text-white">{m.materialName}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">รหัส: {m.materialCode}</p>
+                      </div>
+                      <span className="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
+                        ขาด {(m.required - m.available).toLocaleString()} {m.unit}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">จำนวนที่ต้องการ</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{m.required.toLocaleString()} <span className="text-sm text-gray-500">{m.unit}</span></p>
+                      </div>
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">คงเหลือปัจจุบัน</p>
+                        <p className="text-xl font-bold text-red-600 dark:text-red-400">{m.available.toLocaleString()} <span className="text-sm text-red-500">{m.unit}</span></p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  กรุณาไปที่หน้า Material Receiving เพื่อเติม Stock
+                </p>
+                <button
+                  onClick={() => setShowInsufficientModal(false)}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  รับทราบ
+                </button>
               </div>
             </div>
           </div>
