@@ -175,7 +175,7 @@ export default function PCSchedulePage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:3006/products");
+      const res = await fetch("http://localhost:3006/products/all");
       if (res.ok) {
         const data = await res.json();
         setProducts(Array.isArray(data) ? data : data.data || []);
@@ -647,7 +647,7 @@ export default function PCSchedulePage() {
                             />
                             {showProductDropdowns[i] && filteredProducts.length > 0 && (
                               <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                {filteredProducts.slice(0, 50).map((p) => (
+                                {filteredProducts.map((p) => (
                                   <div
                                     key={p.id}
                                     onClick={() => {

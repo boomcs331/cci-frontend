@@ -123,7 +123,11 @@ export default function PrintAllQRModal({ show, onClose, receiving }: PrintAllQR
 
         <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}} id="print-content">
           <div className="grid grid-cols-5 gap-3" id="qr-grid">
-            {receiving.lots?.map((lot: any) => (
+            {receiving.lots?.sort((a: any, b: any) => {
+              const aNum = parseInt(a.lotNo.slice(-3));
+              const bNum = parseInt(b.lotNo.slice(-3));
+              return aNum - bNum;
+            }).map((lot: any) => (
               <div key={lot.id} className="qr-sticker border border-gray-300 p-2 rounded bg-white text-center break-inside-avoid">
                 <div className="bg-white p-1 inline-block mb-1">
                   <QRCodeGenerator value={lot.qrCode} size={100} className="mx-auto" />
