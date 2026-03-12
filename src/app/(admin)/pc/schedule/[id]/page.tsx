@@ -19,6 +19,7 @@ interface Reservation {
   materialName: string;
   reservedQuantity: number;
   lotNumber?: string;
+  lotPdNo?: string;
   qrCode?: string;
   receiveDate?: string;
   createDate: string;
@@ -160,6 +161,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                       <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">รหัสวัตถุดิบ</th>
                       <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">ชื่อวัตถุดิบ</th>
                       <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">Lot Number</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">Lot PD No.</th>
                       <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">QR Code</th>
                       <th className="px-4 py-2 text-right text-sm font-medium text-blue-900 dark:text-blue-100">จำนวนที่จอง</th>
                       <th className="px-4 py-2 text-center text-sm font-medium text-blue-900 dark:text-blue-100">วันที่จอง</th>
@@ -171,6 +173,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialCode}</td>
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialName}</td>
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
                         <td className="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
                         <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
                           {r.reservedQuantity.toLocaleString()}
