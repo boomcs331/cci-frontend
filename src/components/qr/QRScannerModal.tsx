@@ -94,8 +94,16 @@ export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps)
                   <div className="font-medium text-gray-900 dark:text-white">{lotData.material?.matCode}</div>
                 </div>
                 <div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">ชื่อวัตถุดิบ:</span>
+                  <div className="font-medium text-gray-900 dark:text-white">{lotData.material?.matName}</div>
+                </div>
+                <div>
                   <span className="text-sm text-gray-500 dark:text-gray-400">Lot No:</span>
                   <div className="font-medium text-gray-900 dark:text-white">{lotData.lotNo}</div>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Lot PD No:</span>
+                  <div className="font-medium text-gray-900 dark:text-white">{lotData.lotPdNo || '-'}</div>
                 </div>
                 <div>
                   <span className="text-sm text-gray-500 dark:text-gray-400">QR Code:</span>

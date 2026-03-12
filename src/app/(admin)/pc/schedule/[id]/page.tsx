@@ -194,7 +194,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {item.productName} - จำนวน {item.quantity} {item.unit}
               </h3>
-              <div className="overflow-x-auto">
+              
+              {/* ตารางแสดง Material ที่ต้องการ */}
+              <div className="overflow-x-auto mb-4">
                 <table className="w-full table-auto">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800">
@@ -235,6 +237,46 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                   </tbody>
                 </table>
               </div>
+
+              {/* ตารางแสดง Lot ที่ยืนยัน */}
+              {data.reservations && data.reservations.filter(r => 
+                item.materials.some(m => m.materialId === r.materialId)
+              ).length > 0 && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
+                    Lot ที่ยืนยัน
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-auto text-xs">
+                      <thead>
+                        <tr className="bg-green-100 dark:bg-green-900/40">
+                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">Material</th>
+                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">Lot Number</th>
+                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">Lot PD No.</th>
+                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">QR Code</th>
+                          <th className="px-3 py-2 text-right text-green-900 dark:text-green-100">จำนวน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-green-200 dark:divide-green-800">
+                        {data.reservations
+                          .filter(r => item.materials.some(m => m.materialId === r.materialId))
+                          .map((r, idx) => (
+                            <tr key={idx} className="hover:bg-green-100 dark:hover:bg-green-900/30">
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{r.materialCode}</td>
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
+                              <td className="px-3 py-2 font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                {r.reservedQuantity.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
