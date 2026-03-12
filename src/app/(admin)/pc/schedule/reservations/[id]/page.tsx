@@ -254,6 +254,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800">
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material Code</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">ต้องการ</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">คงเหลือ</th>
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
@@ -263,6 +264,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     {item.materials.map((m) => (
                       <tr key={m.materialId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td>
                         <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                           {m.requiredQuantity} {m.unit}
                         </td>
