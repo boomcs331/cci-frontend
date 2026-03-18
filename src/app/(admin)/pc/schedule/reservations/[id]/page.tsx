@@ -6,6 +6,7 @@ import ComponentCard from '@/components/common/ComponentCard';
 
 interface Material {
   materialId: number;
+  materialCode: string;
   materialName: string;
   requiredQuantity: number;
   availableQty: number;
@@ -37,6 +38,7 @@ interface PlanDetail {
   planCode: string;
   planName: string;
   planDate: string;
+  planTime?: string;
   status: string;
   remarks?: string;
   items: PlanItem[];
@@ -180,9 +182,15 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         <ComponentCard title="รายละเอียดแผนการผลิต">
           <div className="mb-6 grid grid-cols-2 gap-4">
             <div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">วันที่:</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">วันที่และเวลา:</span>
               <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
-                {new Date(data.planDate).toLocaleDateString('th-TH')}
+                {new Date(data.planDate).toLocaleDateString('th-TH', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+                {' '}
+                {data.planTime ? data.planTime.substring(0, 5) : '00:00'} น.
               </span>
             </div>
             <div>

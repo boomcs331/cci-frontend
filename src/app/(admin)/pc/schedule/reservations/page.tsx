@@ -4,12 +4,16 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import TimePicker from "@/components/ui/TimePicker";
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.css";
 
 interface ProductionPlan {
   id: number;
   planCode: string;
   planName: string;
   planDate: string;
+  planTime?: string;
   status: "reserved" | "confirmed";
   items?: { product?: { productName: string }; quantity: number; unit: string }[];
 }
@@ -22,14 +26,87 @@ const statusConfig = {
 export default function ScheduleReservationsPage() {
   const router = useRouter();
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
+  const [filteredPlans, setFilteredPlans] = useState<ProductionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [barcode, setBarcode] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [filterTimeFrom, setFilterTimeFrom] = useState<string>('');
+  const [filterTimeTo, setFilterTimeTo] = useState<string>('');
+  
+  const dateFromPickerRef = useRef<HTMLInputElement>(null);
+  const dateToPickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPlans();
   }, []);
+
+  useEffect(() => {
+    // Initialize flatpickr after plans are loaded
+    if (!loading && dateFromPickerRef.current) {
+      const fp1 = flatpickr(dateFromPickerRef.current, {
+        dateFormat: "Y-m-d",
+        onChange: (selectedDates, dateStr) => {
+          setFilterDateFrom(dateStr);
+        }
+      });
+      
+      const fp2 = flatpickr(dateToPickerRef.current!, {
+        dateFormat: "Y-m-d",
+        onChange: (selectedDates, dateStr) => {
+          setFilterDateTo(dateStr);
+        }
+      });
+      
+      return () => {
+        fp1.destroy();
+        fp2.destroy();
+      };
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [plans, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
+
+  const applyFilters = () => {
+    let filtered = [...plans];
+    
+    if (searchTerm) {
+      filtered = filtered.filter((p: ProductionPlan) => 
+        p.planCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.planName?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    if (filterStatus) {
+      filtered = filtered.filter((p: ProductionPlan) => p.status.toLowerCase() === filterStatus.toLowerCase());
+    }
+    if (filterDateFrom) {
+      filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) >= new Date(filterDateFrom));
+    }
+    if (filterDateTo) {
+      filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) <= new Date(filterDateTo));
+    }
+    if (filterTimeFrom) {
+      filtered = filtered.filter((p: ProductionPlan) => {
+        const planTime = p.planTime ? p.planTime.substring(0, 5) : '00:00';
+        return planTime >= filterTimeFrom;
+      });
+    }
+    if (filterTimeTo) {
+      filtered = filtered.filter((p: ProductionPlan) => {
+        const planTime = p.planTime ? p.planTime.substring(0, 5) : '00:00';
+        return planTime <= filterTimeTo;
+      });
+    }
+    
+    setFilteredPlans(filtered);
+  };
 
   const fetchPlans = async () => {
     try {
@@ -137,7 +214,91 @@ export default function ScheduleReservationsPage() {
           </form>
         </div>
 
-        <ComponentCard title={`แผนผลิตที่จองสำเร็จแล้ว (${plans.length})`}>
+        <ComponentCard title={`แผนผลิตที่จองสำเร็จแล้ว (${filteredPlans.length})`}>
+          <div className="mb-4 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="ค้นหา (รหัส, ชื่อแผน)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">ทุกสถานะ</option>
+                <option value="reserved">จองแล้ว</option>
+                <option value="confirmed">ยืนยันแล้ว</option>
+              </select>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterStatus('');
+                  setFilterDateFrom('');
+                  setFilterDateTo('');
+                  setFilterTimeFrom('');
+                  setFilterTimeTo('');
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                ล้างตัวกรอง
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่เริ่มต้น</label>
+                <div className="relative">
+                  <input
+                    ref={dateFromPickerRef}
+                    type="text"
+                    value={filterDateFrom}
+                    placeholder="เลือกวันที่"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                  />
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่สิ้นสุด</label>
+                <div className="relative">
+                  <input
+                    ref={dateToPickerRef}
+                    type="text"
+                    value={filterDateTo}
+                    placeholder="เลือกวันที่"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                  />
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาเริ่มต้น</label>
+                <TimePicker
+                  value={filterTimeFrom}
+                  onChange={(time) => setFilterTimeFrom(time)}
+                  placeholder="เลือกเวลา"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาสิ้นสุด</label>
+                <TimePicker
+                  value={filterTimeTo}
+                  onChange={(time) => setFilterTimeTo(time)}
+                  placeholder="เลือกเวลา"
+                />
+              </div>
+            </div>
+          </div>
           <div className="flex justify-end mb-4">
             <button onClick={() => router.push('/pc/reservations')} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,18 +320,28 @@ export default function ScheduleReservationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {plans.length === 0 ? (
+                {filteredPlans.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       ไม่มีแผนผลิตที่จองสำเร็จ
                     </td>
                   </tr>
                 ) : (
-                  plans.map((plan) => (
+                  filteredPlans.map((plan) => (
                     <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{plan.planCode}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{plan.planName}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{new Date(plan.planDate).toLocaleDateString("th-TH")}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {new Date(plan.planDate).toLocaleDateString("th-TH", {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                        <br />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :

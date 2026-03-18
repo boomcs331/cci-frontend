@@ -5,8 +5,9 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import TimePicker from "@/components/ui/TimePicker";
 import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.min.css";
+import "flatpickr/dist/flatpickr.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -65,6 +66,7 @@ interface ProductionPlan {
   planCode: string;
   planName: string;
   planDate: string;
+  planTime?: string;
   status: "draft" | "reserved" | "confirmed" | "cancelled";
   remarks?: string;
   createDate: string;
@@ -89,7 +91,7 @@ export default function PCSchedulePage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<ProductionPlan | null>(null);
   const [editingPlan, setEditingPlan] = useState<ProductionPlan | null>(null);
-  const [form, setForm] = useState({ planName: "", planDate: "", remarks: "", items: [] as PlanItem[] });
+  const [form, setForm] = useState({ planName: "", planDate: "", planTime: "", remarks: "", items: [] as PlanItem[] });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [insufficientMaterials, setInsufficientMaterials] = useState<InsufficientMaterial[]>([]);
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
@@ -99,8 +101,12 @@ export default function PCSchedulePage() {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [filterTimeFrom, setFilterTimeFrom] = useState<string>('');
+  const [filterTimeTo, setFilterTimeTo] = useState<string>('');
   const datePickerRef = useRef<HTMLInputElement>(null);
   const flatpickrInstance = useRef<any>(null);
+  const dateFromPickerRef = useRef<HTMLInputElement>(null);
+  const dateToPickerRef = useRef<HTMLInputElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -108,7 +114,29 @@ export default function PCSchedulePage() {
   useEffect(() => {
     fetchPlans();
     fetchProducts();
-  }, [page, limit, searchTerm, filterStatus, filterDateFrom, filterDateTo]);
+  }, [page, limit, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
+
+  useEffect(() => {
+    // Initialize filter date pickers
+    const fp1 = flatpickr(dateFromPickerRef.current!, {
+      dateFormat: "Y-m-d",
+      onChange: (selectedDates, dateStr) => {
+        setFilterDateFrom(dateStr);
+      }
+    });
+    
+    const fp2 = flatpickr(dateToPickerRef.current!, {
+      dateFormat: "Y-m-d",
+      onChange: (selectedDates, dateStr) => {
+        setFilterDateTo(dateStr);
+      }
+    });
+    
+    return () => {
+      fp1.destroy();
+      fp2.destroy();
+    };
+  }, []);
 
   useEffect(() => {
     if (showModal && datePickerRef.current && !flatpickrInstance.current) {
@@ -161,6 +189,18 @@ export default function PCSchedulePage() {
         if (filterDateTo) {
           filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) <= new Date(filterDateTo));
         }
+        if (filterTimeFrom) {
+          filtered = filtered.filter((p: ProductionPlan) => {
+            const planTime = p.planTime ? p.planTime.substring(0, 5) : '00:00';
+            return planTime >= filterTimeFrom;
+          });
+        }
+        if (filterTimeTo) {
+          filtered = filtered.filter((p: ProductionPlan) => {
+            const planTime = p.planTime ? p.planTime.substring(0, 5) : '00:00';
+            return planTime <= filterTimeTo;
+          });
+        }
         
         // Calculate pagination
         const total = filtered.length;
@@ -207,12 +247,29 @@ export default function PCSchedulePage() {
       return;
     }
     try {
+      console.log('Form data before submit:', form);
+      // รวมวันที่และเวลาเข้าด้วยกัน
+      const planDateTime = form.planTime && form.planTime.trim() !== '' 
+        ? `${form.planDate}T${form.planTime}:00` 
+        : `${form.planDate}T00:00:00`;
+      
+      console.log('Plan DateTime:', planDateTime);
+      
+      const submitData = {
+        planName: form.planName,
+        planDate: planDateTime,
+        remarks: form.remarks,
+        items: form.items
+      };
+      
+      console.log('Submit data:', submitData);
+      
       const url = editingPlan ? `http://localhost:3006/production-plans/${editingPlan.id}` : "http://localhost:3006/production-plans";
-      const res = await fetch(url, { method: editingPlan ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const res = await fetch(url, { method: editingPlan ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(submitData) });
       if (res.ok) {
         setMessage({ type: "success", text: editingPlan ? "อัปเดตสำเร็จ" : "เพิ่มสำเร็จ" });
         setShowModal(false);
-        setForm({ planName: "", planDate: "", remarks: "", items: [] });
+        setForm({ planName: "", planDate: "", planTime: "", remarks: "", items: [] });
         setEditingPlan(null);
         fetchPlans();
         setTimeout(() => setMessage(null), 3000);
@@ -221,6 +278,7 @@ export default function PCSchedulePage() {
         setMessage({ type: "error", text: errorData.message || "เกิดข้อผิดพลาด" });
       }
     } catch (error) {
+      console.error('Submit error:', error);
       setMessage({ type: "error", text: "เกิดข้อผิดพลาด" });
     }
   };
@@ -266,7 +324,17 @@ export default function PCSchedulePage() {
 
   const handleEdit = (plan: ProductionPlan) => {
     setEditingPlan(plan);
-    setForm({ planName: plan.planName, planDate: plan.planDate, remarks: plan.remarks || "", items: plan.items || [] });
+    // แยกวันที่และเวลาออกจากกัน
+    const dateStr = plan.planDate.split('T')[0];
+    const timeStr = plan.planTime ? plan.planTime.substring(0, 5) : '00:00'; // HH:mm
+    
+    setForm({ 
+      planName: plan.planName, 
+      planDate: dateStr,
+      planTime: timeStr,
+      remarks: plan.remarks || "", 
+      items: plan.items || [] 
+    });
     setShowModal(true);
   };
 
@@ -492,39 +560,91 @@ export default function PCSchedulePage() {
         )}
         
         <ComponentCard title={`แผนการผลิตทั้งหมด (${pagination?.total || 0})`}>
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              type="text"
-              placeholder="ค้นหา (รหัส, ชื่อแผน)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">ทุกสถานะ</option>
-              <option value="draft">ร่าง</option>
-              <option value="reserved">จองแล้ว</option>
-              <option value="confirmed">ยืนยันแล้ว</option>
-              <option value="cancelled">ยกเลิก</option>
-            </select>
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="วันที่เริ่มต้น"
-            />
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="วันที่สิ้นสุด"
-            />
+          <div className="mb-4 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="ค้นหา (รหัส, ชื่อแผน)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">ทุกสถานะ</option>
+                <option value="draft">ร่าง</option>
+                <option value="reserved">จองแล้ว</option>
+                <option value="confirmed">ยืนยันแล้ว</option>
+                <option value="cancelled">ยกเลิก</option>
+              </select>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterStatus('');
+                  setFilterDateFrom('');
+                  setFilterDateTo('');
+                  setFilterTimeFrom('');
+                  setFilterTimeTo('');
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                ล้างตัวกรอง
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่เริ่มต้น</label>
+                <div className="relative">
+                  <input
+                    ref={dateFromPickerRef}
+                    type="text"
+                    value={filterDateFrom}
+                    placeholder="เลือกวันที่"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                  />
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่สิ้นสุด</label>
+                <div className="relative">
+                  <input
+                    ref={dateToPickerRef}
+                    type="text"
+                    value={filterDateTo}
+                    placeholder="เลือกวันที่"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                  />
+                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาเริ่มต้น</label>
+                <TimePicker
+                  value={filterTimeFrom}
+                  onChange={(time) => setFilterTimeFrom(time)}
+                  placeholder="เลือกเวลา"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาสิ้นสุด</label>
+                <TimePicker
+                  value={filterTimeTo}
+                  onChange={(time) => setFilterTimeTo(time)}
+                  placeholder="เลือกเวลา"
+                />
+              </div>
+            </div>
           </div>
           <div className="flex justify-between items-center mb-4">
             <PaginationSelector currentLimit={limit} />
@@ -545,7 +665,7 @@ export default function PCSchedulePage() {
             <button onClick={() => { 
               setShowModal(true); 
               setEditingPlan(null); 
-              setForm({ planName: "", planDate: "", remarks: "", items: [] }); 
+              setForm({ planName: "", planDate: "", planTime: "", remarks: "", items: [] }); 
               setProductSearches({});
               setShowProductDropdowns({});
             }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
@@ -573,7 +693,17 @@ export default function PCSchedulePage() {
                   <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{plan.planCode}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{plan.planName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{new Date(plan.planDate).toLocaleDateString("th-TH")}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      {new Date(plan.planDate).toLocaleDateString("th-TH", {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                      <br />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                         plan.status === "draft" ? "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-400" :
@@ -657,46 +787,60 @@ export default function PCSchedulePage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-8 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ชื่อแผน *</label>
-                  <input type="text" value={form.planName} onChange={(e) => setForm({ ...form, planName: e.target.value })} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" required />
+            <div className="p-8 overflow-y-auto" style={{maxHeight: 'calc(90vh - 100px)'}}>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ชื่อแผน *</label>
+                    <input type="text" value={form.planName} onChange={(e) => setForm({ ...form, planName: e.target.value })} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">วันที่ *</label>
+                    <div className="relative">
+                      <input 
+                        ref={datePickerRef}
+                        type="text" 
+                        value={form.planDate} 
+                        onChange={(e) => setForm({ ...form, planDate: e.target.value })} 
+                        className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
+                        placeholder="เลือกวันที่"
+                        required 
+                      />
+                      <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">วันที่ *</label>
-                  <div className="relative">
-                    <input 
-                      ref={datePickerRef}
-                      type="text" 
-                      value={form.planDate} 
-                      onChange={(e) => setForm({ ...form, planDate: e.target.value })} 
-                      className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
-                      placeholder="เลือกวันที่"
-                      required 
-                    />
-                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                <div className="grid grid-cols-2 gap-6">
+                  <TimePicker
+                    label="เวลา"
+                    value={form.planTime}
+                    onChange={(time) => setForm({ ...form, planTime: time })}
+                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">หมายเหตุ</label>
+                    <input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">หมายเหตุ</label>
-                  <textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" rows={3} />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">รายการสินค้า *</label>
-                    <button type="button" onClick={addItem} className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">+ เพิ่ม</button>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-base font-semibold text-gray-700 dark:text-gray-300">รายการสินค้า *</label>
+                    <button type="button" onClick={addItem} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      เพิ่มรายการ
+                    </button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {form.items.map((item, i) => {
                       const selectedProduct = products.find(p => p.id === item.productId);
                       const productSearch = productSearches[i] || '';
@@ -708,7 +852,7 @@ export default function PCSchedulePage() {
                       
                       return (
                       <div key={`item-${i}-${item.productId}`} className="border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
-                        <div className="flex gap-2 p-3">
+                        <div className="flex gap-3 p-4">
                           <div className="flex-1 relative">
                             <input
                               type="text"
@@ -741,32 +885,32 @@ export default function PCSchedulePage() {
                               </div>
                             )}
                           </div>
-                          <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
-                          <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-20 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                          <button type="button" onClick={() => removeItem(i)} className="px-3 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
+                          <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-28 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
+                          <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                          <button type="button" onClick={() => removeItem(i)} className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">ลบ</button>
                         </div>
                         {item.productId > 0 && (
-                          <div className="px-3 pb-3">
+                          <div className="px-4 pb-4">
                             {item.bom && item.bom.length > 0 ? (
                               <>
-                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Material ที่ต้องใช้:</div>
+                                <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Material ที่ต้องใช้:</div>
                                 <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                                  <table className="w-full text-xs">
+                                  <table className="w-full text-sm">
                                     <thead className="bg-gray-100 dark:bg-gray-700">
                                       <tr>
-                                        <th className="px-2 py-1 text-left text-gray-700 dark:text-gray-300">รหัส</th>
-                                        <th className="px-2 py-1 text-left text-gray-700 dark:text-gray-300">ชื่อ Material</th>
-                                        <th className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">ต่อหน่วย</th>
-                                        <th className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">รวม</th>
+                                        <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">รหัส</th>
+                                        <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">ชื่อ Material</th>
+                                        <th className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">ต่อหน่วย</th>
+                                        <th className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">รวม</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                       {item.bom.map((bom, bi) => (
                                         <tr key={bi}>
-                                          <td className="px-2 py-1 text-gray-900 dark:text-white">{bom.materialCode}</td>
-                                          <td className="px-2 py-1 text-gray-900 dark:text-white">{bom.materialName}</td>
-                                          <td className="px-2 py-1 text-right text-gray-900 dark:text-white">{bom.quantity} {bom.unit}</td>
-                                          <td className="px-2 py-1 text-right font-medium text-gray-900 dark:text-white">{(bom.quantity * (item.quantity || 0)).toFixed(2)} {bom.unit}</td>
+                                          <td className="px-3 py-2 text-gray-900 dark:text-white">{bom.materialCode}</td>
+                                          <td className="px-3 py-2 text-gray-900 dark:text-white">{bom.materialName}</td>
+                                          <td className="px-3 py-2 text-right text-gray-900 dark:text-white">{bom.quantity} {bom.unit}</td>
+                                          <td className="px-3 py-2 text-right font-medium text-gray-900 dark:text-white">{(bom.quantity * (item.quantity || 0)).toFixed(2)} {bom.unit}</td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -774,7 +918,7 @@ export default function PCSchedulePage() {
                                 </div>
                               </>
                             ) : (
-                              <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded border border-amber-200 dark:border-amber-800">
+                              <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 rounded border border-amber-200 dark:border-amber-800">
                                 ⚠️ สินค้านี้ยังไม่มี BOM (Bill of Materials) กรุณาเพิ่ม BOM ก่อนสร้างแผนการผลิต
                               </div>
                             )}
@@ -785,9 +929,9 @@ export default function PCSchedulePage() {
                     })}
                   </div>
                 </div>
-                <div className="flex gap-3 pt-4 border-t">
-                  <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">บันทึก</button>
-                  <button type="button" onClick={() => setShowModal(false)} className="px-6 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg">ยกเลิก</button>
+                <div className="flex gap-3 pt-6 border-t">
+                  <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-base font-medium transition-colors">บันทึก</button>
+                  <button type="button" onClick={() => setShowModal(false)} className="px-8 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg text-base font-medium transition-colors">ยกเลิก</button>
                 </div>
               </form>
             </div>
@@ -812,8 +956,12 @@ export default function PCSchedulePage() {
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedPlan.planName}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">วันที่</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{new Date(selectedPlan.planDate).toLocaleDateString("th-TH")}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">วันที่และเวลา</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {new Date(selectedPlan.planDate).toLocaleDateString("th-TH")}
+                      {' '}
+                      {selectedPlan.planTime ? selectedPlan.planTime.substring(0, 5) : '00:00'} น.
+                    </p>
                   </div>
                 </div>
                 
