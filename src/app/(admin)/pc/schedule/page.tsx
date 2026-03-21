@@ -605,6 +605,7 @@ export default function PCSchedulePage() {
                     ref={dateFromPickerRef}
                     type="text"
                     value={filterDateFrom}
+                    onChange={() => {}}
                     placeholder="เลือกวันที่"
                     className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
                   />
@@ -620,6 +621,7 @@ export default function PCSchedulePage() {
                     ref={dateToPickerRef}
                     type="text"
                     value={filterDateTo}
+                    onChange={() => {}}
                     placeholder="เลือกวันที่"
                     className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
                   />

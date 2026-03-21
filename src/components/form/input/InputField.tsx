@@ -58,9 +58,10 @@ const Input: FC<InputProps> = ({
         id={id}
         name={name}
         placeholder={placeholder}
-        value={value}
-        defaultValue={defaultValue}
+        value={value !== undefined ? value : undefined}
+        defaultValue={value === undefined ? defaultValue : undefined}
         onChange={onChange}
+        readOnly={value !== undefined && !onChange}
         min={min}
         max={max}
         step={step}
