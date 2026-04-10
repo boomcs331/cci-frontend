@@ -1,22 +1,25 @@
 "use client";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { getSession, getUserPermissions, isAdmin } from "@/utils/session";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  BoxCubeIcon,
+  faBoxesStacked,
+  faDatabase,
+  faGauge,
+  faIndustry,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
+import {
   CalenderIcon,
   ChevronDownIcon,
-  GridIcon,
   HorizontaLDots,
-  ListIcon,
   PageIcon,
   PieChartIcon,
   PlugInIcon,
-  TableIcon,
-  UserCircleIcon,
 } from "../icons/index";
 
 type SubMenuItem = {
@@ -39,12 +42,12 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    icon: <GridIcon />,
+    icon: <FontAwesomeIcon icon={faGauge} />,
     name: "Dashboard",
     path: "/",
   },
   {
-    icon: <UserCircleIcon />,
+    icon: <FontAwesomeIcon icon={faUsers} />,
     name: "Users Management",
     permission: "CAN_READ",
     subItems: [
@@ -55,7 +58,7 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <ListIcon />,
+    icon: <FontAwesomeIcon icon={faBoxesStacked} />,
     name: "PC",
     permission: "CAN_READ",
     subItems: [
@@ -64,32 +67,42 @@ const navItems: NavItem[] = [
       { name: "รายการจ่ายออก", path: "/pc/outcome", pro: false, permission: "CAN_READ" },
       { name: "รายการจอง", path: "/pc/reservations", pro: false, permission: "CAN_READ" },
       { name: "แผนผลิตที่จองสำเร็จแล้ว", path: "/pc/schedule/reservations", pro: false, permission: "CAN_READ" },
+      { name: "ยิงบาร์โค้ดขั้นตอนผลิต", path: "/pc/production-step-scan", pro: false, permission: "CAN_READ" },
       { name: "Stock คงเหลือ", path: "/pc/stock", pro: false, permission: "CAN_READ" },
       { name: "รายงาน", path: "/pc/report", pro: false, permission: "CAN_READ" },
     ],
   },
   {
-    icon: <BoxCubeIcon />,
+    icon: <FontAwesomeIcon icon={faIndustry} />,
     name: "Production",
     permission: "CAN_READ",
     subItems: [
       { name: "Products", path: "/production/products", pro: false, permission: "CAN_READ" },
+      { name: "คำสั่งผลิต / QR", path: "/production/production-orders", pro: false, permission: "CAN_READ" },
+      { name: "ลำดับขั้นตอนผลิต", path: "/production/production-steps", pro: false, permission: "CAN_READ" },
       { name: "จัดงานล่วงหน้า", path: "/pc/schedule", pro: false, permission: "CAN_READ" },
+      { name: "ติดตามสถานะการผลิต", path: "/pc/production-tracking", pro: false, permission: "CAN_READ" },
     ],
   },
   {
-    icon: <TableIcon />,
+    icon: <FontAwesomeIcon icon={faDatabase} />,
     name: "Master Data",
     permission: "CAN_READ",
     subItems: [
       {
-        name: "Materials",
+        name: "ภาพรวม Master Data",
+        path: "/master-data",
+        pro: false,
+        permission: "CAN_READ",
+      },
+      {
+        name: "วัตถุดิบ",
         path: "",
         isCollapsible: true,
         permission: "CAN_READ",
         items: [
           { name: "ประเภทวัตถุดิบ", path: "/master-data/material-types", permission: "CAN_READ" },
-          { name: "สถานที่เก็บ", path: "/master-data/locations", permission: "CAN_READ" },
+          { name: "สถานที่เก็บ (วัตถุดิบ)", path: "/master-data/locations", permission: "CAN_READ" },
           { name: "ผู้จัดจำหน่าย", path: "/master-data/suppliers", permission: "CAN_READ" },
           { name: "โมเดล", path: "/master-data/models", permission: "CAN_READ" },
           { name: "ประเภทการส่ง", path: "/master-data/delivery-types", permission: "CAN_READ" },
@@ -99,22 +112,23 @@ const navItems: NavItem[] = [
         ],
       },
       {
-        name: "Production",
+        name: "ผลิตภัณฑ์ / สินค้า",
         path: "",
         isCollapsible: true,
         permission: "CAN_READ",
         items: [
-          { name: "ประเภทผลิตภัณฑ์", path: "/master-data/product-types", permission: "CAN_READ" },
-          { name: "สถานที่เก็บผลิตภัณฑ์", path: "/master-data/product-locations", permission: "CAN_READ" },
+          { name: "ประเภทสินค้า", path: "/master-data/product-types", permission: "CAN_READ" },
+          { name: "สถานที่เก็บ (สินค้า)", path: "/master-data/product-locations", permission: "CAN_READ" },
           { name: "ลูกค้า", path: "/master-data/customers", permission: "CAN_READ" },
-          { name: "ประเภทการส่งผลิตภัณฑ์", path: "/master-data/product-delivery-types", permission: "CAN_READ" },
-          { name: "โมเดลผลิตภัณฑ์", path: "/master-data/product-models", permission: "CAN_READ" },
-          { name: "หน่วยผลิตภัณฑ์", path: "/master-data/product-units", permission: "CAN_READ" },
-          { name: "จุดขนถ่ายผลิตภัณฑ์", path: "/master-data/product-loading-points", permission: "CAN_READ" },
-          { name: "สายการผลิตผลิตภัณฑ์", path: "/master-data/product-process-lines", permission: "CAN_READ" },
+          { name: "ลำดับขั้นตอนผลิต", path: "/master-data/production-steps", permission: "CAN_READ" },
+          { name: "ประเภทการส่ง (สินค้า)", path: "/master-data/product-delivery-types", permission: "CAN_READ" },
+          { name: "โมเดล (สินค้า)", path: "/master-data/product-models", permission: "CAN_READ" },
+          { name: "หน่วย (สินค้า)", path: "/master-data/product-units", permission: "CAN_READ" },
+          { name: "จุดขนถ่าย (สินค้า)", path: "/master-data/product-loading-points", permission: "CAN_READ" },
+          { name: "สายการผลิต (สินค้า)", path: "/master-data/product-process-lines", permission: "CAN_READ" },
         ],
       },
-    ],  
+    ],
   },
 ];
 
@@ -422,6 +436,20 @@ const AppSidebar: React.FC = () => {
       }
     }
   }, [openSubmenu]);
+
+  useLayoutEffect(() => {
+    // When nested submenus open/close, the parent submenu height must be recalculated
+    // otherwise the nested list can be rendered but clipped by the fixed height.
+    if (openSubmenu === null) return;
+    const key = `${openSubmenu.type}-${openSubmenu.index}`;
+    const el = subMenuRefs.current[key];
+    if (!el) return;
+
+    setSubMenuHeight((prevHeights) => ({
+      ...prevHeights,
+      [key]: el.scrollHeight || 0,
+    }));
+  }, [openSubmenu, openNestedSubmenu]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
     setOpenSubmenu((prevOpenSubmenu) => {

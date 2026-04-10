@@ -1,8 +1,18 @@
 'use client';
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
+import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBatchPanel';
+import QRScannerModal from '@/components/qr/QRScannerModal';
+import { getProductProductionSteps } from '@/services/productProductionStepsService';
+import type { GenerateProductQrOrdersResponse } from '@/services/productionPlanQrService';
+import { getApiUrl } from '@/utils/api';
+import {
+  generateProductQrOrdersAndSyncPlanItems,
+  syncPlanItemsFromProductionQrGeneration,
+  type PlanDetailForLots,
+} from '@/utils/ensureProductionLotsAfterReserve';
 
 interface Material {
   materialId: number;
@@ -26,15 +36,21 @@ interface Reservation {
 }
 
 interface PlanItem {
+  planItemId?: number;
+  /** รหัสแถวแผนใน DB (ใช้เรียก generate-product-qr-orders เมื่อไม่มี planItemId) */
+  id?: number;
   productId: number;
   productName: string;
   quantity: number;
   unit: string;
   materials: Material[];
+  /** จาก API หลังจ่ายวัตถุดิบเฉพาะบรรทัด — ใช้ซ่อนปุ่มยืนยันซ้ำและเปิดแผงล็อตผลิต */
+  materialsIssued?: boolean;
 }
 
 interface PlanDetail {
-  id: number;
+  id?: number;
+  planId?: number;
   planCode: string;
   planName: string;
   planDate: string;
@@ -50,10 +66,24 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [data, setData] = useState<PlanDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorAlert, setErrorAlert] = useState<{ show: boolean; materials: Material[] }>({ show: false, materials: [] });
+  const [showScanner, setShowScanner] = useState(false);
+  const [stepsByProductId, setStepsByProductId] = useState<Record<number, string[]>>({});
+  const [stepsLoading, setStepsLoading] = useState(false);
+  const [issuingItemIndex, setIssuingItemIndex] = useState<number | null>(null);
   const router = useRouter();
 
+  const productIdsToFetch = useMemo(() => {
+    if (!data?.items?.length) return [] as number[];
+    if (data.status === 'confirmed') {
+      return [...new Set(data.items.map((i) => i.productId))];
+    }
+    const issued = data.items.filter((i) => i.materialsIssued);
+    if (issued.length === 0) return [];
+    return [...new Set(issued.map((i) => i.productId))];
+  }, [data?.items, data?.status]);
+
   const fetchData = () => {
-    fetch(`http://localhost:3006/production-plans/${id}/details`)
+    fetch(getApiUrl(`/production-plans/${id}/details`))
       .then(res => res.json())
       .then(setData)
       .catch(err => console.error('Error:', err));
@@ -63,50 +93,144 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     fetchData();
   }, [id]);
 
-  const handleConfirmAndIssue = async () => {
-    // ล้าง error alert เก่าก่อนทำรายการใหม่
+  /** จ่ายเฉพาะบรรทัดสินค้าในแผน (index ตามลำดับใน items[]) — ส่งไปที่ API เป็น itemIndexes */
+  const handleConfirmAndIssueForItem = async (itemIndex: number) => {
     setErrorAlert({ show: false, materials: [] });
-    
-    if (!confirm('ต้องการยืนยันและจ่ายออกวัตถุดิบหรือไม่? (จะตัด stock จริง)')) return;
-    
-    // ตรวจสอบ stock ก่อนจ่าย
+
+    const item = data?.items?.[itemIndex];
+    if (!item) return;
+
+    const label = `${item.productName} จำนวน ${item.quantity} ${item.unit} (บรรทัด ${itemIndex + 1})`;
+    if (!confirm(`ยืนยันและจ่ายออกวัตถุดิบเฉพาะรายการนี้หรือไม่?\n${label}\n(จะตัด stock เฉพาะ BOM ของบรรทัดนี้เท่านั้น)`)) {
+      return;
+    }
+
     const insufficientMaterials: Material[] = [];
-    data?.items.forEach(item => {
-      item.materials.forEach(m => {
-        if (m.availableQty < m.requiredQuantity) {
-          insufficientMaterials.push(m);
-        }
-      });
+    item.materials.forEach((m) => {
+      if (m.availableQty < m.requiredQuantity) {
+        insufficientMaterials.push(m);
+      }
     });
 
     if (insufficientMaterials.length > 0) {
       setErrorAlert({ show: true, materials: insufficientMaterials });
-      // ไม่ทำอะไรต่อ ให้ popup แสดงค้างไว้ตลอด
       return;
     }
-    
+
     setLoading(true);
+    setIssuingItemIndex(itemIndex);
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/confirm-and-issue`, {
+      const res = await fetch(getApiUrl(`/production-plans/${id}/confirm-and-issue`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIndexes: [itemIndex] }),
       });
-      
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'เกิดข้อผิดพลาด');
+        const error = await res.json().catch(() => ({}));
+        throw new Error((error as { message?: string }).message || 'เกิดข้อผิดพลาด');
       }
-      
-      alert('ยืนยันและจ่ายออกวัตถุดิบสำเร็จ');
-      fetchData();
+
+      const confirmBody = (await res.json()) as {
+        productionQrGeneration?: GenerateProductQrOrdersResponse | null;
+        productionQrGenerationError?: string | null;
+      };
+
+      const dRes = await fetch(getApiUrl(`/production-plans/${id}/details`));
+      if (!dRes.ok) {
+        throw new Error('โหลดรายละเอียดแผนหลังจ่ายไม่สำเร็จ');
+      }
+      const updated = (await dRes.json()) as PlanDetail;
+      setData(updated);
+
+      const pid = Number(updated.id ?? updated.planId ?? id);
+      if (Number.isFinite(pid)) {
+        const lotPlan: PlanDetailForLots = {
+          id: updated.id,
+          planId: updated.planId,
+          planCode: updated.planCode,
+          status: updated.status,
+          items: updated.items.map((it) => ({
+            planItemId: it.planItemId,
+            id: it.id,
+            productId: it.productId,
+            productName: it.productName,
+            quantity: it.quantity,
+            unit: it.unit,
+          })),
+        };
+        try {
+          if (confirmBody.productionQrGeneration) {
+            await syncPlanItemsFromProductionQrGeneration(
+              lotPlan,
+              confirmBody.productionQrGeneration,
+            );
+          } else {
+            await generateProductQrOrdersAndSyncPlanItems(pid, lotPlan, [itemIndex]);
+          }
+          if (confirmBody.productionQrGenerationError) {
+            console.warn(confirmBody.productionQrGenerationError);
+          }
+        } catch (e) {
+          console.warn('sync production QR after confirm failed', e);
+        }
+      }
+
+      alert(
+        'ยืนยันและจ่ายออกวัตถุดิบสำเร็จ — ระบบสร้าง QR ล็อตผลิตใน DB แล้ว (ตามจำนวนบรรจุของสินค้า) ใช้สแกนติดตามขั้นตอนได้',
+      );
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการยืนยันและจ่ายออก');
     } finally {
       setLoading(false);
+      setIssuingItemIndex(null);
     }
   };
 
+  useEffect(() => {
+    if (productIdsToFetch.length === 0) {
+      setStepsByProductId({});
+      setStepsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setStepsLoading(true);
+    (async () => {
+      try {
+        const next: Record<number, string[]> = {};
+        await Promise.all(
+          productIdsToFetch.map(async (productId) => {
+            try {
+              const rows = await getProductProductionSteps(productId);
+              if (cancelled) return;
+              next[productId] = [...rows]
+                .sort((a, b) => a.stepOrder - b.stepOrder)
+                .map((r) => r.process.processName);
+            } catch {
+              if (!cancelled) next[productId] = [];
+            }
+          })
+        );
+        if (!cancelled) setStepsByProductId(next);
+      } finally {
+        if (!cancelled) setStepsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [productIdsToFetch]);
+
   if (!data) return <div className="p-6">Loading...</div>;
+
+  const effectivePlanId = Number(data.id ?? data.planId ?? id);
+  if (!Number.isFinite(effectivePlanId)) {
+    return (
+      <div className="p-6 text-red-600">
+        ข้อมูลแผนไม่มีรหัสแผน (id/planId) — รีเฟรชหรือติดต่อผู้ดูแลระบบ
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -174,8 +298,15 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         )}
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{data.planCode} - {data.planName}</h2>
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 shrink-0"
+            >
+              สแกน QR (วัตถุดิบ / ล็อตผลิต)
+            </button>
           </div>
         </div>
 
@@ -252,11 +383,18 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             </div>
           )}
 
-          {data.items.map((item) => (
-            <div key={item.productId} className="mb-8 border-t pt-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                {item.productName} - จำนวน {item.quantity} {item.unit}
-              </h3>
+          {data.items.map((item, itemIndex) => (
+            <div key={`${item.productId}-${itemIndex}`} className="mb-8 border-t pt-4">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  บรรทัด {itemIndex + 1}: {item.productName} — จำนวน {item.quantity} {item.unit}
+                </h3>
+                {item.materialsIssued && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">
+                    จ่ายวัตถุดิบรายการนี้แล้ว
+                  </span>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full table-auto">
                   <thead>
@@ -291,22 +429,57 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   </tbody>
                 </table>
               </div>
+
+              {data.status === 'reserved' && !item.materialsIssued && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmAndIssueForItem(itemIndex)}
+                    disabled={loading}
+                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {loading && issuingItemIndex === itemIndex
+                      ? 'กำลังดำเนินการ...'
+                      : 'ยืนยันและจ่ายออกเฉพาะรายการนี้'}
+                  </button>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    จะตัด stock เฉพาะ BOM ของบรรทัด {itemIndex + 1} เท่านั้น (สินค้าซ้ำกันในแผนเดียวกันถือเป็นคนละบรรทัด)
+                  </p>
+                </div>
+              )}
+
+              {(data.status === 'confirmed' || item.materialsIssued) && stepsLoading ? (
+                <div className="mt-6 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 px-4 py-3 text-sm text-indigo-800 dark:text-indigo-200">
+                  กำลังโหลดลำดับขั้นตอนผลิตของสินค้า…
+                </div>
+              ) : data.status === 'confirmed' || item.materialsIssued ? (
+                <ProductionLotBatchPanel
+                  planId={effectivePlanId}
+                  planCode={data.planCode}
+                  itemIndex={itemIndex}
+                  planItemId={item.planItemId ?? item.id}
+                  planStatus={data.status}
+                  productId={item.productId}
+                  productName={item.productName}
+                  totalQty={item.quantity}
+                  unit={item.unit}
+                  processStepLabels={
+                    stepsByProductId[item.productId]?.length
+                      ? stepsByProductId[item.productId]
+                      : undefined
+                  }
+                />
+              ) : (
+                <div className="mt-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-900/30 px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                  หลังยืนยันและจ่ายออกวัตถุดิบสำหรับบรรทัดนี้แล้ว ระบบจะแสดงการติดตามล็อตผลิตตามลำดับขั้นตอนของสินค้า
+                </div>
+              )}
             </div>
           ))}
 
-          <div className="flex justify-between mt-6">
-            <div className="flex gap-2">
-              {data.status === 'reserved' && (
-                <button
-                  onClick={handleConfirmAndIssue}
-                  disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                >
-                  {loading ? 'กำลังดำเนินการ...' : 'ยืนยันและจ่ายออก'}
-                </button>
-              )}
-            </div>
+          <div className="flex justify-end mt-6">
             <button
+              type="button"
               onClick={() => router.push('/pc/schedule/reservations')}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
             >
@@ -315,6 +488,8 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
           </div>
         </ComponentCard>
       </div>
+
+      <QRScannerModal isOpen={showScanner} onClose={() => setShowScanner(false)} />
     </div>
   );
 }

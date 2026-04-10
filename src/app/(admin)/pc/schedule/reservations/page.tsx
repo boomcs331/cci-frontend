@@ -4,6 +4,12 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
+import { getApiUrl } from "@/utils/api";
+import {
+  syncPlanItemsFromProductionQrGeneration,
+  type PlanDetailForLots,
+} from "@/utils/ensureProductionLotsAfterReserve";
+import type { GenerateProductQrOrdersResponse } from "@/services/productionPlanQrService";
 import TimePicker from "@/components/ui/TimePicker";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
@@ -147,9 +153,56 @@ export default function ScheduleReservationsPage() {
 
     try {
       // ยืนยันแผนและจ่ายออกวัตถุดิบ
-      const res = await fetch(`http://localhost:3006/production-plans/${plan.id}/confirm-and-issue`, { method: "POST" });
+      const res = await fetch(getApiUrl(`/production-plans/${plan.id}/confirm-and-issue`), {
+        method: "POST",
+      });
       if (res.ok) {
-        setMessage({ type: "success", text: `ยืนยันแผน ${plan.planCode} และจ่ายออกวัตถุดิบสำเร็จ` });
+        const body = (await res.json()) as {
+          productionQrGeneration?: GenerateProductQrOrdersResponse | null;
+        };
+        try {
+          const dRes = await fetch(getApiUrl(`/production-plans/${plan.id}/details`));
+          if (dRes.ok) {
+            const detail = (await dRes.json()) as {
+              id?: number;
+              planId?: number;
+              planCode: string;
+              status?: string;
+              items: Array<{
+                id?: number;
+                planItemId?: number;
+                productId: number;
+                productName: string;
+                quantity: number;
+                unit: string;
+              }>;
+            };
+            const lotPlan: PlanDetailForLots = {
+              id: detail.id,
+              planId: detail.planId,
+              planCode: detail.planCode,
+              status: detail.status,
+              items: detail.items.map((it) => ({
+                planItemId: it.planItemId,
+                id: it.id,
+                productId: it.productId,
+                productName: it.productName,
+                quantity: it.quantity,
+                unit: it.unit,
+              })),
+            };
+            await syncPlanItemsFromProductionQrGeneration(
+              lotPlan,
+              body.productionQrGeneration,
+            );
+          }
+        } catch (e) {
+          console.warn("sync production QR after barcode confirm failed", e);
+        }
+        setMessage({
+          type: "success",
+          text: `ยืนยันแผน ${plan.planCode} และจ่ายออกวัตถุดิบสำเร็จ — สร้าง QR ล็อตผลิตแล้ว`,
+        });
         setBarcode("");
         fetchPlans();
         setTimeout(() => setMessage(null), 3000);

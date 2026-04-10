@@ -3,6 +3,8 @@ import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
+import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBatchPanel';
+import QRScannerModal from '@/components/qr/QRScannerModal';
 
 interface Material {
   materialId: number;
@@ -26,6 +28,9 @@ interface Reservation {
 }
 
 interface PlanItem {
+  /** เท่ากับ planItemId — production_plan_items.id */
+  id?: number;
+  planItemId?: number;
   productId: number;
   productName: string;
   quantity: number;
@@ -34,7 +39,9 @@ interface PlanItem {
 }
 
 interface PlanDetail {
-  id: number;
+  /** API เคยส่งแค่ planId — ใช้ร่วมกับ id จาก backend รุ่นใหม่ */
+  id?: number;
+  planId?: number;
   planCode: string;
   planName: string;
   planDate: string;
@@ -49,17 +56,23 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const [data, setData] = useState<PlanDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const router = useRouter();
 
-  const fetchData = () => {
-    fetch(`http://localhost:3006/production-plans/${id}/details`)
-      .then(res => res.json())
-      .then(setData)
-      .catch(err => console.error('Error:', err));
+  const fetchData = async (): Promise<PlanDetail | null> => {
+    try {
+      const res = await fetch(`http://localhost:3006/production-plans/${id}/details`);
+      const json = (await res.json()) as PlanDetail;
+      setData(json);
+      return json;
+    } catch (err) {
+      console.error('Error:', err);
+      return null;
+    }
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [id]);
 
   const handleReserve = async () => {
@@ -76,9 +89,11 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
         const error = await res.json();
         throw new Error(error.message || 'เกิดข้อผิดพลาด');
       }
-      
-      alert('จองวัตถุดิบสำเร็จ');
-      fetchData();
+
+      await fetchData();
+      alert(
+        'จองวัตถุดิบสำเร็จ — QR ล็อตผลิตจะถูกสร้างหลังยืนยันและจ่ายออกวัตถุดิบ (ตัดสต็อค) แล้ว',
+      );
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการจองวัตถุดิบ');
     } finally {
@@ -100,8 +115,8 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
       
       if (!res.ok) throw new Error('เกิดข้อผิดพลาด');
       
+      await fetchData();
       alert('ยกเลิกแผนการผลิตสำเร็จ');
-      fetchData();
     } catch (err) {
       alert('เกิดข้อผิดพลาดในการยกเลิกแผนการผลิต');
     } finally {
@@ -111,13 +126,25 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
 
   if (!data) return <div className="p-6">Loading...</div>;
 
+  const effectivePlanId = Number(data.id ?? data.planId ?? id);
+  if (!Number.isFinite(effectivePlanId)) {
+    return <div className="p-6 text-red-600">ข้อมูลแผนไม่มีรหัสแผน (id/planId) — รีเฟรชหรือติดต่อผู้ดูแลระบบ</div>;
+  }
+
   return (
     <div>
       <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิต" />
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{data.planCode} - {data.planName}</h2>
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 shrink-0"
+            >
+              สแกน QR (วัตถุดิบ / ล็อตผลิต)
+            </button>
           </div>
         </div>
 
@@ -196,8 +223,8 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
 
-          {data.items.map((item) => (
-            <div key={item.productId} className="mb-8 border-t pt-4">
+          {data.items.map((item, itemIndex) => (
+            <div key={`${item.productId}-${itemIndex}`} className="mb-8 border-t pt-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {item.productName} - จำนวน {item.quantity} {item.unit}
               </h3>
@@ -284,6 +311,18 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                   </div>
                 </div>
               )}
+
+              <ProductionLotBatchPanel
+                planId={effectivePlanId}
+                planCode={data.planCode}
+                itemIndex={itemIndex}
+                planItemId={item.planItemId ?? item.id}
+                planStatus={data.status}
+                productId={item.productId}
+                productName={item.productName}
+                totalQty={item.quantity}
+                unit={item.unit}
+              />
             </div>
           ))}
 
@@ -318,6 +357,8 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </ComponentCard>
       </div>
+
+      <QRScannerModal isOpen={showScanner} onClose={() => setShowScanner(false)} />
     </div>
   );
 }

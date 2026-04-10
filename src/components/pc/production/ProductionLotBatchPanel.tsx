@@ -1,0 +1,379 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import QRCodeGenerator from "@/components/common/QRCodeGenerator";
+import {
+  type GenerateProductQrOrdersBody,
+  generateProductQrOrders,
+  resolveProductionOrderForPlanItem,
+} from "@/services/productionPlanQrService";
+import {
+  advanceLotStep,
+  maxStepForRecord,
+  generateLotRecords,
+  labelsForRecord,
+  listLotsForPlanItem,
+  setLotStepIndex,
+  syncPlanItemLotsFromServer,
+  upsertLotRecord,
+  type ProductionLotRecord,
+} from "@/utils/productionLotTracking";
+import QRCode from "qrcode";
+
+interface Props {
+  planId: number;
+  planCode: string;
+  itemIndex: number;
+  /** จาก GET .../details ต่อรายการในแผน — ใช้เรียก generate-product-qr-orders */
+  planItemId?: number;
+  planStatus: string;
+  productId: number;
+  productName: string;
+  totalQty: number;
+  unit: string;
+  /** ลำดับชื่อขั้นตอนผลิตจากสินค้า (GET production-steps) */
+  processStepLabels?: string[];
+}
+
+export default function ProductionLotBatchPanel({
+  planId,
+  planCode,
+  itemIndex,
+  planItemId,
+  planStatus,
+  productId,
+  productName,
+  totalQty,
+  unit,
+  processStepLabels,
+}: Props) {
+  const [packSizeInput, setPackSizeInput] = useState("100");
+  const [lots, setLots] = useState<ProductionLotRecord[]>([]);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const refresh = useCallback(() => {
+    setLots(listLotsForPlanItem(planId, itemIndex));
+  }, [planId, itemIndex]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // ตาม requirement: ให้แสดงการติดตามเริ่มที่ step ลำดับที่ 1 เสมอ
+  // (รีเซ็ตล็อตที่มีอยู่ให้กลับไป stepIndex=0 และผูกชื่อขั้นตอนของสินค้า)
+  useEffect(() => {
+    const stored = listLotsForPlanItem(planId, itemIndex);
+    if (stored.length === 0) return;
+
+    const hasAnyNotFirst = stored.some((r) => r.stepIndex !== 0);
+    const shouldAttachLabels =
+      processStepLabels && processStepLabels.length > 0
+        ? stored.some((r) => (r.processStepLabels?.length ?? 0) === 0)
+        : false;
+
+    if (!hasAnyNotFirst && !shouldAttachLabels) return;
+
+    const labels =
+      processStepLabels && processStepLabels.length > 0
+        ? [...processStepLabels]
+        : undefined;
+
+    for (const r of stored) {
+      upsertLotRecord({
+        ...r,
+        stepIndex: 0,
+        updatedAt: new Date().toISOString(),
+        ...(labels ? { processStepLabels: labels } : {}),
+      });
+    }
+    refresh();
+  }, [planId, itemIndex, processStepLabels, refresh]);
+
+  const packSize = useMemo(() => parseFloat(packSizeInput.replace(",", ".")), [packSizeInput]);
+  const previewCount =
+    packSize > 0 && totalQty > 0 ? Math.ceil(totalQty / packSize) : 0;
+
+  const handleGenerate = async () => {
+    setMsg(null);
+    if (!(packSize > 0)) {
+      setMsg("กรุณาระบุจำนวนต่อล็อต (บรรจุ) มากกว่า 0");
+      return;
+    }
+
+    const labelsOpt =
+      processStepLabels && processStepLabels.length > 0
+        ? [...processStepLabels]
+        : undefined;
+
+    const canTryServerApi =
+      planStatus === "reserved" || planStatus === "confirmed";
+
+    if (canTryServerApi) {
+      setSyncing(true);
+      try {
+        const body: GenerateProductQrOrdersBody = {
+          defaultLotSize: packSize,
+        };
+        if (planItemId != null && Number.isFinite(Number(planItemId))) {
+          body.planItemIds = [Number(planItemId)];
+        }
+        const data = await generateProductQrOrders(planId, body);
+        const order = resolveProductionOrderForPlanItem(
+          data,
+          { planItemId, productId, productName },
+          itemIndex,
+          data.orders,
+        );
+        if (!order?.lots?.length) {
+          setMsg("ไม่ได้รับรายการล็อตจากเซิร์ฟเวอร์ — ลองรีเฟรชหน้าแล้วกดใหม่");
+          return;
+        }
+        syncPlanItemLotsFromServer({
+          planId,
+          planCode,
+          itemIndex,
+          productId,
+          productName,
+          unit,
+          lots: order.lots.map((l) => ({
+            qrCode: l.qrCode,
+            quantity: l.quantity,
+            sequenceNo: l.sequenceNo,
+            lotNo: l.lotNo,
+            orderLotLabel: l.orderLotLabel,
+          })),
+          processStepLabels: labelsOpt,
+          productionOrderId: order.id,
+        });
+        setMsg(
+          `บันทึก ${order.lots.length} ล็อตใน production_lots แล้ว — QR ใช้สแกนกับระบบรับเข้า/ผลิตได้`,
+        );
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "บันทึกไม่สำเร็จ";
+        const created = generateLotRecords({
+          planId,
+          planCode,
+          itemIndex,
+          productId,
+          productName,
+          unit,
+          totalQty,
+          packSize,
+          processStepLabels: labelsOpt,
+        });
+        if (created.length === 0) {
+          setMsg(`${message} — ไม่สามารถสร้างล็อตสำรองในเครื่องได้`);
+        } else {
+          setMsg(
+            `${message} — สร้าง ${created.length} QR ในเครื่อง (CCI:PL) แทน`,
+          );
+        }
+      } finally {
+        setSyncing(false);
+      }
+      refresh();
+      return;
+    }
+
+    const created = generateLotRecords({
+      planId,
+      planCode,
+      itemIndex,
+      productId,
+      productName,
+      unit,
+      totalQty,
+      packSize,
+      processStepLabels: labelsOpt,
+    });
+    if (created.length === 0) {
+      setMsg("ไม่สามารถสร้างล็อตได้");
+      return;
+    }
+    setMsg(
+      `สร้าง ${created.length} QR ในเครื่อง — แผนต้องอยู่สถานะจอง/ยืนยัน และ API generate-product-qr-orders ต้องทำงานถึงจะบันทึก production_lots`,
+    );
+    refresh();
+  };
+
+  const handleAdvance = (qrPayload: string) => {
+    advanceLotStep(qrPayload);
+    refresh();
+  };
+
+  const handleStepSelect = (qrPayload: string, idx: number) => {
+    setLotStepIndex(qrPayload, idx);
+    refresh();
+  };
+
+  const handlePrintAll = async () => {
+    if (lots.length === 0) return;
+    const cells: string[] = [];
+    for (const r of lots) {
+      const dataUrl = await QRCode.toDataURL(r.qrPayload, { width: 140, margin: 1 });
+      cells.push(`
+        <div class="cell">
+          <img src="${dataUrl}" alt="" />
+          <div class="meta">${r.planCode} · ${r.productName}</div>
+          <div class="meta">ล็อต ${r.lotIndex + 1}/${lots.length} · ${r.quantity} ${r.unit}</div>
+          <div class="code">${r.qrPayload}</div>
+        </div>
+      `);
+    }
+    const w = window.open("", "_blank");
+    if (!w) {
+      alert("กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์");
+      return;
+    }
+    w.document.write(`<!DOCTYPE html><html><head><title>QR ล็อตผลิต</title>
+      <style>
+        body { font-family: system-ui, sans-serif; padding: 16px; }
+        .grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: flex-start; }
+        .cell { border: 1px solid #ccc; padding: 12px; width: 200px; text-align: center; page-break-inside: avoid; }
+        .meta { font-size: 11px; margin-top: 6px; color: #333; }
+        .code { font-size: 9px; font-family: monospace; margin-top: 4px; word-break: break-all; color: #666; }
+      </style></head><body>
+      <h2 style="font-size:16px;margin-bottom:12px;">${planCode} — ${productName}</h2>
+      <div class="grid">${cells.join("")}</div>
+      <script>window.onload = function(){ window.print(); }</script>
+      </body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <div className="mt-6 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
+      <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+        ล็อตผลิต / QR ติดตามขั้นตอน
+      </h4>
+      <p className="text-xs text-indigo-800/80 dark:text-indigo-200/80 mb-3">
+        ตัวอย่าง: ผลิต {totalQty.toLocaleString()} {unit} บรรจุล็อตละ 100 → ได้{" "}
+        {Math.ceil(totalQty / 100)} QR — ลำดับขั้นตอนตามที่กำหนดใน{" "}
+        <span className="font-medium">ลำดับขั้นตอนผลิตของสินค้า</span>
+        {processStepLabels && processStepLabels.length > 0
+          ? ` (${processStepLabels.length} ขั้น)`
+          : " (ค่าเริ่มต้นระบบหากยังไม่กำหนดในมาสเตอร์)"}
+        <span className="block mt-1 text-amber-800/90 dark:text-amber-200/90">
+          หมายเหตุ: เมื่อแผนอยู่สถานะจอง/ยืนยัน การสร้างล็อตจะบันทึก QR ใน{" "}
+          <span className="font-medium">production_lots</span> — ลำดับขั้นตอนยังแสดงจากเบราว์เซอร์ (localStorage)
+        </span>
+      </p>
+
+      <div className="flex flex-wrap items-end gap-3 mb-3">
+        <div>
+          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+            จำนวนต่อล็อต (บรรจุ)
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={packSizeInput}
+            onChange={(e) => setPackSizeInput(e.target.value)}
+            className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800 dark:text-white text-sm"
+          />
+        </div>
+        <div className="text-xs text-gray-600 dark:text-gray-400 pb-2">
+          จะได้ประมาณ{" "}
+          <strong className="text-gray-900 dark:text-white">{previewCount}</strong>{" "}
+          QR
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleGenerate()}
+          disabled={syncing}
+          className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {syncing ? "กำลังบันทึก…" : "สร้าง / สร้างใหม่ QR ล็อต"}
+        </button>
+        <button
+          type="button"
+          onClick={handlePrintAll}
+          disabled={lots.length === 0}
+          className="px-4 py-2 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200 text-sm rounded-lg hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 disabled:opacity-40"
+        >
+          พิมพ์ QR ทั้งหมด
+        </button>
+      </div>
+
+      {msg && (
+        <p className="text-xs text-indigo-800 dark:text-indigo-200 mb-3">{msg}</p>
+      )}
+
+      {lots.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-indigo-200/60 dark:border-indigo-800/60 bg-white dark:bg-gray-900/40">
+          <table className="w-full table-auto text-sm">
+            <thead>
+              <tr className="bg-indigo-100/80 dark:bg-indigo-900/40">
+                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
+                  #
+                </th>
+                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
+                  จำนวนในล็อต
+                </th>
+                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
+                  ขั้นตอนปัจจุบัน
+                </th>
+                <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
+                  QR
+                </th>
+                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100 font-mono text-xs">
+                  ค่าใน QR
+                </th>
+                <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
+                  จัดการ
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {lots.map((r) => (
+                <tr key={r.qrPayload} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td className="px-3 py-2 font-medium">{r.lotIndex + 1}</td>
+                  <td className="px-3 py-2">
+                    {r.quantity.toLocaleString()} {r.unit}
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={r.stepIndex}
+                      onChange={(e) =>
+                        handleStepSelect(r.qrPayload, Number(e.target.value))
+                      }
+                      className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 dark:bg-gray-800 dark:text-white max-w-[220px]"
+                    >
+                      {labelsForRecord(r).map((label, idx) => (
+                        <option key={`${idx}-${label}`} value={idx}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <QRCodeGenerator value={r.qrPayload} size={72} className="mx-auto" />
+                  </td>
+                  <td className="px-3 py-2 font-mono text-[10px] text-gray-700 dark:text-gray-300 break-all max-w-[180px]">
+                    {r.qrPayload}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleAdvance(r.qrPayload)}
+                      disabled={r.stepIndex >= maxStepForRecord(r)}
+                      className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:opacity-90 disabled:opacity-40"
+                    >
+                      ขั้นตอนถัดไป
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {lots.length === 0 && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          ยังไม่มีล็อต — ระบุจำนวนต่อล็อตแล้วกดสร้าง QR
+        </p>
+      )}
+    </div>
+  );
+}

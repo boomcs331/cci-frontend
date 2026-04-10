@@ -1,5 +1,14 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import { getApiUrl } from "@/utils/api";
+import {
+  advanceLotStep,
+  decodeProductionLotQr,
+  getLotRecord,
+  labelsForRecord,
+  maxStepForRecord,
+  stepLabelForRecord,
+} from "@/utils/productionLotTracking";
 
 interface QRScannerModalProps {
   isOpen: boolean;
@@ -9,6 +18,8 @@ interface QRScannerModalProps {
 export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps) {
   const [qrCode, setQrCode] = useState<string>('');
   const [lotData, setLotData] = useState<any>(null);
+  const [productionLot, setProductionLot] = useState<ReturnType<typeof getLotRecord>>(undefined);
+  const [productionMissing, setProductionMissing] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -20,6 +31,8 @@ export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps)
       document.body.style.overflow = 'unset';
       setQrCode('');
       setLotData(null);
+      setProductionLot(undefined);
+      setProductionMissing(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -32,8 +45,25 @@ export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps)
       if (!code) return;
 
       setLoading(true);
+      setLotData(null);
+      setProductionLot(undefined);
+      setProductionMissing(false);
+
       try {
-        const res = await fetch(`http://localhost:3006/materials/transactions/qr/${code}`);
+        const plDecode = decodeProductionLotQr(code);
+        if (plDecode) {
+          const rec = getLotRecord(code);
+          if (rec) {
+            setProductionLot(rec);
+          } else {
+            setProductionMissing(true);
+          }
+          return;
+        }
+
+        const res = await fetch(
+          getApiUrl(`/materials/transactions/qr/${encodeURIComponent(code)}`)
+        );
         const result = await res.json();
 
         if (result.success) {
@@ -51,6 +81,12 @@ export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps)
         inputRef.current?.focus();
       }
     }
+  };
+
+  const handleProductionNext = () => {
+    if (!productionLot) return;
+    const next = advanceLotStep(productionLot.qrPayload);
+    if (next) setProductionLot(next);
   };
 
   if (!isOpen) return null;
@@ -74,7 +110,7 @@ export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps)
               value={qrCode}
               onChange={(e) => setQrCode(e.target.value)}
               onKeyPress={handleScan}
-              placeholder="สแกน QR Code แล้วกด Enter..."
+              placeholder="สแกน QR (วัตถุดิบ หรือล็อตผลิต CCI:PL:...) แล้วกด Enter"
               className="w-full h-14 rounded-lg border-2 border-blue-500 dark:border-blue-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-lg"
               autoFocus
             />
@@ -82,6 +118,91 @@ export default function QRScannerModal({ isOpen, onClose }: QRScannerModalProps)
 
           {loading && (
             <div className="text-center py-8 text-gray-500">กำลังโหลด...</div>
+          )}
+
+          {productionMissing && !loading && (
+            <div className="border-2 border-amber-200 dark:border-amber-800 rounded-lg p-6 bg-amber-50 dark:bg-amber-900/20">
+              <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-2">
+                QR ล็อตผลิต
+              </h3>
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                รูปแบบ QR ล็อตถูกต้อง แต่ยังไม่มีข้อมูลในเครื่องนี้ — ให้สร้างล็อตจากหน้ารายละเอียดแผนการผลิตก่อน
+              </p>
+            </div>
+          )}
+
+          {productionLot && !loading && (
+            <div className="border-2 border-indigo-200 dark:border-indigo-800 rounded-lg p-6 space-y-4 bg-indigo-50/50 dark:bg-indigo-950/20">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-xl font-bold text-indigo-900 dark:text-indigo-100">
+                  ล็อตผลิต
+                </h2>
+                <span className="text-xs font-mono text-indigo-700 dark:text-indigo-300 break-all max-w-[50%] text-right">
+                  {productionLot.qrPayload}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">แผน</span>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {productionLot.planCode}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">สินค้า</span>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {productionLot.productName}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">ล็อตที่</span>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {productionLot.lotIndex + 1} (จำนวนในล็อต{" "}
+                    {productionLot.quantity.toLocaleString()} {productionLot.unit})
+                  </div>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">อัปเดตล่าสุด</span>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {new Date(productionLot.updatedAt).toLocaleString("th-TH")}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-900 p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  ขั้นตอนปัจจุบัน
+                </p>
+                <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                  {stepLabelForRecord(productionLot, productionLot.stepIndex)}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {labelsForRecord(productionLot).map((label, idx) => (
+                    <span
+                      key={`${idx}-${label}`}
+                      className={`text-[10px] px-2 py-0.5 rounded-full ${
+                        idx === productionLot.stepIndex
+                          ? "bg-indigo-600 text-white"
+                          : idx < productionLot.stepIndex
+                            ? "bg-indigo-200 text-indigo-900 dark:bg-indigo-800 dark:text-indigo-100"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      {idx + 1}. {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleProductionNext}
+                disabled={
+                  productionLot.stepIndex >= maxStepForRecord(productionLot)
+                }
+                className="w-full py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ย้ายไปขั้นตอนถัดไป
+              </button>
+            </div>
           )}
 
           {lotData && !loading && (

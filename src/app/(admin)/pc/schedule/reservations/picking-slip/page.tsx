@@ -87,7 +87,8 @@ interface PlanItem {
 }
 
 interface PlanDetail {
-  id: number;
+  id?: number;
+  planId?: number;
   planCode: string;
   planName: string;
   planDate: string;
@@ -229,15 +230,16 @@ function buildMaterialGroupsFromPlan(data: PlanDetail): MaterialFifoGroup[] {
       };
     })
     .sort((a, b) => a.materialName.localeCompare(b.materialName, "th"));
-}
+} 
 
 function buildPickingGroup(data: PlanDetail): PickingOrderGroup {
+  const pid = data.id ?? data.planId;
   return {
     planCode: data.planCode,
     planName: data.planName,
     planDate: data.planDate,
     planTime: data.planTime,
-    planId: data.id,
+    planId: pid != null && Number.isFinite(Number(pid)) ? Number(pid) : undefined,
     status: data.status,
     materialGroups: buildMaterialGroupsFromPlan(data),
   };

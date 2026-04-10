@@ -11,6 +11,7 @@ import "flatpickr/dist/flatpickr.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
+import { getApiUrl } from "@/utils/api";
 
 interface Product {
   id: number;
@@ -290,7 +291,10 @@ export default function PCSchedulePage() {
       
       // ตรวจสอบ success จาก response body ไม่ใช่ res.ok
       if (res.ok && data.success !== false) {
-        setMessage({ type: "success", text: "จอง Material สำเร็จ" });
+        setMessage({
+          type: "success",
+          text: "จอง Material สำเร็จ — QR ล็อตผลิตจะสร้างหลังยืนยันและจ่ายออกวัตถุดิบแล้ว",
+        });
         fetchPlans();
         setTimeout(() => setMessage(null), 3000);
       } else {
