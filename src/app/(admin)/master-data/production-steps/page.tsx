@@ -7,7 +7,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/master-data/PaginationFooter";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 export default function MasterDataProductionStepsPage() {
   const searchParams = useSearchParams();
@@ -23,7 +23,7 @@ export default function MasterDataProductionStepsPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const res = await fetch(getApiUrl(`/products?page=${page}&limit=${limit}`));
+        const res = await apiFetch(`/products?page=${page}&limit=${limit}`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (cancelled) return;

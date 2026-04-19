@@ -86,7 +86,7 @@ function main() {
   const outFile = path.join(outDir, "routes.generated.json");
   fs.writeFileSync(outFile, JSON.stringify({ generatedAt: new Date().toISOString(), routes }, null, 2));
 
-  // eslint-disable-next-line no-console
+   
   console.log(`Wrote ${routes.length} routes to ${path.relative(PROJECT_ROOT, outFile)}`);
 }
 

@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -25,14 +25,9 @@ export default function PCReportPage() {
   const [materialId, setMaterialId] = useState('');
   const [materials, setMaterials] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchMaterials();
-    fetchReport();
-  }, []);
-
   const fetchMaterials = async () => {
     try {
-      const res = await fetch(getApiUrl('/materials/all'));
+      const res = await apiFetch('/materials/all');
       const data = await res.json();
       setMaterials(data.data || []);
     } catch (err) {
@@ -40,7 +35,7 @@ export default function PCReportPage() {
     }
   };
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
       let url = '/materials/transactions/report/transactions?';
@@ -48,7 +43,7 @@ export default function PCReportPage() {
       if (endDate) url += `endDate=${endDate}&`;
       if (materialId) url += `materialId=${materialId}&`;
 
-      const res = await fetch(getApiUrl(url));
+      const res = await apiFetch(url);
       const data = await res.json();
       if (data.success) {
         setReports(data.data || []);
@@ -58,7 +53,12 @@ export default function PCReportPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate, materialId]);
+
+  useEffect(() => {
+    fetchMaterials();
+    fetchReport();
+  }, [fetchReport]);
 
   const handleSearch = () => {
     fetchReport();

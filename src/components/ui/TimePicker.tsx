@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 
 interface TimePickerProps {
   value: string;
@@ -8,19 +8,16 @@ interface TimePickerProps {
   placeholder?: string;
 }
 
+function splitTime(value: string): { hours: string; minutes: string } {
+  if (!value) return { hours: "00", minutes: "00" };
+  const [h, m] = value.split(":");
+  return { hours: h || "00", minutes: m || "00" };
+}
+
 export default function TimePicker({ value, onChange, label, placeholder = "เลือกเวลา" }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [hours, setHours] = useState("00");
-  const [minutes, setMinutes] = useState("00");
   const pickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (value) {
-      const [h, m] = value.split(":");
-      setHours(h || "00");
-      setMinutes(m || "00");
-    }
-  }, [value]);
+  const { hours, minutes } = useMemo(() => splitTime(value), [value]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,12 +36,10 @@ export default function TimePicker({ value, onChange, label, placeholder = "เ�
   }, [isOpen]);
 
   const handleHourChange = (h: string) => {
-    setHours(h);
     onChange(`${h}:${minutes}`);
   };
 
   const handleMinuteChange = (m: string) => {
-    setMinutes(m);
     onChange(`${hours}:${m}`);
   };
 

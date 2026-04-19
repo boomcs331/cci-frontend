@@ -1,5 +1,5 @@
 'use client';
-import { use, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/utils/api';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
@@ -60,7 +60,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
   const [showScanner, setShowScanner] = useState(false);
   const router = useRouter();
 
-  const fetchData = async (): Promise<PlanDetail | null> => {
+  const fetchData = useCallback(async (): Promise<PlanDetail | null> => {
     try {
       const res = await apiFetch(`/production-plans/${id}/details`);
       const json = (await res.json()) as PlanDetail;
@@ -70,11 +70,11 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
       console.error('Error:', err);
       return null;
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     void fetchData();
-  }, [id]);
+  }, [fetchData]);
 
   const handleReserve = async () => {
     if (!confirm('ต้องการจองวัตถุดิบสำหรับแผนการผลิตนี้หรือไม่?')) return;

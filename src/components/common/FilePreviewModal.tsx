@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 
 interface FileDocument {
   id: string;
@@ -20,6 +21,14 @@ export default function FilePreviewModal({ files, initialIndex, onClose }: FileP
   const currentFile = files[currentIndex];
   const baseUrl = 'http://localhost:3006';
 
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev));
+  }, []);
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev < files.length - 1 ? prev + 1 : prev));
+  }, [files.length]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -28,15 +37,7 @@ export default function FilePreviewModal({ files, initialIndex, onClose }: FileP
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex]);
-
-  const handlePrev = () => {
-    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
-  };
-
-  const handleNext = () => {
-    if (currentIndex < files.length - 1) setCurrentIndex(currentIndex + 1);
-  };
+  }, [handlePrev, handleNext, onClose]);
 
   const isImage = (fileName: string) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
   const isPDF = (fileName: string) => /\.pdf$/i.test(fileName);
@@ -67,7 +68,16 @@ export default function FilePreviewModal({ files, initialIndex, onClose }: FileP
         <div className="relative h-[calc(90vh-80px)]">
           <div className="h-full overflow-auto bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
             {isImage(currentFile.fileName) ? (
-              <img src={`${baseUrl}/${currentFile.filePath}`} alt={currentFile.fileName} className="max-w-full max-h-full object-contain" />
+              <div className="relative w-full h-full">
+                <Image
+                  src={`${baseUrl}/${currentFile.filePath}`}
+                  alt={currentFile.fileName}
+                  fill
+                  sizes="100vw"
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
             ) : isPDF(currentFile.fileName) ? (
               <iframe src={`${baseUrl}/${currentFile.filePath}`} className="w-full h-full" />
             ) : (

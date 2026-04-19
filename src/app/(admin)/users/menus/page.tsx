@@ -5,7 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Alert from "@/components/ui/alert/Alert";
 import Button from "@/components/ui/button/Button";
 import type { MenuItem } from "@/types/user";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 import { getSession, setSession } from "@/utils/session";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -101,7 +101,7 @@ export default function MenusPage() {
 
   const fetchMenus = async () => {
     try {
-      const response = await fetch(getApiUrl("/auth/menus"));
+      const response = await apiFetch("/auth/menus");
       if (!response.ok) {
         throw new Error("Failed to fetch menus");
       }
@@ -132,7 +132,7 @@ export default function MenusPage() {
       headers["x-department-id"] = departmentId;
     }
 
-    const response = await fetch(getApiUrl("/auth/menu"), { headers });
+    const response = await apiFetch("/auth/menu", { headers });
     if (!response.ok) {
       return;
     }
@@ -206,10 +206,10 @@ export default function MenusPage() {
     setSaving(true);
     try {
       const url = editingMenu
-        ? getApiUrl(`/auth/menus/${editingMenu.id}`)
-        : getApiUrl("/auth/menus");
+        ? `/auth/menus/${editingMenu.id}`
+        : "/auth/menus";
       const method = editingMenu ? "PUT" : "POST";
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildPayload()),
@@ -244,7 +244,7 @@ export default function MenusPage() {
     if (!confirmed) return;
 
     try {
-      const response = await fetch(getApiUrl(`/auth/menus/${menu.id}`), {
+      const response = await apiFetch(`/auth/menus/${menu.id}`, {
         method: "DELETE",
       });
       if (!response.ok) {

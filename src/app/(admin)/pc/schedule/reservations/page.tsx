@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -76,11 +76,7 @@ export default function ScheduleReservationsPage() {
     }
   }, [loading]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [plans, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
-
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     let filtered = [...plans];
     
     if (searchTerm) {
@@ -112,7 +108,11 @@ export default function ScheduleReservationsPage() {
     }
     
     setFilteredPlans(filtered);
-  };
+  }, [plans, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const fetchPlans = async () => {
     try {

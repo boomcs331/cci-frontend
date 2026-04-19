@@ -11,7 +11,7 @@ import QRCodeModal from "@/components/pc/income/QRCodeModal";
 import PrintAllQRModal from "@/components/pc/income/PrintAllQRModal";
 import Pagination from "@/components/pc/income/Pagination";
 import { getSession } from "@/utils/session";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 export default function PCIncomePage() {
   const searchParams = useSearchParams();
@@ -50,12 +50,12 @@ export default function PCIncomePage() {
     const selectedMaterial = materials.find(m => m.id === matId);
     if (selectedMaterial) {
       if (selectedMaterial.supplierId) {
-        const res = await fetch(getApiUrl(`/masters/suppliers/${selectedMaterial.supplierId}`));
+        const res = await apiFetch(`/masters/suppliers/${selectedMaterial.supplierId}`);
         const data = await res.json();
         if (data.success) setSupplierId(data.data.id);
       }
       if (selectedMaterial.defaultLocationId) {
-        const res = await fetch(getApiUrl(`/masters/materials-locations/${selectedMaterial.defaultLocationId}`));
+        const res = await apiFetch(`/masters/materials-locations/${selectedMaterial.defaultLocationId}`);
         const data = await res.json();
         if (data.success) setLocationId(data.data.id);
       }
@@ -74,10 +74,10 @@ export default function PCIncomePage() {
         if (filterDateTo) url += `&dateTo=${filterDateTo}`;
 
         const [rcvRes, matsRes, locsRes, suppsRes] = await Promise.all([
-          fetch(getApiUrl(url)),
-          fetch(getApiUrl('/materials/all')),
-          fetch(getApiUrl('/masters/materials-locations/all')),
-          fetch(getApiUrl('/masters/suppliers/all'))
+          apiFetch(url),
+          apiFetch('/materials/all'),
+          apiFetch('/masters/materials-locations/all'),
+          apiFetch('/masters/suppliers/all')
         ]);
         const rcvData = await rcvRes.json();
         const matsData = await matsRes.json();
@@ -143,7 +143,7 @@ export default function PCIncomePage() {
       if (remark && remark.trim()) payload.remark = remark.trim();
       if (mfgDate) payload.mfgDate = mfgDate;
 
-      const response = await fetch(getApiUrl('/materials/transactions/receive'), {
+      const response = await apiFetch('/materials/transactions/receive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -177,7 +177,7 @@ export default function PCIncomePage() {
   };
 
   const refreshReceivings = async () => {
-    const rcvRes = await fetch(getApiUrl(`/materials/transactions/receivings?page=${page}&limit=${limit}`));
+    const rcvRes = await apiFetch(`/materials/transactions/receivings?page=${page}&limit=${limit}`);
     const rcvData = await rcvRes.json();
     if (rcvData.success) {
       setReceivings(rcvData.data || []);

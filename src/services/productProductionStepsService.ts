@@ -1,4 +1,4 @@
-import { getApiUrl } from '@/utils/api';
+import { apiFetch } from '@/utils/api';
 import type { ProductProductionStepRow, ProductionProcess, SetProductionStepsPayload } from '@/types/production';
 
 interface WrappedResponse<T> {
@@ -11,7 +11,7 @@ interface WrappedResponse<T> {
  * ลำดับขั้นตอนผลิตของสินค้า (เรียง stepOrder จาก backend แล้ว)
  */
 export async function getProductProductionSteps(productId: number): Promise<ProductProductionStepRow[]> {
-  const res = await fetch(getApiUrl(`/products/${productId}/production-steps`));
+  const res = await apiFetch(`/products/${productId}/production-steps`);
   const json = (await res.json()) as WrappedResponse<ProductProductionStepRow[]>;
   if (!res.ok || json.success === false) {
     throw new Error(json.message || `โหลดขั้นตอนผลิตไม่สำเร็จ (${res.status})`);
@@ -26,7 +26,7 @@ export async function setProductProductionSteps(
   productId: number,
   payload: SetProductionStepsPayload
 ): Promise<ProductProductionStepRow[]> {
-  const res = await fetch(getApiUrl(`/products/${productId}/production-steps`), {
+  const res = await apiFetch(`/products/${productId}/production-steps`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -40,7 +40,7 @@ export async function setProductProductionSteps(
 
 /** Master process — backend คืนเป็น array ไม่หุ้ม { data } */
 export async function getMasterProductionProcesses(): Promise<ProductionProcess[]> {
-  const res = await fetch(getApiUrl('/production-orders/processes/all'));
+  const res = await apiFetch('/production-orders/processes/all');
   if (!res.ok) {
     throw new Error(`โหลด master process ไม่สำเร็จ (${res.status})`);
   }

@@ -5,7 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Alert from "@/components/ui/alert/Alert";
 import Button from "@/components/ui/button/Button";
 import Pagination from "@/components/tables/Pagination";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 import React, { useEffect, useMemo, useState } from "react";
 
 type RoleScopeType = "GLOBAL" | "DEPARTMENT";
@@ -133,7 +133,7 @@ export default function UsersPage() {
   }, [roles]);
 
   const fetchUsers = async () => {
-    const response = await fetch(getApiUrl("/auth/users"));
+    const response = await apiFetch("/auth/users");
     if (!response.ok) {
       throw new Error("Failed to fetch users");
     }
@@ -142,7 +142,7 @@ export default function UsersPage() {
   };
 
   const fetchRoles = async () => {
-    const response = await fetch(getApiUrl("/auth/roles"));
+    const response = await apiFetch("/auth/roles");
     if (!response.ok) {
       throw new Error("Failed to fetch roles");
     }
@@ -151,7 +151,7 @@ export default function UsersPage() {
   };
 
   const fetchDepartments = async () => {
-    const response = await fetch(getApiUrl("/auth/departments"));
+    const response = await apiFetch("/auth/departments");
     if (!response.ok) {
       throw new Error("Failed to fetch departments");
     }
@@ -160,7 +160,7 @@ export default function UsersPage() {
   };
 
   const fetchUserDetail = async (userId: string): Promise<User> => {
-    const response = await fetch(getApiUrl(`/auth/users/${userId}`));
+    const response = await apiFetch(`/auth/users/${userId}`);
     if (!response.ok) {
       throw new Error("Failed to fetch user detail");
     }
@@ -282,7 +282,7 @@ export default function UsersPage() {
       const scopedAssignments = buildScopedAssignments();
 
       if (editingUser) {
-        const updateResponse = await fetch(getApiUrl(`/auth/users/${editingUser.id}`), {
+        const updateResponse = await apiFetch(`/auth/users/${editingUser.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -300,7 +300,7 @@ export default function UsersPage() {
           throw new Error(err.message || "Update failed");
         }
 
-        const scopedResponse = await fetch(getApiUrl(`/auth/users/${editingUser.id}/scoped-roles`), {
+        const scopedResponse = await apiFetch(`/auth/users/${editingUser.id}/scoped-roles`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ assignments: scopedAssignments }),
@@ -311,7 +311,7 @@ export default function UsersPage() {
           throw new Error(err.message || "Scoped role update failed");
         }
       } else {
-        const createResponse = await fetch(getApiUrl("/auth/register"), {
+        const createResponse = await apiFetch("/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -333,7 +333,7 @@ export default function UsersPage() {
         const created = (await createResponse.json()) as { user?: User };
         const createdUserId = created.user?.id;
         if (createdUserId && scopedAssignments.length > 0) {
-          const scopedResponse = await fetch(getApiUrl(`/auth/users/${createdUserId}/scoped-roles`), {
+          const scopedResponse = await apiFetch(`/auth/users/${createdUserId}/scoped-roles`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ assignments: scopedAssignments }),
@@ -375,7 +375,7 @@ export default function UsersPage() {
     }
 
     try {
-      const response = await fetch(getApiUrl(`/auth/users/${user.id}/toggle-status`), {
+      const response = await apiFetch(`/auth/users/${user.id}/toggle-status`, {
         method: "PATCH",
       });
       if (!response.ok) {
@@ -405,7 +405,7 @@ export default function UsersPage() {
     if (!ok) return;
 
     try {
-      const response = await fetch(getApiUrl(`/auth/users/${user.id}`), {
+      const response = await apiFetch(`/auth/users/${user.id}`, {
         method: "DELETE",
       });
       if (!response.ok) {

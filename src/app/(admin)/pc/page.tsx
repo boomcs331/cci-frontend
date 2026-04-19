@@ -5,7 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import Alert from "@/components/ui/alert/Alert";
-import { getApiUrl, getApiBaseUrl } from "@/utils/api";
+import { apiFetch, getApiBaseUrl } from "@/utils/api";
 
 interface Material {
   id: number;
@@ -192,49 +192,49 @@ export default function PCPage() {
   }, [showAddModal, showEditModal, showDeleteModal]);
   
   const getMaterialTypes = async () => {
-    const response = await fetch(getApiUrl('/masters/materials-types/all'));
+    const response = await apiFetch('/masters/materials-types/all');
     const result = await response.json();
     return result.data || [];
   };
   
   const getLocations = async () => {
-    const response = await fetch(getApiUrl('/masters/materials-locations/all'));
+    const response = await apiFetch('/masters/materials-locations/all');
     const result = await response.json();
     return result.data || [];
   };
   
   const getSuppliers = async () => {
-    const response = await fetch(getApiUrl('/masters/suppliers/all'));
+    const response = await apiFetch('/masters/suppliers/all');
     const result = await response.json();
     return result.data || [];
   };
 
   const getModels = async () => {
-    const response = await fetch(getApiUrl('/masters/models/all'));
+    const response = await apiFetch('/masters/models/all');
     const result = await response.json();
     return result.data || [];
   };
 
   const getDeliveryTypes = async () => {
-    const response = await fetch(getApiUrl('/masters/delivery-types/all'));
+    const response = await apiFetch('/masters/delivery-types/all');
     const result = await response.json();
     return result.data || [];
   };
 
   const getUnits = async () => {
-    const response = await fetch(getApiUrl('/masters/units/all'));
+    const response = await apiFetch('/masters/units/all');
     const result = await response.json();
     return result.data || [];
   };
 
   const getLoadingPoints = async () => {
-    const response = await fetch(getApiUrl('/masters/loading-points/all'));
+    const response = await apiFetch('/masters/loading-points/all');
     const result = await response.json();
     return result.data || [];
   };
 
   const getProcessLines = async () => {
-    const response = await fetch(getApiUrl('/masters/process-lines/all'));
+    const response = await apiFetch('/masters/process-lines/all');
     const result = await response.json();
     return result.data || [];
   };
@@ -271,7 +271,7 @@ export default function PCPage() {
     if (!deletingMaterial) return;
     
     try {
-      const response = await fetch(getApiUrl(`/materials/${deletingMaterial.id}`), {
+      const response = await apiFetch(`/materials/${deletingMaterial.id}`, {
         method: 'DELETE'
       });
       
@@ -318,7 +318,7 @@ export default function PCPage() {
       if (formData.scale && formData.scale.trim()) payload.scale = formData.scale.trim();
       if (formData.description && formData.description.trim()) payload.description = formData.description.trim();
 
-      const response = await fetch(getApiUrl('/materials'), {
+      const response = await apiFetch('/materials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -969,7 +969,7 @@ export default function PCPage() {
                   minStock: formData.minStock || 0,
                   isActive: true
                 };
-                const response = await fetch(getApiUrl(`/materials/${editingMaterial.id}`), {
+                const response = await apiFetch(`/materials/${editingMaterial.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updateData)

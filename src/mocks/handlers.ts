@@ -1,6 +1,6 @@
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type JsonBodyType } from "msw";
 
-function json(data: unknown, init?: ResponseInit) {
+function json(data: JsonBodyType, init?: ResponseInit) {
   return HttpResponse.json(data, {
     status: 200,
     ...init,

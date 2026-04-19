@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
-import { getApiUrl } from '@/utils/api';
+import { apiFetch } from '@/utils/api';
 
 interface ReservationDetail {
   planCode: string;
@@ -25,7 +25,7 @@ export default function ReservationsPage() {
   useEffect(() => {
     const fetchReservations = async () => {
       try {
-        const response = await fetch(getApiUrl('/production-plans/materials/reservations'));
+        const response = await apiFetch('/production-plans/materials/reservations');
         const payload = (await response.json()) as
           | MaterialReservation[]
           | { reservations?: MaterialReservation[]; data?: MaterialReservation[] };

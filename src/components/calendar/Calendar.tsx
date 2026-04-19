@@ -19,6 +19,21 @@ interface CalendarEvent extends EventInput {
   };
 }
 
+function generateEventId(): string {
+  if (typeof globalThis !== "undefined" && "crypto" in globalThis) {
+    const c = (globalThis as { crypto?: Crypto }).crypto;
+    if (c && typeof c.randomUUID === "function") {
+      return c.randomUUID();
+    }
+    if (c && typeof c.getRandomValues === "function") {
+      const arr = new Uint32Array(2);
+      c.getRandomValues(arr);
+      return `evt-${arr[0].toString(36)}${arr[1].toString(36)}`;
+    }
+  }
+  return `evt-${String(performance.now()).replace(".", "")}`;
+}
+
 const Calendar: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
@@ -27,7 +42,17 @@ const Calendar: React.FC = () => {
   const [eventStartDate, setEventStartDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
   const [eventLevel, setEventLevel] = useState("");
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const d1 = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    const d2 = new Date(Date.now() + 172800000).toISOString().split("T")[0];
+    const d3 = new Date(Date.now() + 259200000).toISOString().split("T")[0];
+    return [
+      { id: "1", title: "Event Conf.", start: today, extendedProps: { calendar: "Danger" } },
+      { id: "2", title: "Meeting", start: d1, extendedProps: { calendar: "Success" } },
+      { id: "3", title: "Workshop", start: d2, end: d3, extendedProps: { calendar: "Primary" } },
+    ];
+  });
   const calendarRef = useRef<FullCalendar>(null);
   const { isOpen, openModal, closeModal } = useModal();
 
@@ -37,31 +62,6 @@ const Calendar: React.FC = () => {
     Primary: "primary",
     Warning: "warning",
   };
-
-  useEffect(() => {
-    // Initialize with some events
-    setEvents([
-      {
-        id: "1",
-        title: "Event Conf.",
-        start: new Date().toISOString().split("T")[0],
-        extendedProps: { calendar: "Danger" },
-      },
-      {
-        id: "2",
-        title: "Meeting",
-        start: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-        extendedProps: { calendar: "Success" },
-      },
-      {
-        id: "3",
-        title: "Workshop",
-        start: new Date(Date.now() + 172800000).toISOString().split("T")[0],
-        end: new Date(Date.now() + 259200000).toISOString().split("T")[0],
-        extendedProps: { calendar: "Primary" },
-      },
-    ]);
-  }, []);
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     resetModalFields();
@@ -97,9 +97,9 @@ const Calendar: React.FC = () => {
         )
       );
     } else {
-      // Add new event
+      const id = generateEventId();
       const newEvent: CalendarEvent = {
-        id: Date.now().toString(),
+        id,
         title: eventTitle,
         start: eventStartDate,
         end: eventEndDate,

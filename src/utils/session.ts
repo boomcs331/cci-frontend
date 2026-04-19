@@ -16,6 +16,10 @@ export interface SessionDepartment {
 
 export interface SessionUser {
   id: string;
+  username?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
   roles?: SessionRole[];
   departmentId?: string | null;
   department?: SessionDepartment | null;

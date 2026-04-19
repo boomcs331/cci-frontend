@@ -5,6 +5,7 @@ import Button from "@/components/ui/button/Button";
 import Pagination from "@/components/tables/Pagination";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/api";
 
 type Role = {
   id: string;
@@ -75,7 +76,7 @@ export default function RolesPage() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`);
+        const response = await apiFetch(`/auth/roles`);
         if (response.ok) {
           const data = await response.json();
           const rolesArray = Array.isArray(data) ? data : data.roles || data.data || [];
@@ -130,7 +131,7 @@ export default function RolesPage() {
     setOpenDropdown(null);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles/${role.id}`);
+      const response = await apiFetch(`/auth/roles/${role.id}`);
       if (response.ok) {
         const data = await response.json();
         setRolePermissions(data.permissions || []);
@@ -155,8 +156,8 @@ export default function RolesPage() {
     
     try {
       const [permissionsRes, roleRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/permissions`),
-        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles/${role.id}`)
+        apiFetch(`/auth/permissions`),
+        apiFetch(`/auth/roles/${role.id}`)
       ]);
       
       if (permissionsRes.ok) {
@@ -183,7 +184,7 @@ export default function RolesPage() {
     setAddLoading(true);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles/${selectedRole.id}`, {
+      const response = await apiFetch(`/auth/roles/${selectedRole.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,13 +195,13 @@ export default function RolesPage() {
       });
       
       if (response.ok) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles/${selectedRole.id}/permissions`, {
+        await apiFetch(`/auth/roles/${selectedRole.id}/permissions`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ permissionIds: editFormData.permissionIds }),
         });
         
-        const rolesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`);
+        const rolesResponse = await apiFetch(`/auth/roles`);
         if (rolesResponse.ok) {
           const data = await rolesResponse.json();
           const rolesArray = Array.isArray(data) ? data : data.roles || data.data || [];
@@ -225,7 +226,7 @@ export default function RolesPage() {
     
     try {
       // สร้าง role พร้อม permissions ในครั้งเดียว
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`, {
+      const response = await apiFetch(`/auth/roles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -244,7 +245,7 @@ export default function RolesPage() {
       
       if (response.ok) {
         // รีเฟรช roles list
-        const rolesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`);
+        const rolesResponse = await apiFetch(`/auth/roles`);
         if (rolesResponse.ok) {
           const data = await rolesResponse.json();
           const rolesArray = Array.isArray(data) ? data : data.roles || data.data || [];
@@ -280,7 +281,7 @@ export default function RolesPage() {
             <button
               onClick={() => {
                 setShowAddModal(true);
-                fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/permissions`)
+                apiFetch(`/auth/permissions`)
                   .then(res => res.json())
                   .then(data => setAllPermissions(data.permissions || data || []));
               }}

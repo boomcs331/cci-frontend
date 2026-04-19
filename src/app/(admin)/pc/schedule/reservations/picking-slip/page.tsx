@@ -7,6 +7,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
 import { apiFetch } from "@/utils/api";
+import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
 
 type FlatpickrApi = ReturnType<typeof flatpickr>;
 
@@ -271,22 +272,31 @@ export default function PickingSlipPage() {
       if (!resMat.ok) throw new Error("โหลดรายการจองวัตถุดิบไม่สำเร็จ");
       const materials = normalizeReservationPayload(await resMat.json());
 
-      const planCodes = new Set<string>();
+      const plansList = resPlans.ok
+        ? normalizePlansPayload(await resPlans.json())
+        : [];
+      const planByCode = new Map(plansList.map((p) => [p.planCode, p]));
+
+      /** แผนที่ยืนยันแล้วไม่มีแถวใน materials/reservations (ถูกลบหลังจ่าย) — ต้องใช้รายการแผนทั้งหมด */
+      const planCodesFromMaterials = new Set<string>();
       for (const m of materials) {
         for (const d of m.details || []) {
-          if (d.planCode) planCodes.add(d.planCode);
+          if (d.planCode) planCodesFromMaterials.add(d.planCode);
         }
       }
 
-      let planByCode = new Map<string, ProductionPlanRow>();
-      if (resPlans.ok) {
-        const plans = normalizePlansPayload(await resPlans.json());
-        planByCode = new Map(plans.map((p) => [p.planCode, p]));
-      }
-
-      const ids = [...planCodes]
+      const idsFromMaterials = [...planCodesFromMaterials]
         .map((code) => planByCode.get(code)?.id)
         .filter((id): id is number => id != null);
+
+      const idsFromReservedOrConfirmed = plansList
+        .filter((p) => {
+          const s = (p.status ?? "").toLowerCase();
+          return s === "reserved" || s === "confirmed";
+        })
+        .map((p) => p.id);
+
+      const ids = [...new Set([...idsFromMaterials, ...idsFromReservedOrConfirmed])];
 
       const detailResults = await Promise.all(
         ids.map(async (id) => {
@@ -299,7 +309,9 @@ export default function PickingSlipPage() {
       const nextGroups: PickingOrderGroup[] = [];
       for (const detail of detailResults) {
         if (!detail) continue;
-        if (!detail.reservations?.length) continue;
+        const hasReservations = (detail.reservations?.length ?? 0) > 0;
+        const hasItems = (detail.items?.length ?? 0) > 0;
+        if (!hasReservations && !hasItems) continue;
         nextGroups.push(buildPickingGroup(detail));
       }
 
@@ -387,6 +399,107 @@ export default function PickingSlipPage() {
 
   const handlePrint = () => window.print();
 
+  type PickingFlatRow = {
+    planCode: string;
+    planName: string;
+    planDate: string;
+    status: string;
+    materialCode: string;
+    materialName: string;
+    unit: string;
+    requiredQuantity: number | "";
+    reservedQuantity: number;
+    lotNumber: string;
+    lotPdNo: string;
+    qrCode: string;
+    receiveDate: string;
+  };
+
+  const flatPickingRows = useMemo<PickingFlatRow[]>(() => {
+    const rows: PickingFlatRow[] = [];
+    for (const order of filteredGroups) {
+      for (const mg of order.materialGroups) {
+        if (mg.rows.length === 0) {
+          rows.push({
+            planCode: order.planCode,
+            planName: order.planName ?? "",
+            planDate: order.planDate ?? "",
+            status: order.status ?? "",
+            materialCode: mg.materialCode,
+            materialName: mg.materialName,
+            unit: mg.unit,
+            requiredQuantity: mg.requiredQuantity ?? "",
+            reservedQuantity: mg.totalReserved,
+            lotNumber: "",
+            lotPdNo: "",
+            qrCode: "",
+            receiveDate: "",
+          });
+          continue;
+        }
+        for (const r of mg.rows) {
+          rows.push({
+            planCode: order.planCode,
+            planName: order.planName ?? "",
+            planDate: order.planDate ?? "",
+            status: order.status ?? "",
+            materialCode: mg.materialCode,
+            materialName: mg.materialName,
+            unit: mg.unit,
+            requiredQuantity: mg.requiredQuantity ?? "",
+            reservedQuantity: r.reservedQuantity,
+            lotNumber: r.lotNumber ?? "",
+            lotPdNo: r.lotPdNo ?? "",
+            qrCode: r.qrCode ?? "",
+            receiveDate: r.receiveDate ?? "",
+          });
+        }
+      }
+    }
+    return rows;
+  }, [filteredGroups]);
+
+  const pickingExportColumns = useMemo<ExportColumn<PickingFlatRow>[]>(
+    () => [
+      { header: "แผน", accessor: (r) => r.planCode },
+      { header: "ชื่อแผน", accessor: (r) => r.planName },
+      {
+        header: "วันที่แผน",
+        accessor: (r) => (r.planDate ? new Date(r.planDate).toLocaleDateString("th-TH") : ""),
+      },
+      { header: "สถานะ", accessor: (r) => r.status },
+      { header: "รหัสวัตถุดิบ", accessor: (r) => r.materialCode },
+      { header: "ชื่อวัตถุดิบ", accessor: (r) => r.materialName },
+      { header: "ต้องการ", accessor: (r) => r.requiredQuantity },
+      { header: "จอง", accessor: (r) => r.reservedQuantity },
+      { header: "หน่วย", accessor: (r) => r.unit },
+      { header: "Lot", accessor: (r) => r.lotNumber },
+      { header: "Lot PD", accessor: (r) => r.lotPdNo },
+      { header: "QR", accessor: (r) => r.qrCode },
+      {
+        header: "วันที่รับ",
+        accessor: (r) => (r.receiveDate ? new Date(r.receiveDate).toLocaleDateString("th-TH") : ""),
+      },
+    ],
+    [],
+  );
+
+  const handleExportXlsx = () => {
+    exportXlsx({
+      filename: `picking-slip_${new Date().toISOString().slice(0, 10)}`,
+      columns: pickingExportColumns,
+      rows: flatPickingRows,
+    });
+  };
+
+  const handleExportPdf = () => {
+    exportPdf({
+      filename: `picking-slip_${new Date().toISOString().slice(0, 10)}`,
+      columns: pickingExportColumns,
+      rows: flatPickingRows,
+    });
+  };
+
   if (loading) {
     return (
       <div>
@@ -422,6 +535,22 @@ export default function PickingSlipPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleExportXlsx}
+                disabled={flatPickingRows.length === 0}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Export XLSX
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                disabled={flatPickingRows.length === 0}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Export PDF
+              </button>
               <button
                 type="button"
                 onClick={handlePrint}

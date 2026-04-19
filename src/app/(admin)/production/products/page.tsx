@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/master-data/PaginationFooter";
+import { apiFetch } from "@/utils/api";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -48,8 +49,24 @@ export default function ProductsPage() {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
 
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/products?page=${page}&limit=${limit}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.data || []);
+        setPagination(data.pagination);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit]);
+
   useEffect(() => {
-    fetchProducts();
+    void fetchProducts();
     fetchMaterials();
     fetchLocations();
     fetchCustomers();
@@ -59,11 +76,11 @@ export default function ProductsPage() {
     fetchUnits();
     fetchLoadingPoints();
     fetchProcessLines();
-  }, [page, limit]);
+  }, [fetchProducts]);
 
   const fetchMaterials = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/materials/all`);
+      const response = await apiFetch(`/materials/all`);
       if (response.ok) {
         const data = await response.json();
         setMaterials(data.data || []);
@@ -75,7 +92,7 @@ export default function ProductsPage() {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/locations/all`);
+      const response = await apiFetch(`/masters/products/locations/all`);
       if (response.ok) {
         const data = await response.json();
         setLocations(data.data || []);
@@ -87,7 +104,7 @@ export default function ProductsPage() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/customers/all`);
+      const response = await apiFetch(`/masters/products/customers/all`);
       if (response.ok) {
         const data = await response.json();
         setCustomers(data.data || []);
@@ -99,7 +116,7 @@ export default function ProductsPage() {
 
   const fetchProductTypes = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/types/all`);
+      const response = await apiFetch(`/masters/products/types/all`);
       if (response.ok) {
         const data = await response.json();
         setProductTypes(data.data || []);
@@ -111,7 +128,7 @@ export default function ProductsPage() {
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/models/all`);
+      const response = await apiFetch(`/masters/products/models/all`);
       if (response.ok) {
         const data = await response.json();
         setModels(data.data || []);
@@ -123,7 +140,7 @@ export default function ProductsPage() {
 
   const fetchDeliveryTypes = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/delivery-types/all`);
+      const response = await apiFetch(`/masters/products/delivery-types/all`);
       if (response.ok) {
         const data = await response.json();
         setDeliveryTypes(data.data || []);
@@ -135,7 +152,7 @@ export default function ProductsPage() {
 
   const fetchUnits = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/units/all`);
+      const response = await apiFetch(`/masters/products/units/all`);
       if (response.ok) {
         const data = await response.json();
         setUnits(data.data || []);
@@ -147,7 +164,7 @@ export default function ProductsPage() {
 
   const fetchLoadingPoints = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/loading-points/all`);
+      const response = await apiFetch(`/masters/products/loading-points/all`);
       if (response.ok) {
         const data = await response.json();
         setLoadingPoints(data.data || []);
@@ -159,7 +176,7 @@ export default function ProductsPage() {
 
   const fetchProcessLines = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/masters/products/process-lines/all`);
+      const response = await apiFetch(`/masters/products/process-lines/all`);
       if (response.ok) {
         const data = await response.json();
         setProcessLines(data.data || []);
@@ -169,28 +186,12 @@ export default function ProductsPage() {
     }
   };
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products?page=${page}&limit=${limit}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.data || []);
-        setPagination(data.pagination);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       const { bom, ...productData } = formData;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products`, {
+      const response = await apiFetch(`/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
@@ -198,7 +199,7 @@ export default function ProductsPage() {
       const result = await response.json();
       if (response.ok && result.data?.id) {
         if (bom.length > 0) {
-          const bomResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${result.data.id}/bom`, {
+          const bomResponse = await apiFetch(`/products/${result.data.id}/bom`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: bom }),
@@ -234,7 +235,7 @@ export default function ProductsPage() {
     setSaving(true);
     try {
       const { bom, ...productData } = formData;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${selectedProduct.id}`, {
+      const response = await apiFetch(`/products/${selectedProduct.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(productData),
@@ -242,7 +243,7 @@ export default function ProductsPage() {
       const result = await response.json();
       if (response.ok) {
         if (bom.length > 0) {
-          const bomResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${selectedProduct.id}/bom`, {
+          const bomResponse = await apiFetch(`/products/${selectedProduct.id}/bom`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bom),
@@ -300,7 +301,7 @@ export default function ProductsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('คุณต้องการลบสินค้านี้หรือไม่?')) return;
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${id}`, {
+      const response = await apiFetch(`/products/${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();

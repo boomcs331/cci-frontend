@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -10,6 +10,7 @@ import {
   getMasterProductionProcesses,
 } from "@/services/productProductionStepsService";
 import type { ProductionProcess, ProductionStepDraft } from "@/types/production";
+import { apiFetch } from "@/utils/api";
 
 export default function ProductBOMPage() {
   const params = useParams();
@@ -30,10 +31,25 @@ export default function ProductBOMPage() {
   const [stepsSaving, setStepsSaving] = useState(false);
   const [addProcessId, setAddProcessId] = useState<string>("");
 
-  useEffect(() => {
-    fetchProduct();
-    fetchMaterials();
+  const fetchProduct = useCallback(async () => {
+    try {
+      const response = await apiFetch(`/products/${productId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProduct(data.data);
+        setBoms(data.data.boms || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [productId]);
+
+  useEffect(() => {
+    void fetchProduct();
+    fetchMaterials();
+  }, [fetchProduct]);
 
   useEffect(() => {
     if (!productId) return;
@@ -73,24 +89,9 @@ export default function ProductBOMPage() {
     };
   }, [productId]);
 
-  const fetchProduct = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${productId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProduct(data.data);
-        setBoms(data.data.boms || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchMaterials = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/materials/all`);
+      const response = await apiFetch(`/materials/all`);
       if (response.ok) {
         const data = await response.json();
         setMaterials(data.data || []);
@@ -105,7 +106,7 @@ export default function ProductBOMPage() {
     setSaving(true);
     setAlertMsg(null);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${productId}/bom`, {
+      const response = await apiFetch(`/products/${productId}/bom`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -193,7 +194,7 @@ export default function ProductBOMPage() {
   const handleDelete = async (bomId: number) => {
     if (!confirm('ต้องการลบวัตถุดิบนี้หรือไม่?')) return;
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${productId}/bom/${bomId}`, {
+      const response = await apiFetch(`/products/${productId}/bom/${bomId}`, {
         method: 'DELETE',
       });
       const result = await response.json();

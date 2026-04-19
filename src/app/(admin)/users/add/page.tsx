@@ -7,6 +7,7 @@ import Label from "@/components/form/Label";
 import { useRouter } from "next/navigation";
 import Alert from "@/components/ui/alert/Alert";
 import React, { useState, useEffect } from "react";
+import { apiFetch } from "@/utils/api";
 
 export default function AddUserPage() {
   const router = useRouter();
@@ -26,23 +27,16 @@ export default function AddUserPage() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        console.log('Fetching roles from:', `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`);
-        console.log('Response status:', response.status);
+        const response = await apiFetch(`/auth/roles`);
         if (response.ok) {
           const data = await response.json();
-          console.log('Raw API response:', data);
-          console.log('Is array?', Array.isArray(data));
-          console.log('Data type:', typeof data);
           setRoles(data.roles || []);
-        } else {
-          console.log('Response not ok:', response.statusText);
         }
       } catch (error) {
         console.error('Failed to fetch roles:', error);
       }
     };
-    fetchRoles();
+    void fetchRoles();
   }, []);
 
   const showAlert = (variant: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
@@ -58,7 +52,7 @@ export default function AddUserPage() {
       const { roleId, ...submitData } = formData;
       
       // สร้างผู้ใช้ก่อน
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
+      const response = await apiFetch(`/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +69,7 @@ export default function AddUserPage() {
         // ถ้าเลือก role แล้ว ให้กำหนด role ให้ผู้ใช้
         if (roleId && result.user?.id) {
           try {
-            const roleResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/users/${result.user.id}/roles/${roleId}`, {
+            const roleResponse = await apiFetch(`/auth/users/${result.user.id}/roles/${roleId}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

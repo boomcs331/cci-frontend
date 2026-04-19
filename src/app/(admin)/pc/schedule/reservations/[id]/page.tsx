@@ -1,5 +1,5 @@
 'use client';
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
@@ -61,17 +61,18 @@ interface PlanDetail {
   reservations?: Reservation[];
 }
 
-function normalizePlanItem(raw: Partial<PlanItem> & Record<string, unknown>): PlanItem {
+function normalizePlanItem(input: unknown): PlanItem {
+  const raw = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
   const materials = Array.isArray(raw.materials) ? (raw.materials as Material[]) : [];
   return {
-    planItemId: raw.planItemId,
-    id: raw.id,
+    planItemId: raw.planItemId as number | undefined,
+    id: raw.id as number | undefined,
     productId: Number(raw.productId),
     productName: String(raw.productName ?? ''),
     quantity: Number(raw.quantity),
     unit: String(raw.unit ?? ''),
     materials,
-    materialsIssued: raw.materialsIssued,
+    materialsIssued: raw.materialsIssued as boolean | undefined,
   };
 }
 
@@ -86,7 +87,7 @@ function normalizePlanDetail(raw: unknown): PlanDetail | null {
   }
   const itemsRaw = o.items;
   const items = Array.isArray(itemsRaw)
-    ? itemsRaw.map((it) => normalizePlanItem(it as PlanItem))
+    ? itemsRaw.map((it) => normalizePlanItem(it))
     : [];
   const resRaw = o.reservations;
   const reservations = Array.isArray(resRaw) ? (resRaw as Reservation[]) : [];
@@ -126,7 +127,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     return [...new Set(issued.map((i) => i.productId))];
   }, [data?.items, data?.status]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoadError(null);
     try {
       const res = await apiFetch(`/production-plans/${id}/details`);
@@ -152,11 +153,11 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
       setLoadError('\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e40\u0e0b\u0e34\u0e23\u0e4c\u0e1f\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08');
       setData(null);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [fetchData]);
 
   /** จ่ายเฉพาะบรรทัดสินค้าในแผน (index ตามลำดับใน items[]) — ส่งไปที่ API เป็น itemIndexes */
   const handleConfirmAndIssueForItem = async (itemIndex: number) => {

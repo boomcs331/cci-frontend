@@ -7,6 +7,7 @@ import Label from "@/components/form/Label";
 import { useRouter, useParams } from "next/navigation";
 import Alert from "@/components/ui/alert/Alert";
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/api";
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function EditUserPage() {
 
   const handleToggleStatus = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/users/${userId}/toggle-status`, {
+      const response = await apiFetch(`/auth/users/${userId}/toggle-status`, {
         method: 'PATCH',
       });
       
@@ -63,13 +64,13 @@ export default function EditUserPage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const rolesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/roles`);
+        const rolesResponse = await apiFetch(`/auth/roles`);
         if (rolesResponse.ok) {
           const rolesData = await rolesResponse.json();
           setRoles(rolesData.roles || []);
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/users/${userId}`);
+        const response = await apiFetch(`/auth/users/${userId}`);
         if (response.ok) {
           const data = await response.json();
           const user = data.user || data;
@@ -98,7 +99,7 @@ export default function EditUserPage() {
     setLoading(true);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/users/${userId}`, {
+      const response = await apiFetch(`/auth/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

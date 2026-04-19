@@ -12,7 +12,7 @@ import {
   setProductProductionSteps,
 } from "@/services/productProductionStepsService";
 import type { ProductionProcess, ProductionStepDraft } from "@/types/production";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 export default function MasterDataProductProductionStepsEditorPage() {
   const params = useParams();
@@ -41,7 +41,7 @@ export default function MasterDataProductProductionStepsEditorPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const res = await fetch(getApiUrl(`/products/${productId}`));
+        const res = await apiFetch(`/products/${productId}`);
         if (!res.ok || cancelled) return;
         const json = await res.json();
         if (cancelled) return;

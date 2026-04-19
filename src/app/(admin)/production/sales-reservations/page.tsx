@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import { apiFetch } from "@/utils/api";
 import { PERMISSIONS, hasPermission } from "@/constants/permissions";
 import { getUserPermissions } from "@/utils/session";
+import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
 
 interface ProductOption {
   id: number;
@@ -148,6 +149,63 @@ export default function ProductionSalesReservationsPage() {
     }
   };
 
+  type SalesFlatRow = {
+    productCode: string;
+    productName: string;
+    unit: string;
+    referenceNo: string;
+    quantity: number;
+    createDate: string;
+  };
+
+  const flatRows = useMemo<SalesFlatRow[]>(() => {
+    const rows: SalesFlatRow[] = [];
+    for (const g of groups) {
+      for (const d of g.details) {
+        rows.push({
+          productCode: g.productCode,
+          productName: g.productName,
+          unit: g.unit,
+          referenceNo: d.referenceNo,
+          quantity: Number(d.quantity) || 0,
+          createDate: d.createDate ?? "",
+        });
+      }
+    }
+    return rows;
+  }, [groups]);
+
+  const exportColumns = useMemo<ExportColumn<SalesFlatRow>[]>(
+    () => [
+      { header: "รหัสสินค้า", accessor: (r) => r.productCode },
+      { header: "ชื่อสินค้า", accessor: (r) => r.productName },
+      { header: "เลขที่อ้างอิง", accessor: (r) => r.referenceNo },
+      { header: "จำนวน", accessor: (r) => r.quantity },
+      { header: "หน่วย", accessor: (r) => r.unit },
+      {
+        header: "วันที่",
+        accessor: (r) => (r.createDate ? new Date(r.createDate).toLocaleString("th-TH") : ""),
+      },
+    ],
+    [],
+  );
+
+  const handleExportXlsx = () => {
+    exportXlsx({
+      filename: `sales-reservations_${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      rows: flatRows,
+    });
+  };
+
+  const handleExportPdf = () => {
+    exportPdf({
+      filename: `sales-reservations_${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      rows: flatRows,
+    });
+  };
+
   const handleFulfill = async (id: string) => {
     if (!canReserve) return;
     if (!confirm("ตัดขาย (หักจากสต็อกรวมและจอง) — ยืนยัน?")) return;
@@ -259,6 +317,24 @@ export default function ProductionSalesReservationsPage() {
         )}
 
         <ComponentCard title={`รายการจองที่ ACTIVE (${groups.length} สินค้า)`}>
+          <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+            <button
+              type="button"
+              onClick={handleExportXlsx}
+              disabled={flatRows.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+            >
+              Export XLSX
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={flatRows.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+            >
+              Export PDF
+            </button>
+          </div>
           {loading ? (
             <div className="text-center py-8 text-gray-500">กำลังโหลด...</div>
           ) : groups.length === 0 ? (

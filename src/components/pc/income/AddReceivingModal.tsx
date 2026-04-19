@@ -27,8 +27,12 @@ interface AddReceivingModalProps {
   setMfgDate?: (date: string) => void;
 }
 
-export default function AddReceivingModal({
-  show,
+export default function AddReceivingModal(props: AddReceivingModalProps) {
+  if (!props.show) return null;
+  return <AddReceivingModalInner {...props} />;
+}
+
+function AddReceivingModalInner({
   onClose,
   onSubmit,
   materials,
@@ -48,31 +52,25 @@ export default function AddReceivingModal({
   submitLoading,
   onMaterialChange,
   mfgDate,
-  setMfgDate
+  setMfgDate,
 }: AddReceivingModalProps) {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const mfgDatePickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (show) {
-      setMaterialSearch('');
-      setShowMaterialDropdown(false);
-      if (mfgDatePickerRef.current) {
-        flatpickr(mfgDatePickerRef.current, {
-          dateFormat: "Y-m-d",
-          onChange: (selectedDates, dateStr) => {
-            setMfgDate?.(dateStr);
-          },
-          defaultDate: mfgDate || undefined
-        });
-      }
-    }
-  }, [show]);
+    if (!mfgDatePickerRef.current) return;
+    const fp = flatpickr(mfgDatePickerRef.current, {
+      dateFormat: "Y-m-d",
+      onChange: (_selectedDates, dateStr) => setMfgDate?.(dateStr),
+      defaultDate: mfgDate || undefined,
+    });
+    return () => {
+      if (!Array.isArray(fp)) fp.destroy();
+    };
+  }, [mfgDate, setMfgDate]);
 
-  if (!show) return null;
-
-  const selectedMaterial = materials.find(m => m.id === materialId);
+  const selectedMaterial = materials.find((m) => m.id === materialId);
   const filteredSuppliers = selectedMaterial?.supplierId 
     ? suppliers.filter(s => s.id === selectedMaterial.supplierId)
     : suppliers;

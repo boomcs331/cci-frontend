@@ -1,5 +1,6 @@
+"use client";
 import React from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCodeGenerator from '@/components/common/QRCodeGenerator';
 
 interface PrintPlanQRProps {
   planCode: string;
@@ -27,7 +28,7 @@ export const PrintPlanQR: React.FC<PrintPlanQRProps> = ({ planCode, planName, pl
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold mb-2">แผนการผลิต</h1>
           <div className="flex justify-center mb-4">
-            <QRCodeSVG value={planCode} size={150} />
+            <QRCodeGenerator value={planCode} size={150} />
           </div>
           <p className="text-lg font-semibold">{planCode}</p>
         </div>

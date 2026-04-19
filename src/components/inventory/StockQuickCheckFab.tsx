@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { QrCodeLookupPanel } from "@/components/qr/QrCodeLookupPanel";
 import { StockBalanceLookupPanel } from "@/components/inventory/StockBalanceLookupPanel";
@@ -9,9 +9,15 @@ import { isSessionValid } from "@/utils/session";
 
 type TabKey = "qrMaterial" | "qrProduct" | "stockMaterial" | "stockProduct";
 
+const subscribeNoop = () => () => undefined;
+
 export default function StockQuickCheckFab() {
   const { registerFullscreenOverlay } = useAdminOverlay();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("qrMaterial");
 
@@ -40,10 +46,6 @@ export default function StockQuickCheckFab() {
       document.body.style.overflow = "";
     };
   }, [open]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   /** Focus lookup input after switching tab (click or keyboard). */
   useEffect(() => {

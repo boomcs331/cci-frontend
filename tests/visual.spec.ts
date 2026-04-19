@@ -26,22 +26,22 @@ test.describe("visual regression (all routes)", () => {
       // Freeze time & randomness for pixel-identical output.
       await page.addInitScript((fixedNow) => {
         const OriginalDate = Date;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         class MockDate extends (OriginalDate as any) {
           constructor(...args: any[]) {
             // new Date() => fixed; new Date(x) => real
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+             
             super(args.length === 0 ? fixedNow : args[0], ...(args.length > 1 ? args.slice(1) : []));
           }
           static now() {
             return fixedNow;
           }
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         (MockDate as any).parse = OriginalDate.parse;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         (MockDate as any).UTC = OriginalDate.UTC;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         (window as any).Date = MockDate;
 
         Math.random = () => 0.42;

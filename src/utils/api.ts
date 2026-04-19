@@ -1,5 +1,16 @@
 // API utility functions
-import { getSession } from '@/utils/session';
+import { clearSession, getSession } from '@/utils/session';
+import { publishToast } from '@/context/ToastContext';
+
+/** Default request timeout in milliseconds. */
+const DEFAULT_TIMEOUT_MS = 20_000;
+
+/** Endpoints that must bypass auto-logout on 401 (e.g., login, public auth). */
+const AUTH_BYPASS_ENDPOINTS = new Set<string>([
+  '/auth/login',
+  '/auth/signup',
+  '/auth/reset-password',
+]);
 
 /**
  * ดึง API Base URL จาก environment variable
@@ -13,9 +24,15 @@ export function getApiBaseUrl(): string {
  */
 export function getApiUrl(endpoint: string): string {
   const baseUrl = getApiBaseUrl();
-  // ลบ slash ซ้ำถ้ามี
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   return `${baseUrl}${cleanEndpoint}`;
+}
+
+/** Extract path part (strip query string) for bypass lookup. */
+function getBypassKey(endpoint: string): string {
+  const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const qIndex = clean.indexOf('?');
+  return qIndex >= 0 ? clean.slice(0, qIndex) : clean;
 }
 
 /** Attach x-user-id, x-department-id, and Bearer from getSession() (respects session expiry). */
@@ -46,24 +63,115 @@ function applySessionAuthHeaders(headers: Headers): void {
 }
 
 /**
- * Fetch wrapper ที่ใช้ API Base URL อัตโนมัติ
+ * Redirect to /signin with a reason once auth expires.
+ * Guards against repeated redirects when several requests fail at once.
  */
-export async function apiFetch(endpoint: string, options?: RequestInit): Promise<Response> {
-  const url = getApiUrl(endpoint);
-  const headers = new Headers(options?.headers);
-
-  applySessionAuthHeaders(headers);
-
-  return fetch(url, {
-    ...options,
-    headers,
+let redirectInFlight = false;
+function redirectToSignIn(reason: 'expired' | 'forbidden'): void {
+  if (typeof window === 'undefined') return;
+  if (redirectInFlight) return;
+  if (window.location.pathname === '/signin') return;
+  redirectInFlight = true;
+  clearSession();
+  publishToast({
+    variant: 'warning',
+    title: 'เซสชันหมดอายุ',
+    message: 'กำลังพากลับไปหน้าเข้าสู่ระบบ',
+    durationMs: 3000,
   });
+  const params = new URLSearchParams({ reason });
+  window.location.replace(`/signin?${params.toString()}`);
+}
+
+export interface ApiFetchOptions extends RequestInit {
+  /** Override request timeout (ms). Set to 0 to disable. */
+  timeoutMs?: number;
+  /** Skip auto-logout on 401/403 for this call. */
+  skipAuthRedirect?: boolean;
 }
 
 /**
- * Fetch และ parse JSON response
+ * Fetch wrapper ที่ใช้ API Base URL อัตโนมัติ พร้อม:
+ *  - แนบ auth headers จาก session
+ *  - auto logout เมื่อ 401 (และไม่ใช่ endpoint ระบบ auth เอง)
+ *  - request timeout กันค้าง
  */
-export async function apiFetchJson<T = any>(endpoint: string, options?: RequestInit): Promise<T> {
+export async function apiFetch(
+  endpoint: string,
+  options?: ApiFetchOptions,
+): Promise<Response> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, skipAuthRedirect, ...init } = options ?? {};
+  const url = getApiUrl(endpoint);
+  const headers = new Headers(init.headers);
+  applySessionAuthHeaders(headers);
+
+  const shouldBypassAuth =
+    skipAuthRedirect || AUTH_BYPASS_ENDPOINTS.has(getBypassKey(endpoint));
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  if (controller && timeoutMs > 0) {
+    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  }
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      headers,
+      signal: init.signal ?? controller?.signal ?? null,
+    });
+
+    if (!shouldBypassAuth && response.status === 401) {
+      redirectToSignIn('expired');
+    }
+
+    return response;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError' && timeoutId) {
+      publishToast({
+        variant: 'warning',
+        title: 'คำขอนานเกินไป',
+        message: 'เซิร์ฟเวอร์ตอบกลับช้า กรุณาลองใหม่อีกครั้ง',
+      });
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+/**
+ * Fetch และ parse JSON response โดยโยน ApiError เมื่อไม่ใช่ 2xx
+ */
+export async function apiFetchJson<T = unknown>(
+  endpoint: string,
+  options?: ApiFetchOptions,
+): Promise<T> {
   const response = await apiFetch(endpoint, options);
-  return response.json();
+  const contentType = response.headers.get('content-type') || '';
+  const body: unknown = contentType.includes('application/json')
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      (body && typeof body === 'object' && 'message' in body && typeof (body as { message?: unknown }).message === 'string'
+        ? String((body as { message?: unknown }).message)
+        : null) ?? `Request failed (${response.status})`;
+    throw new ApiError(message, response.status, body);
+  }
+
+  return body as T;
 }

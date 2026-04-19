@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
@@ -9,6 +9,7 @@ import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/master-data/PaginationFooter";
 import { fetchProductionOrders } from "@/services/productionOrdersService";
 import type { ProductionOrderDetail } from "@/types/production";
+import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
 
 function statusBadgeClass(status: string): string {
   const s = status.toLowerCase();
@@ -28,6 +29,7 @@ function ProductionOrdersPageContent() {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1", 10);
   const limit = parseInt(searchParams.get("limit") || "20", 10);
+  const statusFilter = (searchParams.get("status") || "").toLowerCase();
 
   const [data, setData] = useState<{
     orders: ProductionOrderDetail[];
@@ -58,6 +60,43 @@ function ProductionOrdersPageContent() {
     };
   }, [page, limit]);
 
+  const filteredOrders = useMemo<ProductionOrderDetail[]>(() => {
+    const orders = data?.orders ?? [];
+    if (!statusFilter) return orders;
+    return orders.filter((o) => (o.status || "").toLowerCase() === statusFilter);
+  }, [data?.orders, statusFilter]);
+
+  const exportColumns = useMemo<ExportColumn<ProductionOrderDetail>[]>(
+    () => [
+      { header: "เลขที่", accessor: (o) => o.orderNo },
+      { header: "รหัสสินค้า", accessor: (o) => o.product?.productCode ?? "" },
+      {
+        header: "ชื่อสินค้า",
+        accessor: (o) => o.product?.productName ?? `#${o.productId}`,
+      },
+      { header: "จำนวน", accessor: (o) => o.orderQuantity },
+      { header: "ล็อต/QR", accessor: (o) => o.totalLots },
+      { header: "สถานะ", accessor: (o) => o.status },
+    ],
+    [],
+  );
+
+  const handleExportXlsx = () => {
+    exportXlsx({
+      filename: `production-orders_${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      rows: filteredOrders,
+    });
+  };
+
+  const handleExportPdf = () => {
+    exportPdf({
+      filename: `production-orders_${new Date().toISOString().slice(0, 10)}`,
+      columns: exportColumns,
+      rows: filteredOrders,
+    });
+  };
+
   if (loading) {
     return (
       <div>
@@ -76,6 +115,35 @@ function ProductionOrdersPageContent() {
         <ComponentCard title={`รายการคำสั่งผลิต (${data?.total ?? 0})`}>
           <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
             <PaginationSelector currentLimit={limit} />
+            <div className="flex flex-wrap items-center gap-2">
+              {statusFilter ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                  กรองสถานะ: {statusFilter}
+                  <Link
+                    href="/production/production-orders"
+                    className="text-[10px] underline text-blue-700 hover:text-blue-900 dark:text-blue-300"
+                  >
+                    ล้าง
+                  </Link>
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleExportXlsx}
+                disabled={filteredOrders.length === 0}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+              >
+                Export XLSX
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                disabled={filteredOrders.length === 0}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+              >
+                Export PDF
+              </button>
+            </div>
           </div>
 
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -87,7 +155,7 @@ function ProductionOrdersPageContent() {
 
           {error && <div className="py-4 text-red-600 dark:text-red-400">{error}</div>}
 
-          {!error && data && data.orders.length > 0 ? (
+          {!error && data && filteredOrders.length > 0 ? (
             <>
               <div className="overflow-x-auto">
                 <table className="min-w-max w-full table-auto">
@@ -114,7 +182,7 @@ function ProductionOrdersPageContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {data.orders.map((o) => (
+                    {filteredOrders.map((o) => (
                       <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white whitespace-nowrap">
                           {o.orderNo}

@@ -7,6 +7,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/master-data/PaginationFooter";
+import { apiFetch } from "@/utils/api";
 
 export default function ProductionStepsHubPage() {
   const searchParams = useSearchParams();
@@ -22,8 +23,7 @@ export default function ProductionStepsHubPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-        const res = await fetch(`${base}/products?page=${page}&limit=${limit}`);
+        const res = await apiFetch(`/products?page=${page}&limit=${limit}`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (cancelled) return;

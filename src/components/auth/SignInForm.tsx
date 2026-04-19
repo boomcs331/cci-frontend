@@ -6,9 +6,15 @@ import Button from "@/components/ui/button/Button";
 import Alert from "@/components/ui/alert/Alert";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { setSession } from "@/utils/session";
+
+type AlertState = {
+  variant: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string;
+};
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -16,8 +22,26 @@ export default function SignInForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState<{variant: "success" | "error" | "warning" | "info", title: string, message: string} | null>(null);
+  const [alert, setAlert] = useState<AlertState | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const reason = searchParams.get("reason");
+    if (reason === "expired") {
+      setAlert({
+        variant: "warning",
+        title: "เซสชันหมดอายุ",
+        message: "กรุณาเข้าสู่ระบบใหม่อีกครั้ง",
+      });
+    } else if (reason === "forbidden") {
+      setAlert({
+        variant: "error",
+        title: "ไม่มีสิทธิ์เข้าใช้งาน",
+        message: "กรุณาเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์",
+      });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,12 +1,12 @@
 "use client";
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/master-data/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 interface Model {
   id: number;
@@ -34,9 +34,9 @@ function PageContent() {
   const [formData, setFormData] = useState({ code: "", name: "" });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const response = await fetch(getApiUrl(`/masters/models`));
+      const response = await apiFetch(`/masters/models`);
       const result = await response.json();
       const apiData = result.data?.data || result.data || [];
       const total = result.data?.total || apiData.length;
@@ -52,18 +52,18 @@ function PageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit]);
 
   useEffect(() => {
-    fetchData();
-  }, [page, limit]);
+    void fetchData();
+  }, [fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingItem ? getApiUrl(`/masters/models/${editingItem.id}`) : getApiUrl("/masters/models");
+      const url = editingItem ? `/masters/models/${editingItem.id}` : "/masters/models";
       const method = editingItem ? "PUT" : "POST";
-      const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
+      const response = await apiFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
       if (response.ok) {
         setMessage({ type: "success", text: editingItem ? "อัปเดตสำเร็จ" : "เพิ่มสำเร็จ" });
         setShowModal(false);
@@ -86,7 +86,7 @@ function PageContent() {
   const handleDelete = async (id: number) => {
     if (!confirm("ยืนยันการลบ?")) return;
     try {
-      const response = await fetch(getApiUrl(`/masters/models/${id}`), { method: "DELETE" });
+      const response = await apiFetch(`/masters/models/${id}`, { method: "DELETE" });
       if (response.ok) {
         setMessage({ type: "success", text: "ลบสำเร็จ" });
         fetchData();

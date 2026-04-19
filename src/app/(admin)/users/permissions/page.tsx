@@ -5,6 +5,7 @@ import Button from "@/components/ui/button/Button";
 import Pagination from "@/components/tables/Pagination";
 import Alert from "@/components/ui/alert/Alert";
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/utils/api";
 
 type Permission = {
   id: string;
@@ -70,7 +71,7 @@ export default function PermissionsPage() {
 
   const fetchPermissions = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/permissions`);
+      const response = await apiFetch(`/auth/permissions`);
       if (response.ok) {
         const data = await response.json();
         const permissionsArray = Array.isArray(data) ? data : data.permissions || data.data || [];
@@ -147,10 +148,10 @@ export default function PermissionsPage() {
     
     try {
       const url = showEditModal 
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/permissions/${selectedPermission?.id}`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/permissions`;
+        ? `/auth/permissions/${selectedPermission?.id}`
+        : `/auth/permissions`;
       
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: showEditModal ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -182,7 +183,7 @@ export default function PermissionsPage() {
     setFormLoading(true);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/permissions/${selectedPermission.id}`, {
+      const response = await apiFetch(`/auth/permissions/${selectedPermission.id}`, {
         method: 'DELETE',
       });
       

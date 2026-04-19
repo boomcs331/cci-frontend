@@ -7,6 +7,7 @@ import Label from "@/components/form/Label";
 import { useRouter, useSearchParams } from "next/navigation";
 import Alert from "@/components/ui/alert/Alert";
 import React, { useState, useEffect } from "react";
+import { apiFetch } from "@/utils/api";
 
 export default function AddBOMPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function AddBOMPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products`);
+      const response = await apiFetch(`/products`);
       if (response.ok) {
         const data = await response.json();
         setProducts(data.data || []);
@@ -44,7 +45,7 @@ export default function AddBOMPage() {
 
   const fetchMaterials = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/materials`);
+      const response = await apiFetch(`/materials`);
       if (response.ok) {
         const data = await response.json();
         setMaterials(data.data || []);
@@ -89,7 +90,7 @@ export default function AddBOMPage() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/products/${selectedProductId}/bom`, {
+      const response = await apiFetch(`/products/${selectedProductId}/bom`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

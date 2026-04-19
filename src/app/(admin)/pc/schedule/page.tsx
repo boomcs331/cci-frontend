@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -12,6 +12,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { apiFetch } from "@/utils/api";
+import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
 
 interface Product {
   id: number;
@@ -112,71 +113,21 @@ export default function PCSchedulePage() {
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
 
-  useEffect(() => {
-    fetchPlans();
-    fetchProducts();
-  }, [page, limit, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
-
-  useEffect(() => {
-    // Initialize filter date pickers
-    const fp1 = flatpickr(dateFromPickerRef.current!, {
-      dateFormat: "Y-m-d",
-      onChange: (selectedDates, dateStr) => {
-        setFilterDateFrom(dateStr);
-      }
-    });
-    
-    const fp2 = flatpickr(dateToPickerRef.current!, {
-      dateFormat: "Y-m-d",
-      onChange: (selectedDates, dateStr) => {
-        setFilterDateTo(dateStr);
-      }
-    });
-    
-    return () => {
-      fp1.destroy();
-      fp2.destroy();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (showModal && datePickerRef.current && !flatpickrInstance.current) {
-      flatpickrInstance.current = flatpickr(datePickerRef.current, {
-        dateFormat: "Y-m-d",
-        onChange: (selectedDates, dateStr) => {
-          setForm(prev => ({ ...prev, planDate: dateStr }));
-        },
-        defaultDate: form.planDate || new Date(),
-        clickOpens: true,
-        allowInput: false
-      });
-    }
-    
-    if (!showModal && flatpickrInstance.current) {
-      flatpickrInstance.current.destroy();
-      flatpickrInstance.current = null;
-    }
-  }, [showModal]);
-
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     try {
-      // Fetch all plans without pagination parameters first
       const res = await apiFetch("/production-plans");
       if (res.ok) {
         const data = await res.json();
-        console.log('API Response:', data);
-        
         let allPlans = [];
         if (Array.isArray(data)) {
           allPlans = data;
         } else if (data.data && Array.isArray(data.data)) {
           allPlans = data.data;
         }
-        
-        // Apply filters on frontend
+
         let filtered = allPlans;
         if (searchTerm) {
-          filtered = filtered.filter((p: ProductionPlan) => 
+          filtered = filtered.filter((p: ProductionPlan) =>
             p.planCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.planName?.toLowerCase().includes(searchTerm.toLowerCase())
           );
@@ -202,29 +153,28 @@ export default function PCSchedulePage() {
             return planTime <= filterTimeTo;
           });
         }
-        
-        // Calculate pagination
+
         const total = filtered.length;
         const totalPages = Math.ceil(total / limit);
         const startIndex = (page - 1) * limit;
         const endIndex = startIndex + limit;
         const paginatedPlans = filtered.slice(startIndex, endIndex);
-        
+
         setPlans(paginatedPlans);
         setPagination({
           total,
           totalPages,
           currentPage: page,
-          limit
+          limit,
         });
       }
     } catch (error) {
       console.error("Error:", error);
       setPlans([]);
     }
-  };
+  }, [page, limit, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const res = await apiFetch("/products/all");
       if (res.ok) {
@@ -234,7 +184,93 @@ export default function PCSchedulePage() {
     } catch (error) {
       console.error("Error:", error);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      await Promise.all([fetchPlans(), fetchProducts()]);
+      if (cancelled) return;
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPlans, fetchProducts]);
+
+  const planExportColumns = useMemo<ExportColumn<ProductionPlan>[]>(
+    () => [
+      { header: "รหัสแผน", accessor: (p) => p.planCode },
+      { header: "ชื่อแผน", accessor: (p) => p.planName },
+      {
+        header: "วันที่",
+        accessor: (p) => (p.planDate ? new Date(p.planDate).toLocaleDateString("th-TH") : ""),
+      },
+      { header: "เวลา", accessor: (p) => p.planTime ? p.planTime.substring(0, 5) : "" },
+      { header: "สถานะ", accessor: (p) => p.status },
+      {
+        header: "จำนวนรายการ",
+        accessor: (p) => (p.items ? p.items.length : 0),
+      },
+    ],
+    [],
+  );
+
+  const handleExportPlansXlsx = () => {
+    exportXlsx({
+      filename: `production-plans_${new Date().toISOString().slice(0, 10)}`,
+      columns: planExportColumns,
+      rows: plans,
+    });
   };
+
+  const handleExportPlansPdf = () => {
+    exportPdf({
+      filename: `production-plans_${new Date().toISOString().slice(0, 10)}`,
+      columns: planExportColumns,
+      rows: plans,
+    });
+  };
+
+  useEffect(() => {
+    const fp1 = flatpickr(dateFromPickerRef.current!, {
+      dateFormat: "Y-m-d",
+      onChange: (_selectedDates, dateStr) => {
+        setFilterDateFrom(dateStr);
+      },
+    });
+
+    const fp2 = flatpickr(dateToPickerRef.current!, {
+      dateFormat: "Y-m-d",
+      onChange: (_selectedDates, dateStr) => {
+        setFilterDateTo(dateStr);
+      },
+    });
+
+    return () => {
+      fp1.destroy();
+      fp2.destroy();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showModal && datePickerRef.current && !flatpickrInstance.current) {
+      flatpickrInstance.current = flatpickr(datePickerRef.current, {
+        dateFormat: "Y-m-d",
+        onChange: (_selectedDates, dateStr) => {
+          setForm((prev) => ({ ...prev, planDate: dateStr }));
+        },
+        defaultDate: form.planDate || new Date(),
+        clickOpens: true,
+        allowInput: false,
+      });
+    }
+
+    if (!showModal && flatpickrInstance.current) {
+      flatpickrInstance.current.destroy();
+      flatpickrInstance.current = null;
+    }
+  }, [showModal, form.planDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -568,6 +604,24 @@ export default function PCSchedulePage() {
         )}
         
         <ComponentCard title={`แผนการผลิตทั้งหมด (${pagination?.total || 0})`}>
+          <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+            <button
+              type="button"
+              onClick={handleExportPlansXlsx}
+              disabled={plans.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+            >
+              Export XLSX
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPlansPdf}
+              disabled={plans.length === 0}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+            >
+              Export PDF
+            </button>
+          </div>
           <div className="mb-4 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input

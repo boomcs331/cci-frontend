@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getSession, getUserDepartmentCode, getUserPermissions, isAdmin, isSessionValid, setSession } from '@/utils/session';
 import { canAccessPolicy, getRouteAccessPolicy } from '@/utils/accessControl';
-import { getApiUrl } from '@/utils/api';
+import { apiFetch } from '@/utils/api';
 import type { MenuItem } from '@/types/user';
 
 /**
@@ -50,7 +50,7 @@ export function useSessionCheck() {
         headers['x-department-id'] = departmentId;
       }
 
-      void fetch(getApiUrl('/auth/menu'), { headers })
+      void apiFetch('/auth/menu', { headers })
         .then(async (response) => {
           if (!response.ok) {
             return;
