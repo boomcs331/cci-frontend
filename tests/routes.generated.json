@@ -1,0 +1,315 @@
+{
+  "generatedAt": "2026-04-10T07:27:55.960Z",
+  "routes": [
+    {
+      "path": "/",
+      "sourceFile": "src/app/(admin)/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/alerts",
+      "sourceFile": "src/app/(admin)/(ui-elements)/alerts/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/avatars",
+      "sourceFile": "src/app/(admin)/(ui-elements)/avatars/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/badge",
+      "sourceFile": "src/app/(admin)/(ui-elements)/badge/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/bar-chart",
+      "sourceFile": "src/app/(admin)/(others-pages)/(chart)/bar-chart/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/basic-tables",
+      "sourceFile": "src/app/(admin)/(others-pages)/(tables)/basic-tables/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/blank",
+      "sourceFile": "src/app/(admin)/(others-pages)/blank/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/buttons",
+      "sourceFile": "src/app/(admin)/(ui-elements)/buttons/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/calendar",
+      "sourceFile": "src/app/(admin)/(others-pages)/calendar/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/error-404",
+      "sourceFile": "src/app/(full-width-pages)/(error-pages)/error-404/page.tsx",
+      "requiresAuth": false
+    },
+    {
+      "path": "/form-elements",
+      "sourceFile": "src/app/(admin)/(others-pages)/(forms)/form-elements/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/images",
+      "sourceFile": "src/app/(admin)/(ui-elements)/images/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/line-chart",
+      "sourceFile": "src/app/(admin)/(others-pages)/(chart)/line-chart/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data",
+      "sourceFile": "src/app/(admin)/master-data/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/customers",
+      "sourceFile": "src/app/(admin)/master-data/customers/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/delivery-types",
+      "sourceFile": "src/app/(admin)/master-data/delivery-types/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/loading-points",
+      "sourceFile": "src/app/(admin)/master-data/loading-points/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/locations",
+      "sourceFile": "src/app/(admin)/master-data/locations/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/material-types",
+      "sourceFile": "src/app/(admin)/master-data/material-types/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/models",
+      "sourceFile": "src/app/(admin)/master-data/models/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/process-lines",
+      "sourceFile": "src/app/(admin)/master-data/process-lines/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-delivery-types",
+      "sourceFile": "src/app/(admin)/master-data/product-delivery-types/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-loading-points",
+      "sourceFile": "src/app/(admin)/master-data/product-loading-points/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-locations",
+      "sourceFile": "src/app/(admin)/master-data/product-locations/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-models",
+      "sourceFile": "src/app/(admin)/master-data/product-models/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-process-lines",
+      "sourceFile": "src/app/(admin)/master-data/product-process-lines/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-types",
+      "sourceFile": "src/app/(admin)/master-data/product-types/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/product-units",
+      "sourceFile": "src/app/(admin)/master-data/product-units/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/production-steps",
+      "sourceFile": "src/app/(admin)/master-data/production-steps/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/production-steps/1",
+      "sourceFile": "src/app/(admin)/master-data/production-steps/[id]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/suppliers",
+      "sourceFile": "src/app/(admin)/master-data/suppliers/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/units",
+      "sourceFile": "src/app/(admin)/master-data/units/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/modals",
+      "sourceFile": "src/app/(admin)/(ui-elements)/modals/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc",
+      "sourceFile": "src/app/(admin)/pc/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/income",
+      "sourceFile": "src/app/(admin)/pc/income/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/outcome",
+      "sourceFile": "src/app/(admin)/pc/outcome/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/production-step-scan",
+      "sourceFile": "src/app/(admin)/pc/production-step-scan/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/production-tracking",
+      "sourceFile": "src/app/(admin)/pc/production-tracking/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/report",
+      "sourceFile": "src/app/(admin)/pc/report/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/reservations",
+      "sourceFile": "src/app/(admin)/pc/reservations/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/schedule",
+      "sourceFile": "src/app/(admin)/pc/schedule/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/schedule/1",
+      "sourceFile": "src/app/(admin)/pc/schedule/[id]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/schedule/reservations",
+      "sourceFile": "src/app/(admin)/pc/schedule/reservations/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/schedule/reservations/1",
+      "sourceFile": "src/app/(admin)/pc/schedule/reservations/[id]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/schedule/reservations/picking-slip",
+      "sourceFile": "src/app/(admin)/pc/schedule/reservations/picking-slip/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/stock",
+      "sourceFile": "src/app/(admin)/pc/stock/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/bom-add",
+      "sourceFile": "src/app/(admin)/production/bom-add/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/production-orders",
+      "sourceFile": "src/app/(admin)/production/production-orders/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/production-orders/1",
+      "sourceFile": "src/app/(admin)/production/production-orders/[id]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/production-steps",
+      "sourceFile": "src/app/(admin)/production/production-steps/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/products",
+      "sourceFile": "src/app/(admin)/production/products/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/products/1/bom",
+      "sourceFile": "src/app/(admin)/production/products/[id]/bom/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/profile",
+      "sourceFile": "src/app/(admin)/(others-pages)/profile/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/session",
+      "sourceFile": "src/app/(admin)/session/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/signin",
+      "sourceFile": "src/app/(full-width-pages)/(auth)/signin/page.tsx",
+      "requiresAuth": false
+    },
+    {
+      "path": "/signup",
+      "sourceFile": "src/app/(full-width-pages)/(auth)/signup/page.tsx",
+      "requiresAuth": false
+    },
+    {
+      "path": "/users",
+      "sourceFile": "src/app/(admin)/users/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/1/edit",
+      "sourceFile": "src/app/(admin)/users/[id]/edit/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/add",
+      "sourceFile": "src/app/(admin)/users/add/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/permissions",
+      "sourceFile": "src/app/(admin)/users/permissions/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/roles",
+      "sourceFile": "src/app/(admin)/users/roles/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/videos",
+      "sourceFile": "src/app/(admin)/(ui-elements)/videos/page.tsx",
+      "requiresAuth": true
+    }
+  ]
+}

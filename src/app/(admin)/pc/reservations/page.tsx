@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
+import { getApiUrl } from '@/utils/api';
 
 interface ReservationDetail {
   planCode: string;
@@ -19,12 +20,29 @@ interface MaterialReservation {
 
 export default function ReservationsPage() {
   const [data, setData] = useState<MaterialReservation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:3006/production-plans/materials/reservations')
-      .then(res => res.json())
-      .then(setData)
-      .catch(err => console.error('Error:', err));
+    const fetchReservations = async () => {
+      try {
+        const response = await fetch(getApiUrl('/production-plans/materials/reservations'));
+        const payload = (await response.json()) as
+          | MaterialReservation[]
+          | { reservations?: MaterialReservation[]; data?: MaterialReservation[] };
+
+        const normalized = Array.isArray(payload)
+          ? payload
+          : payload.reservations ?? payload.data ?? [];
+        setData(normalized);
+      } catch (err) {
+        console.error('Error:', err);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchReservations();
   }, []);
 
   return (
@@ -38,7 +56,9 @@ export default function ReservationsPage() {
         </div>
 
         <ComponentCard title={`รายการจอง Material ทั้งหมด (${data.length})`}>
-          {data.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">กำลังโหลด...</div>
+          ) : data.length === 0 ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               ไม่มีรายการจอง Material
             </div>

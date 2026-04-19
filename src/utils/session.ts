@@ -1,8 +1,32 @@
 // Session management utilities
+import { ADMIN_ROLE_CODE } from '@/constants/permissions';
+import type { MenuItem } from '@/types/user';
+
+export interface SessionRole {
+  id: string;
+  code?: string;
+  permissions?: Array<{ code: string }>;
+}
+
+export interface SessionDepartment {
+  id: string;
+  code?: string;
+  name?: string;
+}
+
+export interface SessionUser {
+  id: string;
+  roles?: SessionRole[];
+  departmentId?: string | null;
+  department?: SessionDepartment | null;
+}
 
 export interface SessionData {
-  token: string;
-  user: any;
+  token?: string;
+  message?: string;
+  user?: SessionUser;
+  permissions?: string[];
+  menus?: MenuItem[];
   expiresAt?: number; // timestamp
 }
 
@@ -12,7 +36,7 @@ const SESSION_TIMEOUT = 3600000; // 1 hour
 /**
  * บันทึก session พร้อมกำหนดเวลาหมดอายุ
  */
-export function setSession(data: any): void {
+export function setSession(data: SessionData): void {
   const sessionData: SessionData = {
     ...data,
     expiresAt: Date.now() + SESSION_TIMEOUT,
@@ -65,9 +89,14 @@ export function getUserPermissions(): string[] {
   const session = getSession();
   if (!session) return [];
 
+  // Preferred source: backend login response sends flattened permissions list.
+  if (Array.isArray(session.permissions) && session.permissions.length > 0) {
+    return [...new Set(session.permissions)];
+  }
+
   const permissions: string[] = [];
-  session.user?.roles?.forEach((role: any) => {
-    role.permissions?.forEach((permission: any) => {
+  session.user?.roles?.forEach((role) => {
+    role.permissions?.forEach((permission) => {
       if (!permissions.includes(permission.code)) {
         permissions.push(permission.code);
       }
@@ -84,5 +113,18 @@ export function isAdmin(): boolean {
   const session = getSession();
   if (!session) return false;
 
-  return session.user?.roles?.some((role: any) => role.id === "1") || false;
+  return session.user?.roles?.some((role) => role.code === ADMIN_ROLE_CODE) || false;
+}
+
+/**
+ * Department code of current user, ex: WE, PD
+ */
+export function getUserDepartmentCode(): string | null {
+  const session = getSession();
+  return session?.user?.department?.code || null;
+}
+
+export function getUserMenus(): MenuItem[] {
+  const session = getSession();
+  return session?.menus ?? [];
 }

@@ -2,18 +2,14 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
+import { apiFetch } from "@/utils/api";
 import {
   type GenerateProductQrOrdersBody,
   generateProductQrOrders,
   resolveProductionOrderForPlanItem,
 } from "@/services/productionPlanQrService";
 import {
-  advanceLotStep,
-  maxStepForRecord,
-  generateLotRecords,
-  labelsForRecord,
   listLotsForPlanItem,
-  setLotStepIndex,
   syncPlanItemLotsFromServer,
   upsertLotRecord,
   type ProductionLotRecord,
@@ -35,6 +31,15 @@ interface Props {
   processStepLabels?: string[];
 }
 
+type LotStatusPayload = {
+  qrCode: string;
+  status: string;
+  currentStepPhase?: "IN_PROGRESS" | "WAITING_START" | "COMPLETED";
+  stepSummaryTh?: string;
+  currentProcessCode?: string | null;
+  currentProcess?: string | null;
+};
+
 export default function ProductionLotBatchPanel({
   planId,
   planCode,
@@ -51,6 +56,10 @@ export default function ProductionLotBatchPanel({
   const [lots, setLots] = useState<ProductionLotRecord[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [statusByQr, setStatusByQr] = useState<Record<string, LotStatusPayload>>(
+    {},
+  );
+  const [statusLoading, setStatusLoading] = useState(false);
 
   const refresh = useCallback(() => {
     setLots(listLotsForPlanItem(planId, itemIndex));
@@ -59,6 +68,47 @@ export default function ProductionLotBatchPanel({
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (lots.length === 0) {
+      setStatusByQr({});
+      setStatusLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setStatusLoading(true);
+
+    (async () => {
+      const entries = await Promise.all(
+        lots.map(async (r) => {
+          try {
+            const res = await apiFetch(
+              `/production-orders/lots/${encodeURIComponent(r.qrPayload)}/status`,
+            );
+            if (!res.ok) return null;
+            const data = (await res.json()) as LotStatusPayload;
+            return [r.qrPayload, data] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) return;
+      const next: Record<string, LotStatusPayload> = {};
+      for (const item of entries) {
+        if (!item) continue;
+        next[item[0]] = item[1];
+      }
+      setStatusByQr(next);
+      setStatusLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lots]);
 
   // ตาม requirement: ให้แสดงการติดตามเริ่มที่ step ลำดับที่ 1 เสมอ
   // (รีเซ็ตล็อตที่มีอยู่ให้กลับไป stepIndex=0 และผูกชื่อขั้นตอนของสินค้า)
@@ -106,104 +156,58 @@ export default function ProductionLotBatchPanel({
         ? [...processStepLabels]
         : undefined;
 
-    const canTryServerApi =
-      planStatus === "reserved" || planStatus === "confirmed";
+    const canTryServerApi = planStatus === "reserved" || planStatus === "confirmed";
 
-    if (canTryServerApi) {
-      setSyncing(true);
-      try {
-        const body: GenerateProductQrOrdersBody = {
-          defaultLotSize: packSize,
-        };
-        if (planItemId != null && Number.isFinite(Number(planItemId))) {
-          body.planItemIds = [Number(planItemId)];
-        }
-        const data = await generateProductQrOrders(planId, body);
-        const order = resolveProductionOrderForPlanItem(
-          data,
-          { planItemId, productId, productName },
-          itemIndex,
-          data.orders,
-        );
-        if (!order?.lots?.length) {
-          setMsg("ไม่ได้รับรายการล็อตจากเซิร์ฟเวอร์ — ลองรีเฟรชหน้าแล้วกดใหม่");
-          return;
-        }
-        syncPlanItemLotsFromServer({
-          planId,
-          planCode,
-          itemIndex,
-          productId,
-          productName,
-          unit,
-          lots: order.lots.map((l) => ({
-            qrCode: l.qrCode,
-            quantity: l.quantity,
-            sequenceNo: l.sequenceNo,
-            lotNo: l.lotNo,
-            orderLotLabel: l.orderLotLabel,
-          })),
-          processStepLabels: labelsOpt,
-          productionOrderId: order.id,
-        });
-        setMsg(
-          `บันทึก ${order.lots.length} ล็อตใน production_lots แล้ว — QR ใช้สแกนกับระบบรับเข้า/ผลิตได้`,
-        );
-      } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : "บันทึกไม่สำเร็จ";
-        const created = generateLotRecords({
-          planId,
-          planCode,
-          itemIndex,
-          productId,
-          productName,
-          unit,
-          totalQty,
-          packSize,
-          processStepLabels: labelsOpt,
-        });
-        if (created.length === 0) {
-          setMsg(`${message} — ไม่สามารถสร้างล็อตสำรองในเครื่องได้`);
-        } else {
-          setMsg(
-            `${message} — สร้าง ${created.length} QR ในเครื่อง (CCI:PL) แทน`,
-          );
-        }
-      } finally {
-        setSyncing(false);
+    if (!canTryServerApi) {
+      setMsg("ต้องอยู่สถานะจองหรือยืนยันก่อน จึงสร้าง QR product เพื่อติดตามใน DB ได้");
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const body: GenerateProductQrOrdersBody = {
+        defaultLotSize: packSize,
+      };
+      if (planItemId != null && Number.isFinite(Number(planItemId))) {
+        body.planItemIds = [Number(planItemId)];
       }
-      refresh();
-      return;
+      const data = await generateProductQrOrders(planId, body);
+      const order = resolveProductionOrderForPlanItem(
+        data,
+        { planItemId, productId, productName },
+        itemIndex,
+        data.orders,
+      );
+      if (!order?.lots?.length) {
+        setMsg("ไม่ได้รับรายการล็อตจากเซิร์ฟเวอร์ — ลองรีเฟรชหน้าแล้วกดใหม่");
+        return;
+      }
+      syncPlanItemLotsFromServer({
+        planId,
+        planCode,
+        itemIndex,
+        productId,
+        productName,
+        unit,
+        lots: order.lots.map((l) => ({
+          qrCode: l.qrCode,
+          quantity: l.quantity,
+          sequenceNo: l.sequenceNo,
+          lotNo: l.lotNo,
+            orderLotLabel: l.orderLotLabel ?? undefined,
+        })),
+        processStepLabels: labelsOpt,
+        productionOrderId: order.id,
+      });
+      setMsg(
+        `สร้าง ${order.lots.length} QR product และบันทึกใน production_lots แล้ว`,
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "สร้างล็อตไม่สำเร็จ";
+      setMsg(`${message} — ไม่สร้าง fallback ในเครื่อง เพื่อให้การติดตามอิงฐานข้อมูลเท่านั้น`);
+    } finally {
+      setSyncing(false);
     }
-
-    const created = generateLotRecords({
-      planId,
-      planCode,
-      itemIndex,
-      productId,
-      productName,
-      unit,
-      totalQty,
-      packSize,
-      processStepLabels: labelsOpt,
-    });
-    if (created.length === 0) {
-      setMsg("ไม่สามารถสร้างล็อตได้");
-      return;
-    }
-    setMsg(
-      `สร้าง ${created.length} QR ในเครื่อง — แผนต้องอยู่สถานะจอง/ยืนยัน และ API generate-product-qr-orders ต้องทำงานถึงจะบันทึก production_lots`,
-    );
-    refresh();
-  };
-
-  const handleAdvance = (qrPayload: string) => {
-    advanceLotStep(qrPayload);
-    refresh();
-  };
-
-  const handleStepSelect = (qrPayload: string, idx: number) => {
-    setLotStepIndex(qrPayload, idx);
     refresh();
   };
 
@@ -255,7 +259,8 @@ export default function ProductionLotBatchPanel({
           : " (ค่าเริ่มต้นระบบหากยังไม่กำหนดในมาสเตอร์)"}
         <span className="block mt-1 text-amber-800/90 dark:text-amber-200/90">
           หมายเหตุ: เมื่อแผนอยู่สถานะจอง/ยืนยัน การสร้างล็อตจะบันทึก QR ใน{" "}
-          <span className="font-medium">production_lots</span> — ลำดับขั้นตอนยังแสดงจากเบราว์เซอร์ (localStorage)
+          <span className="font-medium">production_lots</span> และการติดตามขั้นตอนจะอ่านจาก{" "}
+          <span className="font-medium">production_lot_tracking</span>
         </span>
       </p>
 
@@ -314,37 +319,45 @@ export default function ProductionLotBatchPanel({
                   ขั้นตอนปัจจุบัน
                 </th>
                 <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
+                  Lot status
+                </th>
+                <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
                   QR
                 </th>
                 <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100 font-mono text-xs">
                   ค่าใน QR
                 </th>
                 <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
-                  จัดการ
+                  ติดตาม
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {lots.map((r) => (
                 <tr key={r.qrPayload} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  {(() => {
+                    const st = statusByQr[r.qrPayload];
+                    return (
+                      <>
                   <td className="px-3 py-2 font-medium">{r.lotIndex + 1}</td>
                   <td className="px-3 py-2">
                     {r.quantity.toLocaleString()} {r.unit}
                   </td>
                   <td className="px-3 py-2">
-                    <select
-                      value={r.stepIndex}
-                      onChange={(e) =>
-                        handleStepSelect(r.qrPayload, Number(e.target.value))
-                      }
-                      className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 dark:bg-gray-800 dark:text-white max-w-[220px]"
-                    >
-                      {labelsForRecord(r).map((label, idx) => (
-                        <option key={`${idx}-${label}`} value={idx}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="text-xs text-gray-800 dark:text-gray-200">
+                      {st?.stepSummaryTh || "ยังไม่มีประวัติขั้นตอนใน DB"}
+                    </div>
+                    {st?.currentProcessCode ? (
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                        {st.currentProcessCode}
+                        {st.currentProcess ? ` - ${st.currentProcess}` : ""}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <span className="inline-flex px-2 py-1 rounded-full text-[11px] bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">
+                      {st?.status || "UNKNOWN"}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-center">
                     <QRCodeGenerator value={r.qrPayload} size={72} className="mx-auto" />
@@ -353,20 +366,27 @@ export default function ProductionLotBatchPanel({
                     {r.qrPayload}
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleAdvance(r.qrPayload)}
-                      disabled={r.stepIndex >= maxStepForRecord(r)}
-                      className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:opacity-90 disabled:opacity-40"
+                    <a
+                      href="/pc/production-step-scan"
+                      className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:opacity-90"
                     >
-                      ขั้นตอนถัดไป
-                    </button>
+                      เปิดหน้าอัปเดต
+                    </a>
                   </td>
+                      </>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {statusLoading && lots.length > 0 && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          กำลังโหลดสถานะล่าสุดจากฐานข้อมูล...
+        </p>
       )}
 
       {lots.length === 0 && (

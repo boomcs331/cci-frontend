@@ -4,7 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
-import { getSession, getUserPermissions, isAdmin } from "@/utils/session";
+import { getSession, getUserDepartmentCode, getUserMenus, getUserPermissions, isAdmin } from "@/utils/session";
+import { AccessPolicy, canAccessPolicy } from "@/utils/accessControl";
+import type { MenuItem } from "@/types/user";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBoxesStacked,
@@ -12,197 +14,210 @@ import {
   faGauge,
   faIndustry,
   faUsers,
+  faWarehouse,
 } from "@fortawesome/free-solid-svg-icons";
-import {
-  CalenderIcon,
-  ChevronDownIcon,
-  HorizontaLDots,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-} from "../icons/index";
+import { ChevronDownIcon, HorizontaLDots } from "../icons/index";
 
-type SubMenuItem = {
+type AccessConfig = AccessPolicy;
+
+type NestedMenuItem = AccessConfig & {
+  name: string;
+  path: string;
+};
+
+type SubMenuItem = AccessConfig & {
   name: string;
   path: string;
   pro?: boolean;
   new?: boolean;
-  permission?: string;
   isCollapsible?: boolean;
-  items?: { name: string; path: string; permission?: string }[];
+  items?: NestedMenuItem[];
 };
 
-type NavItem = {
+type NavItem = AccessConfig & {
   name: string;
   icon: React.ReactNode;
   path?: string;
   subItems?: SubMenuItem[];
-  permission?: string;
 };
 
-const navItems: NavItem[] = [
-  {
-    icon: <FontAwesomeIcon icon={faGauge} />,
-    name: "Dashboard",
-    path: "/",
-  },
-  {
-    icon: <FontAwesomeIcon icon={faUsers} />,
-    name: "Users Management",
-    permission: "CAN_READ",
-    subItems: [
-      { name: "All Users", path: "/users", pro: false, permission: "CAN_READ" },
-      { name: "Add User", path: "/users/add", pro: false, permission: "CAN_CREATE" },
-      { name: "User Roles", path: "/users/roles", pro: false, permission: "CAN_READ" },
-      { name: "Permissions", path: "/users/permissions", pro: false, permission: "CAN_READ" },
-    ],
-  },
-  {
-    icon: <FontAwesomeIcon icon={faBoxesStacked} />,
-    name: "PC",
-    permission: "CAN_READ",
-    subItems: [
-      { name: "ข้อมูลวัตถุดิบ", path: "/pc", pro: false, permission: "CAN_READ" },
-      { name: "รายการรับเข้า", path: "/pc/income", pro: false, permission: "CAN_CREATE" },
-      { name: "รายการจ่ายออก", path: "/pc/outcome", pro: false, permission: "CAN_READ" },
-      { name: "รายการจอง", path: "/pc/reservations", pro: false, permission: "CAN_READ" },
-      { name: "แผนผลิตที่จองสำเร็จแล้ว", path: "/pc/schedule/reservations", pro: false, permission: "CAN_READ" },
-      { name: "ยิงบาร์โค้ดขั้นตอนผลิต", path: "/pc/production-step-scan", pro: false, permission: "CAN_READ" },
-      { name: "Stock คงเหลือ", path: "/pc/stock", pro: false, permission: "CAN_READ" },
-      { name: "รายงาน", path: "/pc/report", pro: false, permission: "CAN_READ" },
-    ],
-  },
-  {
-    icon: <FontAwesomeIcon icon={faIndustry} />,
-    name: "Production",
-    permission: "CAN_READ",
-    subItems: [
-      { name: "Products", path: "/production/products", pro: false, permission: "CAN_READ" },
-      { name: "คำสั่งผลิต / QR", path: "/production/production-orders", pro: false, permission: "CAN_READ" },
-      { name: "ลำดับขั้นตอนผลิต", path: "/production/production-steps", pro: false, permission: "CAN_READ" },
-      { name: "จัดงานล่วงหน้า", path: "/pc/schedule", pro: false, permission: "CAN_READ" },
-      { name: "ติดตามสถานะการผลิต", path: "/pc/production-tracking", pro: false, permission: "CAN_READ" },
-    ],
-  },
-  {
-    icon: <FontAwesomeIcon icon={faDatabase} />,
-    name: "Master Data",
-    permission: "CAN_READ",
-    subItems: [
-      {
-        name: "ภาพรวม Master Data",
-        path: "/master-data",
-        pro: false,
-        permission: "CAN_READ",
-      },
-      {
-        name: "วัตถุดิบ",
-        path: "",
-        isCollapsible: true,
-        permission: "CAN_READ",
-        items: [
-          { name: "ประเภทวัตถุดิบ", path: "/master-data/material-types", permission: "CAN_READ" },
-          { name: "สถานที่เก็บ (วัตถุดิบ)", path: "/master-data/locations", permission: "CAN_READ" },
-          { name: "ผู้จัดจำหน่าย", path: "/master-data/suppliers", permission: "CAN_READ" },
-          { name: "โมเดล", path: "/master-data/models", permission: "CAN_READ" },
-          { name: "ประเภทการส่ง", path: "/master-data/delivery-types", permission: "CAN_READ" },
-          { name: "หน่วย", path: "/master-data/units", permission: "CAN_READ" },
-          { name: "จุดขนถ่าย", path: "/master-data/loading-points", permission: "CAN_READ" },
-          { name: "สายการผลิต", path: "/master-data/process-lines", permission: "CAN_READ" },
-        ],
-      },
-      {
-        name: "ผลิตภัณฑ์ / สินค้า",
-        path: "",
-        isCollapsible: true,
-        permission: "CAN_READ",
-        items: [
-          { name: "ประเภทสินค้า", path: "/master-data/product-types", permission: "CAN_READ" },
-          { name: "สถานที่เก็บ (สินค้า)", path: "/master-data/product-locations", permission: "CAN_READ" },
-          { name: "ลูกค้า", path: "/master-data/customers", permission: "CAN_READ" },
-          { name: "ลำดับขั้นตอนผลิต", path: "/master-data/production-steps", permission: "CAN_READ" },
-          { name: "ประเภทการส่ง (สินค้า)", path: "/master-data/product-delivery-types", permission: "CAN_READ" },
-          { name: "โมเดล (สินค้า)", path: "/master-data/product-models", permission: "CAN_READ" },
-          { name: "หน่วย (สินค้า)", path: "/master-data/product-units", permission: "CAN_READ" },
-          { name: "จุดขนถ่าย (สินค้า)", path: "/master-data/product-loading-points", permission: "CAN_READ" },
-          { name: "สายการผลิต (สินค้า)", path: "/master-data/product-process-lines", permission: "CAN_READ" },
-        ],
-      },
-    ],
-  },
-];
+const ICON_MAP = {
+  gauge: faGauge,
+  users: faUsers,
+  boxes: faBoxesStacked,
+  industry: faIndustry,
+  database: faDatabase,
+  warehouse: faWarehouse,
+} as const;
 
+const toIconNode = (iconKey?: string | null): React.ReactNode => {
+  const icon = ICON_MAP[(iconKey ?? '').toLowerCase() as keyof typeof ICON_MAP] ?? faGauge;
+  return <FontAwesomeIcon icon={icon} />;
+};
+
+const mapMenuItemToSubItem = (item: MenuItem): SubMenuItem => {
+  if (item.children.length > 0) {
+    return {
+      name: item.label,
+      path: item.path ?? "",
+      isCollapsible: true,
+      items: item.children.map((child) => ({
+        name: child.label,
+        path: child.path ?? "",
+      })),
+    };
+  }
+
+  return {
+    name: item.label,
+    path: item.path ?? "",
+  };
+};
+
+const mapMenuToNavItems = (menuItems: MenuItem[]): NavItem[] => {
+  return menuItems.map((item) => {
+    if (item.children.length > 0) {
+      return {
+        name: item.label,
+        icon: toIconNode(item.iconKey),
+        path: item.path ?? undefined,
+        subItems: item.children.map(mapMenuItemToSubItem),
+      };
+    }
+
+    return {
+      name: item.label,
+      icon: toIconNode(item.iconKey),
+      path: item.path ?? undefined,
+    };
+  });
+};
+
+const MENU_DISPLAY_ORDER = [
+  "Dashboard",
+  "Users Management",
+  "PC",
+  "Production",
+  "Stock",
+  "Master Data",
+] as const;
+
+const MENU_ORDER_INDEX = new Map(
+  MENU_DISPLAY_ORDER.map((name, index) => [name.toLowerCase(), index]),
+);
+
+const sortNavItemsByDisplayOrder = (items: NavItem[]): NavItem[] => {
+  return [...items].sort((a, b) => {
+    const aOrder = MENU_ORDER_INDEX.get(a.name.toLowerCase());
+    const bOrder = MENU_ORDER_INDEX.get(b.name.toLowerCase());
+
+    if (aOrder === undefined && bOrder === undefined) return 0;
+    if (aOrder === undefined) return 1;
+    if (bOrder === undefined) return -1;
+
+    return aOrder - bOrder;
+  });
+};
+
+
+const emptySubscribe = () => () => undefined;
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
-  const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [isClient, setIsClient] = useState(false);
+  const isHydrated = React.useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  const userPermissions = isHydrated ? getUserPermissions() : [];
+  const userDepartmentCode = isHydrated ? getUserDepartmentCode() : null;
+  const isAdminUser = isHydrated ? isAdmin() : false;
+  const navItems = isHydrated
+    ? sortNavItemsByDisplayOrder(mapMenuToNavItems(getUserMenus()))
+    : [];
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
+    if (!isHydrated) return;
 
     const session = getSession(); // ใช้ getSession ที่จะตรวจสอบ expiration
     if (!session) {
       router.push('/signin');
-    } else {
-      const permissions = getUserPermissions();
-      setUserPermissions(permissions);
     }
-  }, [router, isClient]);
-
-  // ตรวจสอบสิทธิ์การเข้าถึง Users Management (เฉพาะ role id = 1)
-  const hasUsersManagementAccess = () => {
-    if (!isClient) return false;
-    return isAdmin();
-  };
+  }, [router, isHydrated, pathname]);
 
   // ตรวจสอบว่า submenu ใดมี active path
-  const hasActiveSubItem = (subItems?: { path: string }[]) => {
+  const hasActiveSubItem = (subItems?: SubMenuItem[]) => {
     if (!subItems) return false;
-    return subItems.some(subItem => isActive(subItem.path));
-  };
-
-  // ตรวจสอบสิทธิ์การเข้าถึง
-  const hasPermission = (permission?: string) => {
-    if (!permission) return true; // ไม่ต้องการ permission
-    return userPermissions.includes(permission);
-  };
-
-  // กรองเมนูตาม permissions
-  const filterMenuByPermissions = (items: NavItem[]) => {
-    return items.filter(item => {
-      // ตรวจสอบพิเศษสำหรับ Users Management
-      if (item.name === "Users Management") {
-        return hasUsersManagementAccess();
+    return subItems.some((subItem) => {
+      if (subItem.isCollapsible && subItem.items) {
+        return subItem.items.some((nestedItem) => isActive(nestedItem.path));
       }
-
-      if (!hasPermission(item.permission)) return false;
-
-      if (item.subItems) {
-        // สำหรับ Users Management submenu ก็ตรวจสอบ role id = 1 เหมือนกัน
-        if (item.name === "Users Management") {
-          item.subItems = item.subItems.filter(() => hasUsersManagementAccess());
-        } else {
-          item.subItems = item.subItems.filter(subItem => hasPermission(subItem.permission));
-        }
-        return item.subItems.length > 0;
-      }
-
-      return true;
+      return isActive(subItem.path);
     });
+  };
+
+  const canAccess = (item: AccessConfig): boolean => {
+    return canAccessPolicy(item, {
+      isAdmin: isAdminUser,
+      permissions: userPermissions,
+      departmentCode: userDepartmentCode,
+    });
+  };
+
+  const filterSubItem = (subItem: SubMenuItem): SubMenuItem | null => {
+    if (!canAccess(subItem)) {
+      return null;
+    }
+
+    if (subItem.isCollapsible && subItem.items) {
+      const allowedNestedItems = subItem.items.filter((nestedItem) => canAccess(nestedItem));
+      if (allowedNestedItems.length === 0) {
+        return null;
+      }
+
+      return {
+        ...subItem,
+        items: allowedNestedItems,
+      };
+    }
+
+    return subItem;
+  };
+
+  const filterMenuByPermissions = (items: NavItem[]): NavItem[] => {
+    return items
+      .map((item) => {
+        if (!canAccess(item)) {
+          return null;
+        }
+
+        if (!item.subItems || item.subItems.length === 0) {
+          return item;
+        }
+
+        const allowedSubItems = item.subItems
+          .map((subItem) => filterSubItem(subItem))
+          .filter((subItem): subItem is SubMenuItem => subItem !== null);
+
+        if (allowedSubItems.length === 0) {
+          return null;
+        }
+
+        return {
+          ...item,
+          subItems: allowedSubItems,
+        };
+      })
+      .filter((item): item is NavItem => item !== null);
   };
 
   const renderMenuItems = (
     navItems: NavItem[],
     menuType: "main" | "others"
   ) => {
-    if (!isClient) {
+    if (!isHydrated) {
       // แสดงเมนูพื้นฐานในช่วง SSR
       return (
         <ul className="flex flex-col gap-4">
@@ -394,35 +409,6 @@ const AppSidebar: React.FC = () => {
 
   // const isActive = (path: string) => path === pathname;
   const isActive = useCallback((path: string) => path === pathname, [pathname]);
-
-  useEffect(() => {
-    if (!isClient) return;
-
-    let submenuMatched = false;
-    const items = filterMenuByPermissions(navItems);
-    items.forEach((nav, index) => {
-      if (nav.subItems) {
-        nav.subItems.forEach((subItem, subIndex) => {
-          if (subItem.isCollapsible && subItem.items) {
-            subItem.items.forEach((nestedItem) => {
-              if (isActive(nestedItem.path)) {
-                setOpenSubmenu({ type: "main", index });
-                setOpenNestedSubmenu(prev => ({ ...prev, [`main-${index}-${subIndex}`]: true }));
-                submenuMatched = true;
-              }
-            });
-          } else if (isActive(subItem.path)) {
-            setOpenSubmenu({ type: "main", index });
-            submenuMatched = true;
-          }
-        });
-      }
-    });
-
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [pathname, isActive, userPermissions, isClient]);
 
   useEffect(() => {
     // Set the height of the submenu items when the submenu is opened

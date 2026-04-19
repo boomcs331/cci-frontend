@@ -40,6 +40,13 @@ export interface ProductionOrderLot {
   sequenceNo: number;
   quantity: number;
   status: string;
+  /** Linked master process row for this lot (`current_process_id`). */
+  currentProcess?: {
+    id: number;
+    processCode: string;
+    processName: string;
+    sequenceOrder?: number;
+  } | null;
 }
 
 export interface ProductionOrderDetail {

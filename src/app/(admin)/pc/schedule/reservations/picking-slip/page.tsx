@@ -6,14 +6,13 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
+import { apiFetch } from "@/utils/api";
 
 type FlatpickrApi = ReturnType<typeof flatpickr>;
 
 function clearFlatpickr(fp: FlatpickrApi | undefined) {
   if (fp && !Array.isArray(fp)) fp.clear();
 }
-
-const API_BASE = "http://localhost:3006";
 
 /** สถานะแผนการผลิต / การจัดงาน */
 const PLAN_STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -265,8 +264,8 @@ export default function PickingSlipPage() {
     setError(null);
     try {
       const [resMat, resPlans] = await Promise.all([
-        fetch(`${API_BASE}/production-plans/materials/reservations`),
-        fetch(`${API_BASE}/production-plans`),
+        apiFetch("/production-plans/materials/reservations"),
+        apiFetch("/production-plans"),
       ]);
 
       if (!resMat.ok) throw new Error("โหลดรายการจองวัตถุดิบไม่สำเร็จ");
@@ -291,7 +290,7 @@ export default function PickingSlipPage() {
 
       const detailResults = await Promise.all(
         ids.map(async (id) => {
-          const r = await fetch(`${API_BASE}/production-plans/${id}/details`);
+          const r = await apiFetch(`/production-plans/${id}/details`);
           if (!r.ok) return null;
           return r.json() as Promise<PlanDetail>;
         })

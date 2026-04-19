@@ -9,7 +9,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import TimePicker from "@/components/ui/TimePicker";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 type PlanStatus = "draft" | "reserved" | "confirmed" | "cancelled";
 
@@ -97,7 +97,7 @@ export default function ProductionTrackingPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(getApiUrl("/production-plans"));
+      const res = await apiFetch("/production-plans");
       if (!res.ok) throw new Error("โหลดแผนการผลิตไม่สำเร็จ");
       const raw = await res.json();
       setAllPlans(normalizePlansPayload(raw));

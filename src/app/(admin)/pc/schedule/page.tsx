@@ -11,7 +11,7 @@ import "flatpickr/dist/flatpickr.css";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 interface Product {
   id: number;
@@ -161,7 +161,7 @@ export default function PCSchedulePage() {
   const fetchPlans = async () => {
     try {
       // Fetch all plans without pagination parameters first
-      const res = await fetch(`http://localhost:3006/production-plans`);
+      const res = await apiFetch("/production-plans");
       if (res.ok) {
         const data = await res.json();
         console.log('API Response:', data);
@@ -226,7 +226,7 @@ export default function PCSchedulePage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:3006/products/all");
+      const res = await apiFetch("/products/all");
       if (res.ok) {
         const data = await res.json();
         setProducts(Array.isArray(data) ? data : data.data || []);
@@ -265,8 +265,12 @@ export default function PCSchedulePage() {
       
       console.log('Submit data:', submitData);
       
-      const url = editingPlan ? `http://localhost:3006/production-plans/${editingPlan.id}` : "http://localhost:3006/production-plans";
-      const res = await fetch(url, { method: editingPlan ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(submitData) });
+      const path = editingPlan ? `/production-plans/${editingPlan.id}` : "/production-plans";
+      const res = await apiFetch(path, {
+        method: editingPlan ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(submitData),
+      });
       if (res.ok) {
         setMessage({ type: "success", text: editingPlan ? "อัปเดตสำเร็จ" : "เพิ่มสำเร็จ" });
         setShowModal(false);
@@ -286,7 +290,7 @@ export default function PCSchedulePage() {
 
   const handleReserve = async (id: number) => {
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/reserve`, { method: "POST" });
+      const res = await apiFetch(`/production-plans/${id}/reserve`, { method: "POST" });
       const data = await res.json();
       
       // ตรวจสอบ success จาก response body ไม่ใช่ res.ok
@@ -344,7 +348,7 @@ export default function PCSchedulePage() {
 
   const handleViewDetail = async (plan: ProductionPlan) => {
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${plan.id}`);
+      const res = await apiFetch(`/production-plans/${plan.id}`);
       if (res.ok) {
         const data = await res.json();
         setSelectedPlan(data);
@@ -357,7 +361,7 @@ export default function PCSchedulePage() {
 
   const handleExportPDF = async (plan: ProductionPlan) => {
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${plan.id}`);
+      const res = await apiFetch(`/production-plans/${plan.id}`);
       if (!res.ok) return;
       const data = await res.json();
       
@@ -414,7 +418,7 @@ export default function PCSchedulePage() {
       const qrData = [];
       
       for (const plan of plans) {
-        const res = await fetch(`http://localhost:3006/production-plans/${plan.id}`);
+        const res = await apiFetch(`/production-plans/${plan.id}`);
         if (!res.ok) continue;
         const data = await res.json();
         
@@ -495,7 +499,7 @@ export default function PCSchedulePage() {
   
   const debugMaterial = async (materialCode: string) => {
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/debug/material/${materialCode}`);
+      const res = await apiFetch(`/production-plans/debug/material/${encodeURIComponent(materialCode)}`);
       const data = await res.json();
       console.log('=== Debug Material Data ===');
       console.log('Material:', data.material);
@@ -514,7 +518,7 @@ export default function PCSchedulePage() {
     
     if (field === "productId" && value > 0) {
       try {
-        const res = await fetch(`http://localhost:3006/products/${value}/bom`);
+        const res = await apiFetch(`/products/${value}/bom`);
         if (res.ok) {
           const result = await res.json();
           const bomData = (result.data || []).map((item: any) => ({

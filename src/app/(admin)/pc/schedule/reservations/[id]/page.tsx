@@ -7,7 +7,7 @@ import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBat
 import QRScannerModal from '@/components/qr/QRScannerModal';
 import { getProductProductionSteps } from '@/services/productProductionStepsService';
 import type { GenerateProductQrOrdersResponse } from '@/services/productionPlanQrService';
-import { getApiUrl } from '@/utils/api';
+import { apiFetch } from '@/utils/api';
 import {
   generateProductQrOrdersAndSyncPlanItems,
   syncPlanItemsFromProductionQrGeneration,
@@ -61,9 +61,53 @@ interface PlanDetail {
   reservations?: Reservation[];
 }
 
+function normalizePlanItem(raw: Partial<PlanItem> & Record<string, unknown>): PlanItem {
+  const materials = Array.isArray(raw.materials) ? (raw.materials as Material[]) : [];
+  return {
+    planItemId: raw.planItemId,
+    id: raw.id,
+    productId: Number(raw.productId),
+    productName: String(raw.productName ?? ''),
+    quantity: Number(raw.quantity),
+    unit: String(raw.unit ?? ''),
+    materials,
+    materialsIssued: raw.materialsIssued,
+  };
+}
+
+function normalizePlanDetail(raw: unknown): PlanDetail | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.message === 'string' && typeof o.statusCode === 'number') {
+    return null;
+  }
+  if (o.planCode == null && o.planName == null) {
+    return null;
+  }
+  const itemsRaw = o.items;
+  const items = Array.isArray(itemsRaw)
+    ? itemsRaw.map((it) => normalizePlanItem(it as PlanItem))
+    : [];
+  const resRaw = o.reservations;
+  const reservations = Array.isArray(resRaw) ? (resRaw as Reservation[]) : [];
+  return {
+    id: o.id as number | undefined,
+    planId: o.planId as number | undefined,
+    planCode: String(o.planCode ?? ''),
+    planName: String(o.planName ?? ''),
+    planDate: String(o.planDate ?? ''),
+    planTime: o.planTime != null ? String(o.planTime) : undefined,
+    status: String(o.status ?? ''),
+    remarks: o.remarks != null ? String(o.remarks) : undefined,
+    items,
+    reservations,
+  };
+}
+
 export default function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [data, setData] = useState<PlanDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorAlert, setErrorAlert] = useState<{ show: boolean; materials: Material[] }>({ show: false, materials: [] });
   const [showScanner, setShowScanner] = useState(false);
@@ -82,11 +126,32 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     return [...new Set(issued.map((i) => i.productId))];
   }, [data?.items, data?.status]);
 
-  const fetchData = () => {
-    fetch(getApiUrl(`/production-plans/${id}/details`))
-      .then(res => res.json())
-      .then(setData)
-      .catch(err => console.error('Error:', err));
+  const fetchData = async () => {
+    setLoadError(null);
+    try {
+      const res = await apiFetch(`/production-plans/${id}/details`);
+      const raw = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg =
+          raw && typeof raw === 'object' && 'message' in raw
+            ? String((raw as { message?: string }).message)
+            : `โหลดข้อมูลไม่สำเร็จ (${res.status})`;
+        setLoadError(msg);
+        setData(null);
+        return;
+      }
+      const normalized = normalizePlanDetail(raw);
+      if (!normalized) {
+        setLoadError('รูปแบบข้อมูลแผนไม่ถูกต้อง');
+        setData(null);
+        return;
+      }
+      setData(normalized);
+    } catch (err) {
+      console.error('Error:', err);
+      setLoadError('\u0e40\u0e0a\u0e37\u0e48\u0e2d\u0e21\u0e15\u0e48\u0e2d\u0e40\u0e0b\u0e34\u0e23\u0e4c\u0e1f\u0e40\u0e27\u0e2d\u0e23\u0e4c\u0e44\u0e21\u0e48\u0e2a\u0e33\u0e40\u0e23\u0e47\u0e08');
+      setData(null);
+    }
   };
 
   useEffect(() => {
@@ -106,7 +171,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     }
 
     const insufficientMaterials: Material[] = [];
-    item.materials.forEach((m) => {
+    (item.materials ?? []).forEach((m) => {
       if (m.availableQty < m.requiredQuantity) {
         insufficientMaterials.push(m);
       }
@@ -120,7 +185,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     setLoading(true);
     setIssuingItemIndex(itemIndex);
     try {
-      const res = await fetch(getApiUrl(`/production-plans/${id}/confirm-and-issue`), {
+      const res = await apiFetch(`/production-plans/${id}/confirm-and-issue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemIndexes: [itemIndex] }),
@@ -136,11 +201,17 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         productionQrGenerationError?: string | null;
       };
 
-      const dRes = await fetch(getApiUrl(`/production-plans/${id}/details`));
+      const dRes = await apiFetch(`/production-plans/${id}/details`);
       if (!dRes.ok) {
         throw new Error('โหลดรายละเอียดแผนหลังจ่ายไม่สำเร็จ');
       }
-      const updated = (await dRes.json()) as PlanDetail;
+      const updatedRaw = await dRes.json();
+      const updated = normalizePlanDetail(updatedRaw);
+      if (!updated) {
+        throw new Error(
+          '\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e1c\u0e19\u0e2b\u0e25\u0e31\u0e07\u0e08\u0e48\u0e32\u0e22\u0e44\u0e21\u0e48\u0e2a\u0e21\u0e1a\u0e39\u0e23\u0e13\u0e4c',
+        );
+      }
       setData(updated);
 
       const pid = Number(updated.id ?? updated.planId ?? id);
@@ -220,6 +291,24 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
       cancelled = true;
     };
   }, [productIdsToFetch]);
+
+  if (loadError) {
+    return (
+      <div className="p-6 space-y-4">
+        <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิตที่จองแล้ว" />
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+          {loadError}
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push('/pc/schedule/reservations')}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+        >
+          ย้อนกลับ
+        </button>
+      </div>
+    );
+  }
 
   if (!data) return <div className="p-6">Loading...</div>;
 
@@ -305,7 +394,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
               onClick={() => setShowScanner(true)}
               className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 shrink-0"
             >
-              สแกน QR (วัตถุดิบ / ล็อตผลิต)
+              ตรวจสอบ QR (กรอก/วางค่า)
             </button>
           </div>
         </div>
@@ -383,7 +472,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             </div>
           )}
 
-          {data.items.map((item, itemIndex) => (
+          {(data.items ?? []).map((item, itemIndex) => (
             <div key={`${item.productId}-${itemIndex}`} className="mb-8 border-t pt-4">
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -407,7 +496,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {item.materials.map((m) => (
+                    {(item.materials ?? []).map((m) => (
                       <tr key={m.materialId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td>

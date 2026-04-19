@@ -11,13 +11,22 @@ export interface User {
   updatedAt: string;
   lastLoginAt?: string;
   roles?: Role[];
+  departmentId?: string | null;
+  department?: Department | null;
 }
 
 export interface Role {
   id: string;
+  code?: string;
   name: string;
   description?: string;
   permissions?: Permission[];
+}
+
+export interface Department {
+  id: string;
+  code?: string;
+  name?: string;
 }
 
 export interface Permission {
@@ -33,8 +42,22 @@ export interface LoginCredentials {
 }
 
 export interface LoginResponse {
-  token: string;
+  token?: string;
+  message?: string;
   user: User;
+  permissions?: string[];
+  menus?: MenuItem[];
+}
+
+export interface MenuItem {
+  id: string;
+  code: string;
+  label: string;
+  path?: string | null;
+  iconKey?: string | null;
+  sortOrder: number;
+  isCollapsible: boolean;
+  children: MenuItem[];
 }
 
 export interface SignUpData {

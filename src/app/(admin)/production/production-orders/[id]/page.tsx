@@ -10,6 +10,45 @@ import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { fetchProductionOrder } from "@/services/productionOrdersService";
 import type { ProductionOrderDetail, ProductionOrderLot } from "@/types/production";
 
+function lotCurrentStepLabel(lot: ProductionOrderLot): string {
+  if (lot.status === "COMPLETED") return "เสร็จสิ้น";
+  if (lot.status === "REJECTED") return "ถูกปฏิเสธ";
+  if (lot.status === "PENDING") return "รอเริ่มงาน";
+  if (lot.currentProcess?.processName) {
+    const code = lot.currentProcess.processCode ? ` · ${lot.currentProcess.processCode}` : "";
+    return `${lot.currentProcess.processName}${code}`;
+  }
+  if (lot.status === "IN_PROGRESS") {
+    return "กำลังผลิต (ยังไม่ระบุขั้น)";
+  }
+  return lot.status;
+}
+
+function orderCurrentStepSummary(lots: ProductionOrderLot[]): string {
+  if (lots.length === 0) return "—";
+  if (lots.every((l) => l.status === "COMPLETED")) {
+    return "ทุกล็อตผลิตเสร็จสิ้นแล้ว";
+  }
+  const inProgress = lots.filter((l) => l.status === "IN_PROGRESS");
+  if (inProgress.length === 0) {
+    if (lots.some((l) => l.status === "PENDING")) {
+      return "ยังไม่มีล็อตที่กำลังผลิต — ล็อตอยู่ในสถานะรอเริ่ม";
+    }
+    return "—";
+  }
+  const names = inProgress
+    .map((l) => l.currentProcess?.processName)
+    .filter((n): n is string => Boolean(n));
+  const unique = [...new Set(names)];
+  if (unique.length === 1) {
+    return `ล็อตที่กำลังผลิตอยู่ที่ขั้น: ${unique[0]}`;
+  }
+  if (unique.length > 1) {
+    return `ล็อตที่กำลังผลิตอยู่คนละขั้น (${unique.length} ขั้น) — ดูรายละเอียดในแต่ละแถว`;
+  }
+  return "กำลังผลิต (ยังไม่ระบุขั้นจากระบบ)";
+}
+
 export default function ProductionOrderQrPage() {
   const params = useParams();
   const id = Number(params.id);
@@ -88,6 +127,7 @@ export default function ProductionOrderQrPage() {
   }
 
   const lots = [...(order.lots ?? [])].sort((a, b) => a.sequenceNo - b.sequenceNo);
+  const stepSummary = orderCurrentStepSummary(lots);
 
   return (
     <div>
@@ -105,6 +145,10 @@ export default function ProductionOrderQrPage() {
           <p>
             จำนวนสั่ง: <strong>{order.orderQuantity}</strong> · ต่อล็อต: <strong>{order.lotSize}</strong> · จำนวน QR:{" "}
             <strong>{order.totalLots}</strong> · สถานะ: <strong>{order.status}</strong>
+          </p>
+          <p>
+            {"ขั้นตอนปัจจุบัน (สรุปจากล็อต):"}{" "}
+            <strong className="text-gray-900 dark:text-gray-100">{stepSummary}</strong>
           </p>
           <p className="text-xs">
             เลขล็อตหลัก <span className="font-mono">PG…</span> คู่ <span className="font-mono">PD…</span> แบบรับเข้า
@@ -138,6 +182,7 @@ export default function ProductionOrderQrPage() {
                     <th className="px-3 py-2 text-left">อ้างอิงใบสั่ง</th>
                     <th className="px-3 py-2 text-center">QR</th>
                     <th className="px-3 py-2 text-right">จำนวน</th>
+                    <th className="px-3 py-2 text-left">ขั้นตอนปัจจุบัน</th>
                     <th className="px-3 py-2 text-center">สถานะ</th>
                   </tr>
                 </thead>
@@ -157,6 +202,7 @@ export default function ProductionOrderQrPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right">{lot.quantity}</td>
+                      <td className="px-3 py-2 text-left max-w-[220px]">{lotCurrentStepLabel(lot)}</td>
                       <td className="px-3 py-2 text-center">{lot.status}</td>
                     </tr>
                   ))}

@@ -1,6 +1,7 @@
 'use client';
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/utils/api';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
 import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBatchPanel';
@@ -61,7 +62,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
 
   const fetchData = async (): Promise<PlanDetail | null> => {
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/details`);
+      const res = await apiFetch(`/production-plans/${id}/details`);
       const json = (await res.json()) as PlanDetail;
       setData(json);
       return json;
@@ -80,9 +81,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
     
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/reserve`, {
+      const res = await apiFetch(`/production-plans/${id}/reserve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (!res.ok) {
@@ -108,9 +109,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
     
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3006/production-plans/${id}/cancel`, {
+      const res = await apiFetch(`/production-plans/${id}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (!res.ok) throw new Error('เกิดข้อผิดพลาด');
@@ -143,7 +144,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
               onClick={() => setShowScanner(true)}
               className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 shrink-0"
             >
-              สแกน QR (วัตถุดิบ / ล็อตผลิต)
+              ตรวจสอบ QR (กรอก/วางค่า)
             </button>
           </div>
         </div>

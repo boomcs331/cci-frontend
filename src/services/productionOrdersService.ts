@@ -1,8 +1,8 @@
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 import type { ProductionOrderDetail, ProductionOrdersListResult } from "@/types/production";
 
 export async function fetchProductionOrders(page = 1, limit = 20): Promise<ProductionOrdersListResult> {
-  const res = await fetch(getApiUrl(`/production-orders?page=${page}&limit=${limit}`));
+  const res = await apiFetch(`/production-orders?page=${page}&limit=${limit}`);
   if (!res.ok) {
     throw new Error(`โหลดรายการคำสั่งผลิตไม่สำเร็จ (${res.status})`);
   }
@@ -10,7 +10,7 @@ export async function fetchProductionOrders(page = 1, limit = 20): Promise<Produ
 }
 
 export async function fetchProductionOrder(id: number): Promise<ProductionOrderDetail> {
-  const res = await fetch(getApiUrl(`/production-orders/${id}`));
+  const res = await apiFetch(`/production-orders/${id}`);
   if (!res.ok) {
     throw new Error(`โหลดคำสั่งผลิตไม่สำเร็จ (${res.status})`);
   }

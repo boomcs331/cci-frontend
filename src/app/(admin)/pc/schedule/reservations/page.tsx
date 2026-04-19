@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 import {
   syncPlanItemsFromProductionQrGeneration,
   type PlanDetailForLots,
@@ -116,7 +116,7 @@ export default function ScheduleReservationsPage() {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch("http://localhost:3006/production-plans");
+      const res = await apiFetch("/production-plans");
       if (res.ok) {
         const data = await res.json();
         const allPlans = Array.isArray(data) ? data : data.data || [];
@@ -153,7 +153,7 @@ export default function ScheduleReservationsPage() {
 
     try {
       // ยืนยันแผนและจ่ายออกวัตถุดิบ
-      const res = await fetch(getApiUrl(`/production-plans/${plan.id}/confirm-and-issue`), {
+      const res = await apiFetch(`/production-plans/${plan.id}/confirm-and-issue`, {
         method: "POST",
       });
       if (res.ok) {
@@ -161,7 +161,7 @@ export default function ScheduleReservationsPage() {
           productionQrGeneration?: GenerateProductQrOrdersResponse | null;
         };
         try {
-          const dRes = await fetch(getApiUrl(`/production-plans/${plan.id}/details`));
+          const dRes = await apiFetch(`/production-plans/${plan.id}/details`);
           if (dRes.ok) {
             const detail = (await dRes.json()) as {
               id?: number;
