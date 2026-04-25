@@ -132,6 +132,42 @@ function buildDailyTrend<T>(
   return { categories, counts };
 }
 
+function buildDailyTrendByStatus<T>(
+  rows: T[],
+  range: DashboardRange,
+  getDate: (row: T) => string | undefined,
+  filterFn: (row: T) => boolean,
+): { categories: string[]; counts: number[] } {
+  const end = range.to ?? new Date();
+  const start = range.from ?? new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const days = Math.min(
+    31,
+    Math.max(1, Math.round((startOfDay(end).getTime() - startOfDay(start).getTime()) / 86_400_000) + 1),
+  );
+  const buckets = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    const d = startOfDay(new Date(start.getTime() + i * 86_400_000));
+    buckets.set(d.toISOString().slice(0, 10), 0);
+  }
+  for (const row of rows) {
+    if (!filterFn(row)) continue;
+    const raw = getDate(row);
+    if (!raw) continue;
+    const t = new Date(raw);
+    if (Number.isNaN(t.getTime())) continue;
+    const key = startOfDay(t).toISOString().slice(0, 10);
+    if (buckets.has(key)) {
+      buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+  }
+  const categories = [...buckets.keys()].map((k) => {
+    const d = new Date(k);
+    return d.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  });
+  const counts = [...buckets.values()];
+  return { categories, counts };
+}
+
 type ProductionOrderListResult = {
   orders: ProductionOrderRow[];
   total: number;
@@ -347,6 +383,8 @@ export default function DashboardPage() {
   const [trendCategories, setTrendCategories] = useState<string[]>([]);
   const [trendPlans, setTrendPlans] = useState<number[]>([]);
   const [trendOrders, setTrendOrders] = useState<number[]>([]);
+  const [trendOpenOrders, setTrendOpenOrders] = useState<number[]>([]);
+  const [trendCompletedOrders, setTrendCompletedOrders] = useState<number[]>([]);
   const [allPlans, setAllPlans] = useState<ProductionPlanRow[]>([]);
   const [allOrders, setAllOrders] = useState<ProductionOrderRow[]>([]);
   const [allMaterialReservations, setAllMaterialReservations] = useState<MaterialReservationGroup[]>([]);
@@ -518,9 +556,26 @@ export default function DashboardPage() {
       range,
       (o) => o.createDate,
     );
+    const trendOpenOrdersData = buildDailyTrendByStatus<ProductionOrderRow>(
+      ordersFiltered,
+      range,
+      (o) => o.createDate,
+      (o) => {
+        const s = normalizeOrderStatus(o.status);
+        return s !== "completed" && s !== "closed" && s !== "cancelled";
+      },
+    );
+    const trendCompletedOrdersData = buildDailyTrendByStatus<ProductionOrderRow>(
+      ordersFiltered,
+      range,
+      (o) => o.createDate,
+      (o) => normalizeOrderStatus(o.status) === "completed",
+    );
     setTrendCategories(trendPlansData.categories);
     setTrendPlans(trendPlansData.counts);
     setTrendOrders(trendOrdersData.counts);
+    setTrendOpenOrders(trendOpenOrdersData.counts);
+    setTrendCompletedOrders(trendCompletedOrdersData.counts);
   }, [allPlans, allOrders, allMaterialReservations, allMaterialStocks, allSalesGroups, range]);
 
   useEffect(() => {
@@ -767,6 +822,16 @@ export default function DashboardPage() {
           series={[
             { name: "Plans", data: trendPlans },
             { name: "Orders", data: trendOrders },
+          ]}
+        />
+      </ComponentCard>
+
+      <ComponentCard title="ยอดคำสั่งผลิตแยกตามสถานะ" desc="แสดงยอดที่เปิดและยอดที่เสร็จสิ้นในแต่ละวัน">
+        <TrendLineChart
+          categories={trendCategories}
+          series={[
+            { name: "Open Orders", data: trendOpenOrders },
+            { name: "Completed Orders", data: trendCompletedOrders },
           ]}
         />
       </ComponentCard>

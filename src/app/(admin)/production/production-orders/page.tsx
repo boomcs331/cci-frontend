@@ -48,7 +48,18 @@ function ProductionOrdersPageContent() {
       setError(null);
       try {
         const r = await fetchProductionOrders(page, limit);
-        if (!cancelled) setData(r);
+        if (!cancelled) {
+          // backend คืน { orders, total, page, limit, totalPages }
+          // ถ้า key ไม่ตรงให้ fallback เป็น array ว่าง
+          const normalized: typeof r = {
+            orders: Array.isArray(r.orders) ? r.orders : Array.isArray((r as any).data) ? (r as any).data : [],
+            total: r.total ?? 0,
+            page: r.page ?? page,
+            limit: r.limit ?? limit,
+            totalPages: r.totalPages ?? 1,
+          };
+          setData(normalized);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "โหลดไม่สำเร็จ");
       } finally {

@@ -5,7 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import Alert from "@/components/ui/alert/Alert";
-import { apiFetch, getApiBaseUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 interface Material {
   id: number;
@@ -111,27 +111,19 @@ interface ApiResponse {
 }
 
 async function getMaterials(page: number = 1, limit: number = 10, filters: any = {}): Promise<ApiResponse> {
-  const apiUrl = getApiBaseUrl();
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
     ...filters
   });
-  const url = `${apiUrl}/materials/?${params.toString()}`;
-  
-  const response = await fetch(url, {
-    cache: 'no-store'
-  });
+
+  const response = await apiFetch(`/materials/?${params.toString()}`, { cache: "no-store" });
   
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
   
   return await response.json();
-}
-
-interface PCPageProps {
-  searchParams: { page?: string; limit?: string };
 }
 
 export default function PCPage() {
@@ -179,6 +171,21 @@ export default function PCPage() {
   
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
+
+  const totalPages = apiResponse?.pagination?.totalPages ?? 1;
+  const totalItems = apiResponse?.pagination?.total ?? 0;
+
+  const getVisiblePages = (current: number, total: number) => {
+    const maxButtons = 5;
+    const clampedCurrent = Math.min(Math.max(current, 1), total);
+
+    const half = Math.floor(maxButtons / 2);
+    let start = Math.max(1, clampedCurrent - half);
+    let end = Math.min(total, start + maxButtons - 1);
+    start = Math.max(1, end - maxButtons + 1);
+
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
   
   useEffect(() => {
     if (showAddModal || showEditModal || showDeleteModal) {
@@ -455,104 +462,12 @@ export default function PCPage() {
           />
         )}
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">ตารางแสดงข้อมูลวัตถุดิบ</h2>
-          </div>
-        </div>
-        
-        <ComponentCard title={`วัตถุดิบทั้งหมด (${apiResponse?.pagination?.total || 0})`}>
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
-            <PaginationSelector currentLimit={limit} />
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                <input
-                  type="text"
-                  placeholder="ค้นหา..."
-                  value={searchValue}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full sm:w-auto"
-                  onChange={(e) => {
-                    setSearchValue(e.target.value);
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('search', e.target.value);
-                    } else {
-                      params.delete('search');
-                    }
-                    params.set('page', '1');
-                    window.history.replaceState({}, '', `?${params.toString()}`);
-                    const fetchData = async () => {
-                      const response = await getMaterials(1, limit, Object.fromEntries(params));
-                      setApiResponse(response);
-                    };
-                    fetchData();
-                  }}
-                />
-                <select
-                  value={unitValue}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full sm:w-auto"
-                  onChange={(e) => {
-                    setUnitValue(e.target.value);
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('unit', e.target.value);
-                    } else {
-                      params.delete('unit');
-                    }
-                    params.set('page', '1');
-                    window.history.replaceState({}, '', `?${params.toString()}`);
-                    const fetchData = async () => {
-                      const response = await getMaterials(1, limit, Object.fromEntries(params));
-                      setApiResponse(response);
-                    };
-                    fetchData();
-                  }}
-                >
-                  <option value="">ทุกหน่วย</option>
-                  <option value="KG">KG</option>
-                  <option value="PCS">PCS</option>
-                  <option value="M">M</option>
-                </select>
-                <select
-                  value={statusValue}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full sm:w-auto"
-                  onChange={(e) => {
-                    setStatusValue(e.target.value);
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('isActive', e.target.value);
-                    } else {
-                      params.delete('isActive');
-                    }
-                    params.set('page', '1');
-                    window.history.replaceState({}, '', `?${params.toString()}`);
-                    const fetchData = async () => {
-                      const response = await getMaterials(1, limit, Object.fromEntries(params));
-                      setApiResponse(response);
-                    };
-                    fetchData();
-                  }}
-                >
-                  <option value="">ทุกสถานะ</option>
-                  <option value="true">ใช้งาน</option>
-                  <option value="false">ไม่ใช้งาน</option>
-                </select>
-                <button
-                  onClick={() => {
-                    setSearchValue('');
-                    setUnitValue('');
-                    setStatusValue('');
-                    window.history.replaceState({}, '', `?page=1&limit=${limit}`);
-                    const fetchData = async () => {
-                      const response = await getMaterials(1, limit);
-                      setApiResponse(response);
-                    };
-                    fetchData();
-                  }}
-                  className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm w-full sm:w-auto"
-                >
-                  ล้าง
-                </button>
-              <button onClick={() => {
+        <ComponentCard title={`วัตถุดิบทั้งหมด (${totalItems})`}>
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <PaginationSelector currentLimit={limit} />
+              <button
+                onClick={() => {
                 setFormData({
                   matCode: '',
                   matTypeId: 1,
@@ -572,12 +487,126 @@ export default function PCPage() {
                   createBy: currentUser
                 });
                 setShowAddModal(true);
-              }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full sm:w-auto justify-center">
+              }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full sm:w-auto justify-center"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 เพิ่มวัตถุดิบ
               </button>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                <div className="lg:col-span-6">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                    ค้นหา
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="ค้นหาด้วยรหัส/ชื่อ..."
+                    value={searchValue}
+                    className="h-11 w-full px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    onChange={(e) => {
+                      setSearchValue(e.target.value);
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (e.target.value) {
+                        params.set('search', e.target.value);
+                      } else {
+                        params.delete('search');
+                      }
+                      params.set('page', '1');
+                      window.history.replaceState({}, '', `?${params.toString()}`);
+                      const fetchData = async () => {
+                        const response = await getMaterials(1, limit, Object.fromEntries(params));
+                        setApiResponse(response);
+                      };
+                      fetchData();
+                    }}
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                    หน่วย
+                  </label>
+                  <select
+                    value={unitValue}
+                    className="h-11 w-full px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    onChange={(e) => {
+                      setUnitValue(e.target.value);
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (e.target.value) {
+                        params.set('unit', e.target.value);
+                      } else {
+                        params.delete('unit');
+                      }
+                      params.set('page', '1');
+                      window.history.replaceState({}, '', `?${params.toString()}`);
+                      const fetchData = async () => {
+                        const response = await getMaterials(1, limit, Object.fromEntries(params));
+                        setApiResponse(response);
+                      };
+                      fetchData();
+                    }}
+                  >
+                    <option value="">ทุกหน่วย</option>
+                    <option value="KG">KG</option>
+                    <option value="PCS">PCS</option>
+                    <option value="M">M</option>
+                  </select>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                    สถานะ
+                  </label>
+                  <select
+                    value={statusValue}
+                    className="h-11 w-full px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    onChange={(e) => {
+                      setStatusValue(e.target.value);
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (e.target.value) {
+                        params.set('isActive', e.target.value);
+                      } else {
+                        params.delete('isActive');
+                      }
+                      params.set('page', '1');
+                      window.history.replaceState({}, '', `?${params.toString()}`);
+                      const fetchData = async () => {
+                        const response = await getMaterials(1, limit, Object.fromEntries(params));
+                        setApiResponse(response);
+                      };
+                      fetchData();
+                    }}
+                  >
+                    <option value="">ทุกสถานะ</option>
+                    <option value="true">ใช้งาน</option>
+                    <option value="false">ไม่ใช้งาน</option>
+                  </select>
+                </div>
+
+                <div className="lg:col-span-2 flex items-end">
+                  <button
+                    onClick={() => {
+                      setSearchValue('');
+                      setUnitValue('');
+                      setStatusValue('');
+                      window.history.replaceState({}, '', `?page=1&limit=${limit}`);
+                      const fetchData = async () => {
+                        const response = await getMaterials(1, limit);
+                        setApiResponse(response);
+                      };
+                      fetchData();
+                    }}
+                    className="h-11 w-full px-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                  >
+                    ล้างตัวกรอง
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           {apiResponse?.data && apiResponse.data.length > 0 ? (
@@ -600,8 +629,11 @@ export default function PCPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {apiResponse.data.map((material) => (
-                    <tr key={material.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                  {apiResponse.data.map((material, idx) => (
+                    <tr
+                      key={material.id}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${idx % 2 === 1 ? "bg-gray-50/40 dark:bg-gray-900/20" : ""}`}
+                    >
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
@@ -633,39 +665,77 @@ export default function PCPage() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลวัตถุดิบ</div>
+            <div className="text-center py-10 text-gray-500">
+              <div className="text-base font-medium text-gray-700 dark:text-gray-200">ไม่พบข้อมูลวัตถุดิบ</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                ลองปรับคำค้น/ตัวกรอง หรือเพิ่มวัตถุดิบใหม่
+              </div>
+            </div>
           )}
           
-          {apiResponse?.pagination && apiResponse.pagination.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          {apiResponse?.pagination && totalPages > 1 && (
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, apiResponse.pagination.total)} of {apiResponse.pagination.total} results
+                Showing {Math.min(((page - 1) * limit) + 1, totalItems)} to {Math.min(page * limit, totalItems)} of {totalItems} results
               </div>
-              <div className="flex items-center">
-                <a href={`?page=${Math.max(1, page - 1)}&limit=${limit}`} className={`mr-2.5 flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                  page <= 1 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}>
+              <div className="flex items-center justify-between lg:justify-end gap-2">
+                <a
+                  href={`?page=${Math.max(1, page - 1)}&limit=${limit}`}
+                  aria-disabled={page <= 1}
+                  className={`flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
+                    page <= 1 ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
                   Previous
                 </a>
-                <div className="flex items-center gap-2">
-                  {page > 3 && <span className="px-2">...</span>}
-                  {Array.from({ length: Math.min(3, apiResponse.pagination.totalPages) }, (_, i) => {
-                    const pageNum = i + Math.max(page - 1, 1);
-                    return (
-                      <a key={pageNum} href={`?page=${pageNum}&limit=${limit}`} className={`px-4 py-2 rounded ${
+
+                <div className="flex items-center gap-1">
+                  {getVisiblePages(page, totalPages)[0] > 1 && (
+                    <>
+                      <a
+                        href={`?page=1&limit=${limit}`}
+                        className="flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
+                      >
+                        1
+                      </a>
+                      <span className="px-1 text-gray-400">…</span>
+                    </>
+                  )}
+
+                  {getVisiblePages(page, totalPages).map((pageNum) => (
+                    <a
+                      key={pageNum}
+                      href={`?page=${pageNum}&limit=${limit}`}
+                      className={`flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium ${
                         page === pageNum
                           ? "bg-brand-500 text-white"
-                          : "text-gray-700 dark:text-gray-400"
-                      } flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500`}>
-                        {pageNum}
+                          : "text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
+                      }`}
+                    >
+                      {pageNum}
+                    </a>
+                  ))}
+
+                  {getVisiblePages(page, totalPages).slice(-1)[0] < totalPages && (
+                    <>
+                      <span className="px-1 text-gray-400">…</span>
+                      <a
+                        href={`?page=${totalPages}&limit=${limit}`}
+                        className="flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
+                      >
+                        {totalPages}
                       </a>
-                    );
-                  })}
-                  {page < apiResponse.pagination.totalPages - 2 && <span className="px-2">...</span>}
+                    </>
+                  )}
                 </div>
-                <a href={`?page=${Math.min(apiResponse.pagination.totalPages, page + 1)}&limit=${limit}`} className={`ml-2.5 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                  page >= apiResponse.pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''
-                }`}>
+
+                <a
+                  href={`?page=${Math.min(totalPages, page + 1)}&limit=${limit}`}
+                  aria-disabled={page >= totalPages}
+                  className={`flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
+                    page >= totalPages ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
                   Next
                 </a>
               </div>

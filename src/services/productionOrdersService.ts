@@ -4,7 +4,9 @@ import type { ProductionOrderDetail, ProductionOrdersListResult } from "@/types/
 export async function fetchProductionOrders(page = 1, limit = 20): Promise<ProductionOrdersListResult> {
   const res = await apiFetch(`/production-orders?page=${page}&limit=${limit}`);
   if (!res.ok) {
-    throw new Error(`โหลดรายการคำสั่งผลิตไม่สำเร็จ (${res.status})`);
+    const body = await res.json().catch(() => ({}));
+    const msg = (body as any)?.message || (body as any)?.error || `HTTP ${res.status}`;
+    throw new Error(`โหลดรายการคำสั่งผลิตไม่สำเร็จ: ${msg}`);
   }
   return res.json();
 }

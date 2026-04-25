@@ -32,21 +32,29 @@ export interface ProductionOrderLot {
   id: number;
   orderId: number;
   lotNo: string;
-  /** คู่แบบ PD (วัตถุดิบ) */
   lotPdNo?: string;
-  /** อ้างอิงใบสั่ง เช่น PO...-LOT001 */
   orderLotLabel?: string;
   qrCode: string;
   sequenceNo: number;
   quantity: number;
   status: string;
-  /** Linked master process row for this lot (`current_process_id`). */
   currentProcess?: {
     id: number;
     processCode: string;
     processName: string;
     sequenceOrder?: number;
   } | null;
+  tracking?: {
+    id: number;
+    processCode?: string;
+    processName?: string;
+    process?: { processCode: string; processName: string } | null;
+    status: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    operator?: string | null;
+    remarks?: string | null;
+  }[];
 }
 
 export interface ProductionOrderDetail {

@@ -12,8 +12,12 @@ import PrintAllQRModal from "@/components/pc/income/PrintAllQRModal";
 import Pagination from "@/components/pc/income/Pagination";
 import { getSession } from "@/utils/session";
 import { apiFetch } from "@/utils/api";
+import { useToast } from "@/context/ToastContext";
+import AlertModal from "@/components/common/AlertModal";
 
 export default function PCIncomePage() {
+  const { show: showToast } = useToast();
+  const [alertModal, setAlertModal] = useState<{ variant: 'success' | 'error'; title: string; message?: string } | null>(null);
   const searchParams = useSearchParams();
   const [receivings, setReceivings] = useState<any[]>([]);
   const [pagination, setPagination] = useState<any>(null);
@@ -120,12 +124,12 @@ export default function PCIncomePage() {
     e.preventDefault();
 
     if (!materialId) {
-      alert('กรุณาเลือกวัตถุดิบ');
+      showToast({ variant: 'error', title: 'กรุณาเลือกวัตถุดิบ' });
       return;
     }
 
     if (quantity === 0) {
-      alert('กรุณาระบุจำนวนวัตถุดิบ');
+      showToast({ variant: 'error', title: 'กรุณาระบุจำนวนวัตถุดิบ' });
       return;
     }
 
@@ -151,16 +155,19 @@ export default function PCIncomePage() {
 
       if (response.ok) {
         const result = await response.json();
-        alert(`รับวัตถุดิบสำเร็จ! เลขที่ใบรับ: ${result.data.receivingNo}`);
+        showToast({ variant: 'success', title: 'รับวัตถุดิบสำเร็จ', message: `เลขที่ใบรับ: ${result.data.receivingNo}` });
+        setAlertModal({ variant: 'success', title: 'รับวัตถุดิบสำเร็จ', message: `เลขที่ใบรับ: ${result.data.receivingNo}` });
         setShowAddModal(false);
         resetForm();
         await refreshReceivings();
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'เกิดข้อผิดพลาด');
+        showToast({ variant: 'error', title: 'เกิดข้อผิดพลาด', message: errorData.message || 'กรุณาลองใหม่' });
+        setAlertModal({ variant: 'error', title: 'เกิดข้อผิดพลาด', message: errorData.message || 'กรุณาลองใหม่' });
       }
     } catch (err) {
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+      showToast({ variant: 'error', title: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' });
+      setAlertModal({ variant: 'error', title: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' });
     } finally {
       setSubmitLoading(false);
     }
@@ -322,6 +329,14 @@ export default function PCIncomePage() {
         show={showPrintAllModal}
         onClose={() => setShowPrintAllModal(false)}
         receiving={selectedReceiving}
+      />
+
+      <AlertModal
+        show={!!alertModal}
+        variant={alertModal?.variant}
+        title={alertModal?.title ?? ''}
+        message={alertModal?.message}
+        onClose={() => setAlertModal(null)}
       />
     </div>
   );

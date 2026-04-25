@@ -63,6 +63,12 @@ const items = [
     description: "สแกน QR ติดตามขั้นตอน",
     icon: <FontAwesomeIcon icon={faQrcode} />,
   },
+  {
+    name: "ยิง QR ตามแผนก",
+    path: "/production/dept-step-scan",
+    description: "ทางลัดไปหน้าสแกนตามแผนก (Production)",
+    icon: <FontAwesomeIcon icon={faQrcode} />,
+  },
 ];
 
 export default function PCMaterialsOverviewPage() {

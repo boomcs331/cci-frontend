@@ -184,28 +184,64 @@ export default function ProductionOrderQrPage() {
                     <th className="px-3 py-2 text-right">จำนวน</th>
                     <th className="px-3 py-2 text-left">ขั้นตอนปัจจุบัน</th>
                     <th className="px-3 py-2 text-center">สถานะ</th>
+                    <th className="px-3 py-2 text-left">ประวัติปิดงาน</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {lots.map((lot) => (
-                    <tr key={lot.id}>
-                      <td className="px-3 py-2">{lot.sequenceNo}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{lot.lotNo}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{lot.lotPdNo ?? "—"}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{lot.orderLotLabel ?? "—"}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col items-center gap-1">
-                          <QRCodeGenerator value={lot.qrCode} size={88} className="mx-auto" />
-                          <span className="font-mono text-[10px] text-gray-600 dark:text-gray-400 max-w-[200px] break-all text-center">
-                            {lot.qrCode}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right">{lot.quantity}</td>
-                      <td className="px-3 py-2 text-left max-w-[220px]">{lotCurrentStepLabel(lot)}</td>
-                      <td className="px-3 py-2 text-center">{lot.status}</td>
-                    </tr>
-                  ))}
+                  {lots.map((lot) => {
+                    const completedSteps = (lot.tracking ?? [])
+                      .filter((t) => t.status === "COMPLETED" && (t.process?.processCode || t.processCode))
+                      .sort((a, b) => new Date(a.endTime ?? 0).getTime() - new Date(b.endTime ?? 0).getTime());
+                    return (
+                      <tr key={lot.id}>
+                        <td className="px-3 py-2">{lot.sequenceNo}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{lot.lotNo}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{lot.lotPdNo ?? "—"}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{lot.orderLotLabel ?? "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col items-center gap-1">
+                            <QRCodeGenerator value={lot.qrCode} size={88} className="mx-auto" />
+                            <span className="font-mono text-[10px] text-gray-600 dark:text-gray-400 max-w-[200px] break-all text-center">
+                              {lot.qrCode}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right">{lot.quantity}</td>
+                        <td className="px-3 py-2 text-left max-w-[220px]">{lotCurrentStepLabel(lot)}</td>
+                        <td className="px-3 py-2 text-center">{lot.status}</td>
+                        <td className="px-3 py-2 min-w-[200px]">
+                          {completedSteps.length === 0 ? (
+                            <span className="text-xs text-gray-400">—</span>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {completedSteps.map((t, i) => (
+                                <div key={i} className="text-xs">
+                                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                                    {t.process?.processCode ?? t.processCode}
+                                  </span>
+                                  {" · "}
+                                  <span className="text-gray-600 dark:text-gray-400">
+                                    {t.process?.processName ?? t.processName}
+                                  </span>
+                                  {t.endTime && (
+                                    <div className="text-gray-500 dark:text-gray-400 mt-0.5">
+                                      {new Date(t.endTime).toLocaleDateString("th-TH", {
+                                        year: "numeric", month: "short", day: "numeric",
+                                      })}
+                                      {" "}
+                                      {new Date(t.endTime).toLocaleTimeString("th-TH", {
+                                        hour: "2-digit", minute: "2-digit",
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -18,6 +18,52 @@ export default function ReceivingDetailModal({
 }: ReceivingDetailModalProps) {
   if (!show || !receiving) return null;
 
+  const getLotDateTime = (lot: any) => {
+    const raw =
+      lot?.createDate ??
+      lot?.create_date ??
+      lot?.createdAt ??
+      lot?.created_at ??
+      lot?.incomeDate ??
+      lot?.income_date ??
+      lot?.receivingDate ??
+      lot?.receiving_date ??
+      lot?.updateDate ??
+      lot?.update_date;
+
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const getLotNo = (lot: any) => (typeof lot?.lotNo === "string" ? lot.lotNo : "");
+
+  const sortedLots = (receiving.lots ?? [])
+    .map((lot: any, idx: number) => ({ lot, idx }))
+    .sort((a: any, b: any) => {
+      const aDt = getLotDateTime(a.lot);
+      const bDt = getLotDateTime(b.lot);
+      const aLotNo = getLotNo(a.lot);
+      const bLotNo = getLotNo(b.lot);
+
+      // Primary: datetime ASC (if present)
+      if (aDt && bDt) {
+        const dt = aDt.getTime() - bDt.getTime();
+        if (dt !== 0) return dt;
+        const lotCmp = aLotNo.localeCompare(bLotNo, undefined, { numeric: true, sensitivity: "base" });
+        return lotCmp !== 0 ? lotCmp : a.idx - b.idx;
+      }
+
+      // If one has datetime, it comes first
+      if (aDt && !bDt) return -1;
+      if (!aDt && bDt) return 1;
+
+      // No datetime for both: Lot No ASC
+      const lotCmp = aLotNo.localeCompare(bLotNo, undefined, { numeric: true, sensitivity: "base" });
+      return lotCmp !== 0 ? lotCmp : a.idx - b.idx;
+    })
+    .map((x: any) => x.lot);
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -63,7 +109,7 @@ export default function ReceivingDetailModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {receiving.lots?.map((lot: any) => (
+                  {sortedLots.map((lot: any) => (
                     <tr key={lot.id}>
                       <td className="px-3 py-2">{lot.lotNo}</td>
                       <td className="px-3 py-2">{lot.lotPdNo}</td>

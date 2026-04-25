@@ -56,13 +56,30 @@ function AddReceivingModalInner({
 }: AddReceivingModalProps) {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
+  const [mfgDateError, setMfgDateError] = useState<string | null>(null);
+  const [mfgDateTouched, setMfgDateTouched] = useState(false);
   const mfgDatePickerRef = useRef<HTMLInputElement>(null);
+
+  const validateMfgDate = (dateStr: string): string | null => {
+    if (!dateStr) return 'กรุณาระบุวันที่ผลิต';
+    const selected = new Date(dateStr);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (isNaN(selected.getTime())) return 'วันที่ไม่ถูกต้อง';
+    if (selected > today) return 'วันที่ผลิตต้องไม่เกินวันปัจจุบัน';
+    return null;
+  };
 
   useEffect(() => {
     if (!mfgDatePickerRef.current) return;
     const fp = flatpickr(mfgDatePickerRef.current, {
       dateFormat: "Y-m-d",
-      onChange: (_selectedDates, dateStr) => setMfgDate?.(dateStr),
+      maxDate: "today",
+      onChange: (_selectedDates, dateStr) => {
+        setMfgDate?.(dateStr);
+        setMfgDateTouched(true);
+        setMfgDateError(validateMfgDate(dateStr));
+      },
       defaultDate: mfgDate || undefined,
     });
     return () => {
@@ -191,20 +208,35 @@ function AddReceivingModalInner({
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต (MFG Date)</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต (MFG Date) *</label>
                 <div className="relative">
                   <input 
                     ref={mfgDatePickerRef}
                     type="text" 
                     value={mfgDate || ''} 
-                    onChange={(e) => setMfgDate?.(e.target.value)} 
-                    className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
+                    onChange={(e) => {
+                      setMfgDate?.(e.target.value);
+                      setMfgDateTouched(true);
+                      setMfgDateError(validateMfgDate(e.target.value));
+                    }}
+                    onBlur={() => {
+                      setMfgDateTouched(true);
+                      setMfgDateError(validateMfgDate(mfgDate ?? ''));
+                    }}
+                    className={`w-full h-11 rounded-lg border px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
+                      mfgDateTouched && mfgDateError
+                        ? 'border-red-500 dark:border-red-500'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
                     placeholder="เลือกวันที่"
                   />
                   <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
+                {mfgDateTouched && mfgDateError && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{mfgDateError}</p>
+                )}
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">เลขที่ PO</label>
@@ -229,8 +261,9 @@ function AddReceivingModalInner({
             <div className="flex gap-3 pt-4 border-t">
               <button 
                 type="submit" 
-                disabled={submitLoading} 
+                disabled={submitLoading || !!validateMfgDate(mfgDate ?? '')} 
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded"
+                onClick={() => { setMfgDateTouched(true); setMfgDateError(validateMfgDate(mfgDate ?? '')); }}
               >
                 {submitLoading ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>

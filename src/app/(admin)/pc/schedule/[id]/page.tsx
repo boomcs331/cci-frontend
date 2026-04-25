@@ -132,6 +132,8 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
     return <div className="p-6 text-red-600">ข้อมูลแผนไม่มีรหัสแผน (id/planId) — รีเฟรชหรือติดต่อผู้ดูแลระบบ</div>;
   }
 
+  const planItems = Array.isArray(data.items) ? data.items : [];
+
   return (
     <div>
       <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิต" />
@@ -224,7 +226,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
 
-          {data.items.map((item, itemIndex) => (
+          {planItems.map((item, itemIndex) => {
+            const materials = Array.isArray(item.materials) ? item.materials : [];
+            return (
             <div key={`${item.productId}-${itemIndex}`} className="mb-8 border-t pt-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {item.productName} - จำนวน {item.quantity} {item.unit}
@@ -243,7 +247,7 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {item.materials.map((m) => {
+                    {materials.map((m) => {
                       const ratio = m.requiredQuantity > 0 ? m.availableQty / m.requiredQuantity : 0;
                       const bgColor = ratio <= 1 ? 'bg-red-50 dark:bg-red-900/20' :
                                       ratio <= 2 ? 'bg-orange-50 dark:bg-orange-900/20' :
@@ -274,8 +278,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
               </div>
 
               {/* ตารางแสดง Lot ที่ยืนยัน */}
-              {data.reservations && data.reservations.filter(r => 
-                item.materials.some(m => m.materialId === r.materialId)
+              {data.reservations &&
+              data.reservations.filter((r) =>
+                materials.some((m) => Number(m.materialId) === Number(r.materialId)),
               ).length > 0 && (
                 <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                   <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
@@ -294,7 +299,11 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                       </thead>
                       <tbody className="divide-y divide-green-200 dark:divide-green-800">
                         {data.reservations
-                          .filter(r => item.materials.some(m => m.materialId === r.materialId))
+                          .filter((r) =>
+                            materials.some(
+                              (m) => Number(m.materialId) === Number(r.materialId),
+                            ),
+                          )
                           .map((r, idx) => (
                             <tr key={idx} className="hover:bg-green-100 dark:hover:bg-green-900/30">
                               <td className="px-3 py-2 text-gray-900 dark:text-white">{r.materialCode}</td>
@@ -325,7 +334,8 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                 unit={item.unit}
               />
             </div>
-          ))}
+            );
+          })}
 
           <div className="flex justify-between mt-6">
             <div className="flex gap-2">

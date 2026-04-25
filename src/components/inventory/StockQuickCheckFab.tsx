@@ -70,7 +70,22 @@ export default function StockQuickCheckFab() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-[9990] flex flex-col-reverse items-center gap-3 md:bottom-8 md:right-8">
+      <div className="fixed bottom-6 right-6 z-[9990] flex flex-col items-center gap-3 md:bottom-8 md:right-8">
+        <Link
+          href="/production/dept-step-scan"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-sky-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400/40"
+          title="ยิง QR ตามแผนก (เปิดหน้าเต็ม)"
+          aria-label="ไปหน้ายิง QR ตามแผนก"
+        >
+          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 7V5a2 2 0 012-2h2M7 21H5a2 2 0 01-2-2v-2m16-10V5a2 2 0 00-2-2h-2m0 18h2a2 2 0 002-2v-2M7 7h.01M12 7h.01M17 7h.01M7 12h.01M12 12h.01M17 12h.01M7 17h.01M12 17h.01M17 17h.01"
+            />
+          </svg>
+        </Link>
+
         <button
           type="button"
           onClick={() => setOpen(true)}

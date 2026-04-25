@@ -13,6 +13,28 @@ type StationProcess = {
   allowedDepartmentCodes: string[] | null;
 };
 
+type TrackingRow = {
+  status: string;
+  processCode: string | null;
+  processName: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  operator: string | null;
+  remarks: string | null;
+};
+
+type InProgressLot = {
+  lotNo: string;
+  qrCode: string;
+  quantity: number;
+  orderNo: string;
+  productCode: string;
+  productName: string;
+  currentProcessCode: string | null;
+  currentProcessName: string | null;
+  allowedDepartmentCodes: string[] | null;
+};
+
 type LotStationPayload = {
   lotNo: string;
   qrCode: string;
@@ -47,6 +69,13 @@ export default function DeptStepScanPage() {
   /** Read session only after mount so SSR + first client paint match (avoids hydration mismatch). */
   const [sessionDept, setSessionDept] = useState<string | null>(null);
   const [sessionAdmin, setSessionAdmin] = useState(false);
+  const [myDeptLots, setMyDeptLots] = useState<InProgressLot[]>([]);
+  const [deptLotsLoading, setDeptLotsLoading] = useState(false);
+  const [deptPage, setDeptPage] = useState(1);
+  const [expandedQr, setExpandedQr] = useState<string | null>(null);
+  const [trackingMap, setTrackingMap] = useState<Record<string, TrackingRow[]>>({});
+  const [trackingLoadingQr, setTrackingLoadingQr] = useState<string | null>(null);
+  const DEPT_PAGE_SIZE = 10;
   const getOperator = useCallback((): string => {
     const session = getSession();
     const uid = session?.user?.id;
@@ -57,6 +86,34 @@ export default function DeptStepScanPage() {
     setSessionDept(getUserDepartmentCode());
     setSessionAdmin(isAdmin());
   }, []);
+
+  const loadMyDeptLots = useCallback(async () => {
+    setDeptLotsLoading(true);
+    try {
+      const res = await apiFetch("/production-orders/in-progress/my-dept");
+      if (res.ok) setMyDeptLots((await res.json()) as InProgressLot[]);
+    } finally {
+      setDeptLotsLoading(false);
+    }
+  }, []);
+
+  const toggleTracking = useCallback(async (qrCode: string) => {
+    if (expandedQr === qrCode) { setExpandedQr(null); return; }
+    setExpandedQr(qrCode);
+    if (trackingMap[qrCode]) return;
+    setTrackingLoadingQr(qrCode);
+    try {
+      const res = await apiFetch(`/production-orders/lots/${encodeURIComponent(qrCode)}/tracking`);
+      if (res.ok) {
+        const data = (await res.json()) as TrackingRow[];
+        setTrackingMap((prev) => ({ ...prev, [qrCode]: data }));
+      }
+    } finally {
+      setTrackingLoadingQr(null);
+    }
+  }, [expandedQr, trackingMap]);
+
+  useEffect(() => { void loadMyDeptLots(); }, [loadMyDeptLots]);
 
   useEffect(() => {
     const t = window.setTimeout(() => inputRef.current?.focus(), 150);
@@ -101,6 +158,14 @@ export default function DeptStepScanPage() {
     }
   }, []);
 
+  const refreshAfterComplete = useCallback((qrCode: string) => {
+    void loadMyDeptLots();
+    setTrackingMap((prev) => { const n = { ...prev }; delete n[qrCode]; return n; });
+    // ไม่ clear station เพื่อให้สแกนต่อไปได้ทันทีเลย
+    setStation(null);
+    inputRef.current?.focus();
+  }, [loadMyDeptLots]);
+
   const advanceStepForStation = useCallback(
     async (target: LotStationPayload) => {
       if (!target.qrCode || target.status === "COMPLETED") return;
@@ -113,7 +178,7 @@ export default function DeptStepScanPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               processId: target.completeProcessId,
-              remarks: remarks.trim() || "advance-step",
+              remarks: remarks.trim() || target.inProgress?.processName || target.inProgress?.processCode || "complete",
             }),
           },
         );
@@ -127,7 +192,7 @@ export default function DeptStepScanPage() {
           return;
         }
         setRemarks("");
-        await loadStation(target.qrCode);
+        refreshAfterComplete(target.qrCode);
         return;
       }
 
@@ -162,7 +227,7 @@ export default function DeptStepScanPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               processId: pid,
-              remarks: remarks.trim() || "advance-step",
+              remarks: remarks.trim() || target.expectedProcess?.processName || target.expectedProcess?.processCode || "complete",
             }),
           },
         );
@@ -176,10 +241,10 @@ export default function DeptStepScanPage() {
           return;
         }
         setRemarks("");
-        await loadStation(target.qrCode);
+        refreshAfterComplete(target.qrCode);
       }
     },
-    [getOperator, loadStation, remarks],
+    [getOperator, remarks, refreshAfterComplete],
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -269,7 +334,7 @@ export default function DeptStepScanPage() {
         return;
       }
       setRemarks("");
-      await loadStation(station.qrCode);
+      refreshAfterComplete(station.qrCode);
     } catch {
       setError("Network error.");
     } finally {
@@ -333,6 +398,133 @@ export default function DeptStepScanPage() {
               {error}
             </div>
           ) : null}
+
+          {/* สินค้าในกระบวนการของแผนก */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                สินค้าในกระบวนการของแผนก{sessionDept ? ` (${sessionDept})` : ""}
+                {myDeptLots.length > 0 && (
+                  <span className="ml-2 normal-case font-normal text-gray-400">
+                    ({myDeptLots.length} รายการ)
+                  </span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => { setDeptPage(1); void loadMyDeptLots(); }}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {deptLotsLoading ? "กำลังโหลด..." : "รีเฟรช"}
+              </button>
+            </div>
+            {myDeptLots.length === 0 && !deptLotsLoading ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">ไม่มีสินค้าในกระบวนการ</p>
+            ) : (() => {
+              const totalPages = Math.ceil(myDeptLots.length / DEPT_PAGE_SIZE);
+              const pageRows = myDeptLots.slice((deptPage - 1) * DEPT_PAGE_SIZE, deptPage * DEPT_PAGE_SIZE);
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                          <th className="py-2 pr-2 w-6"></th>
+                          <th className="text-left py-2 pr-3 font-medium">Lot No.</th>
+                          <th className="text-left py-2 pr-3 font-medium">Order</th>
+                          <th className="text-left py-2 pr-3 font-medium">สินค้า</th>
+                          <th className="text-left py-2 pr-3 font-medium">ขั้นตอนปัจจุบัน</th>
+                          <th className="text-right py-2 font-medium">จำนวน</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((lot) => (
+                          <React.Fragment key={lot.qrCode}>
+                            <tr
+                              className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer align-top"
+                            >
+                              <td className="py-2 pr-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void toggleTracking(lot.qrCode)}
+                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xs"
+                                >
+                                  {expandedQr === lot.qrCode ? '▼' : '▶'}
+                                </button>
+                              </td>
+                              <td className="py-2 pr-3 font-medium whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>{lot.lotNo}</td>
+                              <td className="py-2 pr-3 text-gray-600 dark:text-gray-400 whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>{lot.orderNo}</td>
+                              <td className="py-2 pr-3" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>
+                                <div className="font-medium">{lot.productCode}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">{lot.productName}</div>
+                              </td>
+                              <td className="py-2 pr-3 whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>
+                                <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
+                                  {lot.currentProcessCode} — {lot.currentProcessName}
+                                </span>
+                              </td>
+                              <td className="py-2 text-right whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>{Number(lot.quantity).toLocaleString()}</td>
+                            </tr>
+                            {expandedQr === lot.qrCode && (
+                              <tr className="bg-gray-50 dark:bg-gray-800/50">
+                                <td colSpan={6} className="px-4 py-2">
+                                  {trackingLoadingQr === lot.qrCode ? (
+                                    <p className="text-xs text-gray-400">กำลังโหลด...</p>
+                                  ) : (trackingMap[lot.qrCode] ?? []).length === 0 ? (
+                                    <p className="text-xs text-gray-400">ไม่มีประวัติขั้นตอน</p>
+                                  ) : (
+                                    <div className="space-y-0.5">
+                                      {(trackingMap[lot.qrCode] ?? []).map((t, i) => (
+                                        <div key={i} className="text-xs flex items-center gap-2">
+                                          <span className={`inline-block rounded px-1.5 py-0.5 font-medium ${
+                                            t.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                            t.status === 'COMPLETED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                            t.status === 'MATERIAL_ISSUED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
+                                            t.status === 'PLAN_CONFIRMED' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
+                                            'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                          }`}>{t.status}</span>
+                                          <span className="text-gray-700 dark:text-gray-300">{t.processCode ?? t.remarks ?? '—'}</span>
+                                          {t.startTime && <span className="text-gray-400">{new Date(t.startTime).toLocaleString('th-TH')}</span>}
+                                          {t.operator && <span className="text-gray-400">· {t.operator}</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      <span>หน้า {deptPage} / {totalPages}</span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={deptPage === 1}
+                          onClick={() => setDeptPage((p) => p - 1)}
+                          className="rounded px-2 py-1 border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          ‹ ก่อนหน้า
+                        </button>
+                        <button
+                          type="button"
+                          disabled={deptPage === totalPages}
+                          onClick={() => setDeptPage((p) => p + 1)}
+                          className="rounded px-2 py-1 border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        >
+                          ถัดไป ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
 
           {station ? (
             <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
