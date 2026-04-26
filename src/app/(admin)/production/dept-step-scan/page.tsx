@@ -27,6 +27,7 @@ type InProgressLot = {
   lotNo: string;
   qrCode: string;
   quantity: number;
+  status?: string;
   orderNo: string;
   productCode: string;
   productName: string;
@@ -64,7 +65,7 @@ export default function DeptStepScanPage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [remarks, setRemarks] = useState("");
+  const [remarks, setRemarks] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   /** Read session only after mount so SSR + first client paint match (avoids hydration mismatch). */
   const [sessionDept, setSessionDept] = useState<string | null>(null);
@@ -120,8 +121,8 @@ export default function DeptStepScanPage() {
     return () => window.clearTimeout(t);
   }, []);
 
-  const loadStation = useCallback(async (rawCode: string) => {
-    const code = rawCode.trim();
+  const loadStation = useCallback(async (rawCode?: string | null) => {
+    const code = (rawCode ?? "").trim();
     if (!code) {
       setError("Enter or scan a production lot QR value.");
       return null as LotStationPayload | null;
@@ -171,6 +172,7 @@ export default function DeptStepScanPage() {
       if (!target.qrCode || target.status === "COMPLETED") return;
 
       if (target.nextAction === "complete" && target.completeProcessId) {
+        const safeRemarks = (remarks ?? "").trim();
         const completeRes = await apiFetch(
           `/production-orders/lots/${encodeURIComponent(target.qrCode)}/complete`,
           {
@@ -178,7 +180,11 @@ export default function DeptStepScanPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               processId: target.completeProcessId,
-              remarks: remarks.trim() || target.inProgress?.processName || target.inProgress?.processCode || "complete",
+              remarks:
+                safeRemarks ||
+                target.inProgress?.processName ||
+                target.inProgress?.processCode ||
+                "complete",
             }),
           },
         );
@@ -198,6 +204,7 @@ export default function DeptStepScanPage() {
 
       if (target.nextAction === "start" && target.expectedProcess) {
         const pid = target.expectedProcess.processId;
+        const safeRemarks = (remarks ?? "").trim();
 
         const startRes = await apiFetch(
           `/production-orders/lots/${encodeURIComponent(target.qrCode)}/start`,
@@ -227,7 +234,11 @@ export default function DeptStepScanPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               processId: pid,
-              remarks: remarks.trim() || target.expectedProcess?.processName || target.expectedProcess?.processCode || "complete",
+              remarks:
+                safeRemarks ||
+                target.expectedProcess?.processName ||
+                target.expectedProcess?.processCode ||
+                "complete",
             }),
           },
         );
@@ -309,6 +320,7 @@ export default function DeptStepScanPage() {
     setActionLoading(true);
     setError(null);
     try {
+      const safeRemarks = (remarks ?? "").trim();
       const res = await apiFetch(
         `/production-orders/lots/${encodeURIComponent(station.qrCode)}/complete`,
         {
@@ -316,7 +328,7 @@ export default function DeptStepScanPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             processId: station.completeProcessId,
-            remarks: remarks.trim() || undefined,
+            remarks: safeRemarks || undefined,
           }),
         },
       );
@@ -380,8 +392,8 @@ export default function DeptStepScanPage() {
               autoComplete="off"
               placeholder="Scan or paste lot QR, then Enter"
               className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
-              value={qrInput}
-              onChange={(e) => setQrInput(e.target.value)}
+              value={qrInput ?? ""}
+              onChange={(e) => setQrInput(e.target.value ?? "")}
               disabled={loading}
             />
             <button
@@ -403,7 +415,7 @@ export default function DeptStepScanPage() {
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                สินค้าในกระบวนการของแผนก{sessionDept ? ` (${sessionDept})` : ""}
+                สินค้าในกระบวนการ (ทั้งหมด)
                 {myDeptLots.length > 0 && (
                   <span className="ml-2 normal-case font-normal text-gray-400">
                     ({myDeptLots.length} รายการ)
@@ -432,14 +444,15 @@ export default function DeptStepScanPage() {
                           <th className="py-2 pr-2 w-6"></th>
                           <th className="text-left py-2 pr-3 font-medium">Lot No.</th>
                           <th className="text-left py-2 pr-3 font-medium">Order</th>
+                          <th className="text-right py-2 pr-3 font-medium">จำนวน</th>
                           <th className="text-left py-2 pr-3 font-medium">สินค้า</th>
+                          <th className="text-left py-2 pr-3 font-medium">สถานะ</th>
                           <th className="text-left py-2 pr-3 font-medium">ขั้นตอนปัจจุบัน</th>
-                          <th className="text-right py-2 font-medium">จำนวน</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {pageRows.map((lot) => (
-                          <React.Fragment key={lot.qrCode}>
+                        {pageRows.map((lot, i) => (
+                          <React.Fragment key={`${lot.qrCode}-${lot.lotNo}-${lot.orderNo}-${lot.status ?? 'NA'}-${i}`}>
                             <tr
                               className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer align-top"
                             >
@@ -454,38 +467,84 @@ export default function DeptStepScanPage() {
                               </td>
                               <td className="py-2 pr-3 font-medium whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>{lot.lotNo}</td>
                               <td className="py-2 pr-3 text-gray-600 dark:text-gray-400 whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>{lot.orderNo}</td>
+                              <td className="py-2 pr-3 text-right whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>
+                                {Number(lot.quantity ?? 0).toLocaleString()}
+                              </td>
                               <td className="py-2 pr-3" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>
                                 <div className="font-medium">{lot.productCode}</div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">{lot.productName}</div>
+                              </td>
+                              <td className="py-2 pr-3 whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  lot.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                  lot.status === 'COMPLETED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                  lot.status === 'PENDING' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' :
+                                  lot.status === 'REJECTED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                  'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                }`}>
+                                  {lot.status ?? '—'}
+                                </span>
                               </td>
                               <td className="py-2 pr-3 whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>
                                 <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-200">
                                   {lot.currentProcessCode} — {lot.currentProcessName}
                                 </span>
                               </td>
-                              <td className="py-2 text-right whitespace-nowrap" onClick={() => { setQrInput(lot.qrCode); void loadStation(lot.qrCode); }}>{Number(lot.quantity).toLocaleString()}</td>
                             </tr>
                             {expandedQr === lot.qrCode && (
                               <tr className="bg-gray-50 dark:bg-gray-800/50">
-                                <td colSpan={6} className="px-4 py-2">
+                                <td colSpan={7} className="px-4 py-2">
                                   {trackingLoadingQr === lot.qrCode ? (
                                     <p className="text-xs text-gray-400">กำลังโหลด...</p>
                                   ) : (trackingMap[lot.qrCode] ?? []).length === 0 ? (
                                     <p className="text-xs text-gray-400">ไม่มีประวัติขั้นตอน</p>
                                   ) : (
-                                    <div className="space-y-0.5">
+                                    <div className="space-y-2">
                                       {(trackingMap[lot.qrCode] ?? []).map((t, i) => (
-                                        <div key={i} className="text-xs flex items-center gap-2">
-                                          <span className={`inline-block rounded px-1.5 py-0.5 font-medium ${
-                                            t.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                                            t.status === 'COMPLETED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                                            t.status === 'MATERIAL_ISSUED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-                                            t.status === 'PLAN_CONFIRMED' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
-                                            'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-                                          }`}>{t.status}</span>
-                                          <span className="text-gray-700 dark:text-gray-300">{t.processCode ?? t.remarks ?? '—'}</span>
-                                          {t.startTime && <span className="text-gray-400">{new Date(t.startTime).toLocaleString('th-TH')}</span>}
-                                          {t.operator && <span className="text-gray-400">· {t.operator}</span>}
+                                        <div
+                                          key={[
+                                            t.status ?? 'NA',
+                                            t.processCode ?? 'NA',
+                                            t.startTime ?? 'NA',
+                                            t.endTime ?? 'NA',
+                                            t.operator ?? 'NA',
+                                            String(i),
+                                          ].join('|')}
+                                          className="rounded-md border border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-900/30 px-2.5 py-2"
+                                        >
+                                          <div className="text-xs flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <span className={`inline-block rounded px-1.5 py-0.5 font-medium ${
+                                              t.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                              t.status === 'COMPLETED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                              t.status === 'MATERIAL_ISSUED' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
+                                              t.status === 'PLAN_CONFIRMED' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
+                                              'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                            }`}>{t.status}</span>
+
+                                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                              {t.processCode ?? '—'}
+                                              {t.processName ? ` — ${t.processName}` : ''}
+                                            </span>
+
+                                            {t.operator ? (
+                                              <span className="text-gray-500 dark:text-gray-400">· {t.operator}</span>
+                                            ) : null}
+                                          </div>
+
+                                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                            {t.startTime ? (
+                                              <span>เริ่ม: {new Date(t.startTime).toLocaleString('th-TH')}</span>
+                                            ) : null}
+                                            {t.endTime ? (
+                                              <span>จบ: {new Date(t.endTime).toLocaleString('th-TH')}</span>
+                                            ) : null}
+                                          </div>
+
+                                          {t.remarks ? (
+                                            <div className="mt-1 text-xs text-gray-700 dark:text-gray-300">
+                                              หมายเหตุ: <span className="text-gray-600 dark:text-gray-300">{t.remarks}</span>
+                                            </div>
+                                          ) : null}
                                         </div>
                                       ))}
                                     </div>
@@ -580,8 +639,8 @@ export default function DeptStepScanPage() {
                   Route
                 </div>
                 <ol className="list-decimal list-inside space-y-1 text-sm text-gray-800 dark:text-gray-200">
-                  {station.route.map((r) => (
-                    <li key={r.processId}>
+                  {station.route.map((r, i) => (
+                    <li key={`${r.processId}-${i}`}>
                       {r.processCode} — {r.processName}
                       <span className="text-gray-500 dark:text-gray-400 ml-1">
                         [{fmtCodes(r.allowedDepartmentCodes)}]
@@ -629,8 +688,8 @@ export default function DeptStepScanPage() {
                   <textarea
                     className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
                     rows={2}
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
+                    value={remarks ?? ""}
+                    onChange={(e) => setRemarks(e.target.value ?? "")}
                     disabled={actionLoading}
                   />
                   <button
