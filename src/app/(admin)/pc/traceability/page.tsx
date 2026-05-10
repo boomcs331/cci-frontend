@@ -3,10 +3,16 @@
 import React, { useState, useCallback } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import { apiFetch } from "@/utils/api";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  ensureThaiPdfFontsLoaded,
+  registerThaiFontOnDoc,
+  THAI_PDF_FONT,
+} from "@/utils/jspdf-thai-font";
 
 type SupplierBrief = { id: number; code: string; name: string } | null;
 
@@ -220,10 +226,13 @@ function exportTraceExcel(result: TraceResult) {
   XLSX.writeFile(wb, `traceability_${stamp}.xlsx`);
 }
 
-function exportTracePdf(result: TraceResult) {
+async function exportTracePdf(result: TraceResult) {
+  await ensureThaiPdfFontsLoaded();
   const rows = buildExportRows(result);
   const keys = rows.length > 0 ? Object.keys(rows[0]) : [];
   const doc = new jsPDF({ orientation: "landscape" });
+  registerThaiFontOnDoc(doc);
+  doc.setFont(THAI_PDF_FONT, "normal");
   doc.setFontSize(11);
   doc.text("รายงานการสอบกลับ (Traceability)", 14, 16);
   if (rows.length === 0) {
@@ -234,8 +243,16 @@ function exportTracePdf(result: TraceResult) {
     startY: 22,
     head: [keys],
     body: rows.map((r) => keys.map((k) => String(r[k] ?? ""))),
-    styles: { fontSize: 7 },
-    headStyles: { fillColor: [55, 65, 81] },
+    styles: {
+      font: THAI_PDF_FONT,
+      fontStyle: "normal",
+      fontSize: 7,
+    },
+    headStyles: {
+      font: THAI_PDF_FONT,
+      fontStyle: "bold",
+      fillColor: [55, 65, 81],
+    },
   });
   doc.save(`traceability_${new Date().toISOString().split("T")[0]}.pdf`);
 }
@@ -371,26 +388,27 @@ export default function PCTraceabilityPage() {
     </dl>
   );
 
-  const renderLinesTable = (lines: TraceLine[]) =>
-    lines.length === 0 ? (
-      <p className="text-sm text-amber-700 dark:text-amber-300">
-        ไม่มีรายการผูก Lot — สอบกลับไม่สมบูรณ์
-      </p>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full table-auto text-sm">
-          <thead>
-            <tr className="bg-gray-50 dark:bg-gray-800 text-left">
-              <th className="px-3 py-2">Lot</th>
-              <th className="px-3 py-2 text-right">จำนวนที่ใช้</th>
-              <th className="px-3 py-2">วัตถุดิบ (Lot)</th>
-              <th className="px-3 py-2">ใบรับ</th>
-              <th className="px-3 py-2">วันที่รับ</th>
-              <th className="px-3 py-2">ผู้ขาย</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {lines.map((line) => (
+  const renderLinesTable = (lines: TraceLine[]) => (
+    <div className="overflow-x-auto">
+      <table className="w-full table-auto text-sm">
+        <thead>
+          <tr className="bg-gray-50 dark:bg-gray-800 text-left">
+            <th className="px-3 py-2">Lot</th>
+            <th className="px-3 py-2 text-right">จำนวนที่ใช้</th>
+            <th className="px-3 py-2">วัตถุดิบ (Lot)</th>
+            <th className="px-3 py-2">ใบรับ</th>
+            <th className="px-3 py-2">วันที่รับ</th>
+            <th className="px-3 py-2">ผู้ขาย</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          {lines.length === 0 ? (
+            <TableEmptyRow
+              colSpan={6}
+              message="ไม่มีรายการผูก Lot — สอบกลับไม่สมบูรณ์"
+            />
+          ) : (
+            lines.map((line) => (
               <tr key={line.issuingLotId}>
                 <td className="px-3 py-2 font-medium whitespace-nowrap">
                   {line.lot?.lotNo ?? "-"}
@@ -413,11 +431,12 @@ export default function PCTraceabilityPage() {
                     : "-"}
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div>
@@ -584,7 +603,7 @@ export default function PCTraceabilityPage() {
             </button>
             <button
               type="button"
-              onClick={() => exportTracePdf(result)}
+              onClick={() => void exportTracePdf(result).catch((e) => console.error(e))}
               className="h-11 px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
             >
               PDF
@@ -677,25 +696,26 @@ export default function PCTraceabilityPage() {
             <ComponentCard
               title={`การนำไปใช้ — ใบจ่าย (${result.usages.length})`}
             >
-              {result.usages.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  ยังไม่มีรายการจ่ายจาก Lot นี้
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full table-auto text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 dark:bg-gray-800 text-left">
-                        <th className="px-3 py-2">ใบจ่าย</th>
-                        <th className="px-3 py-2">วันที่จ่าย</th>
-                        <th className="px-3 py-2 text-right">จำนวนดึง</th>
-                        <th className="px-3 py-2">วัตถุดิบ (ปลายทางจ่าย)</th>
-                        <th className="px-3 py-2">WO / เครื่อง</th>
-                        <th className="px-3 py-2">คำสั่งผลิต</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {result.usages.map((u) => (
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-800 text-left">
+                      <th className="px-3 py-2">ใบจ่าย</th>
+                      <th className="px-3 py-2">วันที่จ่าย</th>
+                      <th className="px-3 py-2 text-right">จำนวนดึง</th>
+                      <th className="px-3 py-2">วัตถุดิบ (ปลายทางจ่าย)</th>
+                      <th className="px-3 py-2">WO / เครื่อง</th>
+                      <th className="px-3 py-2">คำสั่งผลิต</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {result.usages.length === 0 ? (
+                      <TableEmptyRow
+                        colSpan={6}
+                        message="ยังไม่มีรายการจ่ายจาก Lot นี้"
+                      />
+                    ) : (
+                      result.usages.map((u) => (
                         <tr key={u.issuingLotId}>
                           <td className="px-3 py-2 font-medium whitespace-nowrap">
                             {u.issuing?.issuingNo ?? "-"}
@@ -722,11 +742,11 @@ export default function PCTraceabilityPage() {
                               : "-"}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </ComponentCard>
           </>
         )}

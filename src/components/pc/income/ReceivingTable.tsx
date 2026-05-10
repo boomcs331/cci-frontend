@@ -1,4 +1,5 @@
 import React from "react";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 
 interface ReceivingTableProps {
   receivings: any[];
@@ -18,10 +19,6 @@ export default function ReceivingTable({
     console.log('Receiving data sample:', receivings[0]);
   }
 
-  if (receivings.length === 0) {
-    return <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลรายการรับเข้า</div>;
-  }
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full table-auto">
@@ -39,7 +36,10 @@ export default function ReceivingTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-          {receivings.map((rcv) => (
+          {receivings.length === 0 ? (
+            <TableEmptyRow colSpan={9} />
+          ) : (
+            receivings.map((rcv) => (
             <tr key={rcv.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
               <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{rcv.receivingNo}</td>
               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
@@ -86,7 +86,8 @@ export default function ReceivingTable({
                 </div>
               </td>
             </tr>
-          ))}
+          ))
+          )}
         </tbody>
       </table>
     </div>

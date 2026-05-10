@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Alert from "@/components/ui/alert/Alert";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
@@ -14,6 +15,11 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { apiFetch } from "@/utils/api";
 import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
+import {
+  ensureThaiPdfFontsLoaded,
+  registerThaiFontOnDoc,
+  THAI_PDF_FONT,
+} from "@/utils/jspdf-thai-font";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
 
 interface Product {
@@ -232,11 +238,11 @@ export default function PCSchedulePage() {
   };
 
   const handleExportPlansPdf = () => {
-    exportPdf({
+    void exportPdf({
       filename: `production-plans_${new Date().toISOString().slice(0, 10)}`,
       columns: planExportColumns,
       rows: plans,
-    });
+    }).catch((e) => console.error(e));
   };
 
   useEffect(() => {
@@ -409,9 +415,11 @@ export default function PCSchedulePage() {
       const data = await res.json();
       
       const pdf = new jsPDF();
+      await ensureThaiPdfFontsLoaded();
+      registerThaiFontOnDoc(pdf);
       const qrDataUrl = await QRCode.toDataURL(data.planCode, { width: 150, margin: 1 });
       
-      pdf.setFont("helvetica", "bold");
+      pdf.setFont(THAI_PDF_FONT, "bold");
       pdf.setFontSize(18);
       pdf.text("Production Plan", 105, 20, { align: "center" });
       
@@ -421,17 +429,17 @@ export default function PCSchedulePage() {
       pdf.text(data.planCode, 105, 90, { align: "center" });
       
       pdf.setFontSize(11);
-      pdf.setFont("helvetica", "normal");
+      pdf.setFont(THAI_PDF_FONT, "normal");
       pdf.text(`Plan Name: ${data.planName}`, 20, 105);
       pdf.text(`Date: ${new Date(data.planDate).toLocaleDateString('en-GB')}`, 20, 115);
       const status = data.status as keyof typeof statusConfig;
       pdf.text(`Status: ${statusConfig[status]?.en || data.status}`, 20, 125);
       
-      pdf.setFont("helvetica", "bold");
+      pdf.setFont(THAI_PDF_FONT, "bold");
       pdf.text("Products:", 20, 140);
       
       let y = 150;
-      pdf.setFont("helvetica", "normal");
+      pdf.setFont(THAI_PDF_FONT, "normal");
       data.items?.forEach((item: any, i: number) => {
         pdf.text(`${i + 1}. ${item.product?.productName || '-'} - ${item.quantity} ${item.unit}`, 25, y);
         y += 8;
@@ -457,6 +465,8 @@ export default function PCSchedulePage() {
   const handleExportAllPDF = async () => {
     try {
       const doc = new jsPDF();
+      await ensureThaiPdfFontsLoaded();
+      registerThaiFontOnDoc(doc);
       
       const qrData = [];
       
@@ -515,11 +525,11 @@ export default function PCSchedulePage() {
         
         // Text
         doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont(THAI_PDF_FONT, 'bold');
         doc.text(item.code, x + itemWidth / 2, y + qrSize + 5, { align: 'center' });
         
         doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont(THAI_PDF_FONT, 'normal');
         const nameLines = doc.splitTextToSize(item.name, itemWidth - 4);
         doc.text(nameLines[0] || '', x + itemWidth / 2, y + qrSize + 10, { align: 'center' });
         
@@ -593,13 +603,16 @@ export default function PCSchedulePage() {
   const removeItem = (index: number) => setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
 
   return (
-    <div>
+    <div className="min-h-0">
       <PageBreadcrumb pageTitle="จัดงานล่วงหน้า" />
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">แผนการผลิต</h2>
-          </div>
+      <div className="mx-auto max-w-[1600px] space-y-5 sm:space-y-6 px-1 sm:px-0">
+        <div className="rounded-2xl border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm dark:border-gray-700 dark:from-gray-800 dark:to-gray-900/80 sm:p-6">
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white sm:text-xl">
+            แผนการผลิต
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
+            ค้นหา กรองตามวันที่และเวลา จัดการแผน และส่งออกรายงาน — รองรับการใช้งานบนมือถือและแท็บเล็ต
+          </p>
         </div>
 
         {message && message.type === "success" && (
@@ -611,12 +624,12 @@ export default function PCSchedulePage() {
         )}
         
         <ComponentCard title={`แผนการผลิตทั้งหมด (${pagination?.total || 0})`}>
-          <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             <button
               type="button"
               onClick={handleExportPlansXlsx}
               disabled={plans.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/80"
             >
               Export XLSX
             </button>
@@ -624,24 +637,24 @@ export default function PCSchedulePage() {
               type="button"
               onClick={handleExportPlansPdf}
               disabled={plans.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/80"
             >
               Export PDF
             </button>
           </div>
-          <div className="mb-4 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="mb-5 space-y-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-700/80 dark:bg-gray-900/30 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <input
                 type="text"
                 placeholder="ค้นหา (รหัส, ชื่อแผน)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               >
                 <option value="">ทุกสถานะ</option>
                 <option value="draft">ร่าง</option>
@@ -650,6 +663,7 @@ export default function PCSchedulePage() {
                 <option value="cancelled">ยกเลิก</option>
               </select>
               <button
+                type="button"
                 onClick={() => {
                   setSearchTerm('');
                   setFilterStatus('');
@@ -658,15 +672,15 @@ export default function PCSchedulePage() {
                   setFilterTimeFrom('');
                   setFilterTimeTo('');
                 }}
-                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 flex items-center justify-center gap-2"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gray-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-gray-700 sm:w-auto"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 ล้างตัวกรอง
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div>
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่เริ่มต้น</label>
                 <div className="relative">
@@ -676,9 +690,9 @@ export default function PCSchedulePage() {
                     value={filterDateFrom}
                     onChange={() => {}}
                     placeholder="เลือกวันที่"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                    className="h-11 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -692,9 +706,9 @@ export default function PCSchedulePage() {
                     value={filterDateTo}
                     onChange={() => {}}
                     placeholder="เลือกวันที่"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                    className="h-11 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -717,54 +731,72 @@ export default function PCSchedulePage() {
               </div>
             </div>
           </div>
-          <div className="flex justify-between items-center mb-4">
-            <PaginationSelector currentLimit={limit} />
-            <div className="flex gap-2">
-              <button onClick={() => router.push('/pc/reservations')} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <div className="flex shrink-0 items-center">
+              <PaginationSelector currentLimit={limit} />
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <button
+                type="button"
+                onClick={() => router.push('/pc/reservations')}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                ดูรายการจอง Material
+                <span className="hidden sm:inline">ดูรายการจอง Material</span>
+                <span className="sm:hidden">จอง Material</span>
               </button>
-              <button onClick={handleExportAllPDF} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button
+                type="button"
+                onClick={handleExportAllPDF}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Export ทั้งหมด PDF
+                PDF ทั้งหมด
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(true);
+                  setEditingPlan(null);
+                  setForm({ planName: "", planDate: "", planTime: "", remarks: "", items: [] });
+                  setProductSearches({});
+                  setShowProductDropdowns({});
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                เพิ่มแผนใหม่
               </button>
             </div>
-            <button onClick={() => { 
-              setShowModal(true); 
-              setEditingPlan(null); 
-              setForm({ planName: "", planDate: "", planTime: "", remarks: "", items: [] }); 
-              setProductSearches({});
-              setShowProductDropdowns({});
-            }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              เพิ่มแผนใหม่
-            </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full table-auto">
+          <div className="-mx-1 overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-700 sm:mx-0">
+            <table className="w-full min-w-[760px] table-auto text-left">
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">รหัสแผน</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อแผน</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สินค้า</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">Material</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">จัดการ</th>
+                <tr className="border-b border-gray-200 bg-gray-50/90 dark:border-gray-700 dark:bg-gray-800/90">
+                  <th className="sticky left-0 z-[1] whitespace-nowrap bg-gray-50/95 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-800/95 dark:text-gray-300 sm:px-4 sm:text-sm">รหัสแผน</th>
+                  <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">ชื่อแผน</th>
+                  <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">วันที่</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">สถานะ</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">สินค้า</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">Material</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {plans.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{plan.planCode}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{plan.planName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                {plans.length === 0 ? (
+                  <TableEmptyRow colSpan={7} />
+                ) : (
+                  plans.map((plan) => (
+                  <tr key={plan.id} className="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
+                    <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-gray-100 bg-white/95 px-3 py-3 text-sm font-medium text-gray-900 dark:border-gray-800 dark:bg-gray-900/95 dark:text-white sm:px-4">{plan.planCode}</td>
+                    <td className="max-w-[200px] truncate px-3 py-3 text-sm text-gray-900 dark:text-white sm:max-w-xs sm:px-4" title={plan.planName}>{plan.planName}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-900 dark:text-white sm:px-4">
                       {new Date(plan.planDate).toLocaleDateString("th-TH", {
                         year: 'numeric',
                         month: 'short',
@@ -775,34 +807,35 @@ export default function PCSchedulePage() {
                         {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <td className="px-3 py-3 text-center sm:px-4">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                         plan.status === "draft" ? "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-400" :
                         plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :
                         plan.status === "confirmed" ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400" :
                         "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
                       }`}>{statusConfig[plan.status].label}</span>
                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">{plan.items?.length || 0}</td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">
+                    <td className="px-3 py-3 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">{plan.items?.length || 0}</td>
+                    <td className="px-3 py-3 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">
                       {plan.items?.reduce((acc, item) => acc + (item.bom?.length || 0), 0) || 0}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex gap-1 justify-center">
+                    <td className="px-2 py-3 text-center sm:px-4">
+                      <div className="mx-auto flex max-w-[220px] flex-wrap items-center justify-center gap-1">
                         {plan.status === "draft" && (
                           <>
-                            <button onClick={() => handleEdit(plan)} className="px-3 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">แก้ไข</button>
-                            <button onClick={() => handleReserve(plan.id)} className="px-3 py-1 text-xs text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900 rounded">จอง</button>
+                            <button type="button" onClick={() => handleEdit(plan)} className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/40">แก้ไข</button>
+                            <button type="button" onClick={() => handleReserve(plan.id)} className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/30">จอง</button>
                           </>
                         )}
                         {(plan.status === "reserved" || plan.status === "confirmed") && (
-                          <button onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">ดูรายละเอียด</button>
+                          <button type="button" onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-200 dark:hover:bg-violet-900/30">รายละเอียด</button>
                         )}
-                        <button onClick={() => handleExportPDF(plan)} className="px-3 py-1 text-xs text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded">PDF</button>
+                        <button type="button" onClick={() => handleExportPDF(plan)} className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/30">PDF</button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -823,15 +856,17 @@ export default function PCSchedulePage() {
       {showModal && (
         <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-5xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-8 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต</h3>
+            <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-8 sm:py-5">
+              <h3 className="min-w-0 text-lg font-semibold text-gray-900 dark:text-white sm:text-2xl">
+                {editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต
+              </h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="p-8 overflow-y-auto" style={{maxHeight: 'calc(90vh - 100px)'}}>
+            <div className="overflow-y-auto p-4 sm:p-8" style={{ maxHeight: "calc(90vh - 100px)" }}>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ชื่อแผน *</label>
                     <input type="text" value={form.planName} onChange={(e) => setForm({ ...form, planName: e.target.value })} className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" required />
@@ -854,7 +889,7 @@ export default function PCSchedulePage() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                   <TimePicker
                     label="เวลา"
                     value={form.planTime}
@@ -866,9 +901,13 @@ export default function PCSchedulePage() {
                   </div>
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-3">
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label className="block text-base font-semibold text-gray-700 dark:text-gray-300">รายการสินค้า *</label>
-                    <button type="button" onClick={addItem} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 sm:w-auto"
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
@@ -887,8 +926,8 @@ export default function PCSchedulePage() {
                       
                       return (
                       <div key={`item-${i}-${item.productId}`} className="border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
-                        <div className="flex gap-3 p-4">
-                          <div className="flex-1 relative">
+                        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
+                          <div className="relative min-w-0 flex-1">
                             <input
                               type="text"
                               value={productSearch || (selectedProduct ? `${selectedProduct.productCode} - ${selectedProduct.productName}` : '')}
@@ -920,17 +959,38 @@ export default function PCSchedulePage() {
                               </div>
                             )}
                           </div>
-                          <input type="number" placeholder="จำนวน" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", +e.target.value)} className="w-28 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" required />
-                          <input type="text" placeholder="หน่วย" value={item.unit} onChange={(e) => updateItem(i, "unit", e.target.value)} className="w-24 h-10 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                          <button type="button" onClick={() => removeItem(i)} className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">ลบ</button>
+                          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:shrink-0">
+                            <input
+                              type="number"
+                              placeholder="จำนวน"
+                              value={item.quantity || ""}
+                              onChange={(e) => updateItem(i, "quantity", +e.target.value)}
+                              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:w-28"
+                              required
+                            />
+                            <input
+                              type="text"
+                              placeholder="หน่วย"
+                              value={item.unit}
+                              onChange={(e) => updateItem(i, "unit", e.target.value)}
+                              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:w-24"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeItem(i)}
+                              className="w-full shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700 sm:w-auto"
+                            >
+                              ลบ
+                            </button>
+                          </div>
                         </div>
                         {item.productId > 0 && (
                           <div className="px-4 pb-4">
                             {item.bom && item.bom.length > 0 ? (
                               <>
                                 <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Material ที่ต้องใช้:</div>
-                                <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                                  <table className="w-full text-sm">
+                                <div className="overflow-x-auto rounded border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                                  <table className="w-full min-w-[520px] text-sm">
                                     <thead className="bg-gray-100 dark:bg-gray-700">
                                       <tr>
                                         <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">รหัส</th>
@@ -964,9 +1024,20 @@ export default function PCSchedulePage() {
                     })}
                   </div>
                 </div>
-                <div className="flex gap-3 pt-6 border-t">
-                  <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-base font-medium transition-colors">บันทึก</button>
-                  <button type="button" onClick={() => setShowModal(false)} className="px-8 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg text-base font-medium transition-colors">ยกเลิก</button>
+                <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="w-full rounded-lg bg-gray-500 px-8 py-3 text-base font-medium text-white transition-colors hover:bg-gray-600 sm:w-auto sm:shrink-0"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full rounded-lg bg-blue-600 py-3 text-base font-medium text-white transition-colors hover:bg-blue-700 sm:flex-1"
+                  >
+                    บันทึก
+                  </button>
                 </div>
               </form>
             </div>
@@ -977,15 +1048,17 @@ export default function PCSchedulePage() {
       {showDetailModal && selectedPlan && (
         <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-3xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">รายละเอียดแผนการผลิต - {selectedPlan.planCode}</h3>
+            <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
+              <h3 className="min-w-0 break-words text-base font-semibold text-gray-900 dark:text-white sm:text-xl">
+                รายละเอียดแผนการผลิต — {selectedPlan.planCode}
+              </h3>
               <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+            <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(90vh - 80px)" }}>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">ชื่อแผน</p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedPlan.planName}</p>
@@ -1002,8 +1075,8 @@ export default function PCSchedulePage() {
                 
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">รายการสินค้า</h4>
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="w-full min-w-[360px] text-sm">
                       <thead className="bg-gray-50 dark:bg-gray-900">
                         <tr>
                           <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">สินค้า</th>
@@ -1012,7 +1085,10 @@ export default function PCSchedulePage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {selectedPlan.items?.map((item, i) => (
+                        {(selectedPlan.items?.length ?? 0) === 0 ? (
+                          <TableEmptyRow colSpan={3} />
+                        ) : (
+                          (selectedPlan.items ?? []).map((item, i) => (
                           <React.Fragment key={i}>
                             <tr>
                               <td className="px-4 py-3 text-gray-900 dark:text-white">{item.product?.productName || "-"}</td>
@@ -1045,7 +1121,8 @@ export default function PCSchedulePage() {
                               </tr>
                             )}
                           </React.Fragment>
-                        ))}
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1054,8 +1131,8 @@ export default function PCSchedulePage() {
                 {selectedPlan.reservations && selectedPlan.reservations.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Material ที่จอง (QR No.)</h4>
-                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                      <table className="w-full min-w-[480px] text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-900">
                           <tr>
                             <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">รหัส Material</th>
@@ -1101,16 +1178,16 @@ export default function PCSchedulePage() {
               <div className="space-y-4">
                 {insufficientMaterials.map((m, idx) => (
                   <div key={idx} className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h4 className="font-bold text-lg text-gray-900 dark:text-white">{m.materialName}</h4>
+                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">{m.materialName}</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">รหัส: {m.materialCode}</p>
                       </div>
-                      <span className="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
+                      <span className="shrink-0 self-start rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
                         ขาด {(m.required - m.available).toLocaleString()} {m.unit}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="bg-white dark:bg-gray-900 rounded-lg p-3">
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">จำนวนที่ต้องการ</p>
                         <p className="text-xl font-bold text-gray-900 dark:text-white">{m.required.toLocaleString()} <span className="text-sm text-gray-500">{m.unit}</span></p>
@@ -1125,14 +1202,14 @@ export default function PCSchedulePage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900 sm:p-6">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-center text-sm text-gray-600 dark:text-gray-400 sm:text-left">
                   กรุณาไปที่หน้า Material Receiving เพื่อเติม Stock
                 </p>
                 <button
                   onClick={() => setShowInsufficientModal(false)}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                  className="w-full rounded-lg bg-red-600 px-6 py-2 font-medium text-white transition-colors hover:bg-red-700 sm:w-auto"
                 >
                   รับทราบ
                 </button>

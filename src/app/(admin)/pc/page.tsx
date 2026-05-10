@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
@@ -610,7 +611,7 @@ export default function PCPage() {
               </div>
             </div>
           </div>
-          {apiResponse?.data && apiResponse.data.length > 0 ? (
+          {apiResponse?.data ? (
             <div className="max-h-[min(70dvh,calc(100dvh-17rem))] overflow-auto rounded-xl border border-gray-200 dark:border-gray-700">
               <table className="min-w-max w-full table-auto">
                 <thead className="sticky top-0 z-10">
@@ -630,38 +631,42 @@ export default function PCPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {apiResponse.data.map((material, idx) => (
-                    <tr
-                      key={material.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${idx % 2 === 1 ? "bg-gray-50/40 dark:bg-gray-900/20" : ""}`}
-                    >
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.deliveryType?.name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.lotSize?.toLocaleString() || '0'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.unitMaster?.name || material.unit || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.scale || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.defaultLocation?.name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.loadingPoint?.name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.supplier?.name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.processLine?.name || '-'}</td>
-                      <td className="sticky right-0 z-10 bg-white px-4 py-3 text-center whitespace-nowrap shadow-[-4px_0_8px_-4px_rgba(0,0,0,.06)] dark:bg-gray-900">
-                        <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => handleEdit(material)} className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button onClick={() => handleDelete(material)} className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {apiResponse.data.length === 0 ? (
+                    <TableEmptyRow colSpan={12} />
+                  ) : (
+                    apiResponse.data.map((material, idx) => (
+                      <tr
+                        key={material.id}
+                        className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${idx % 2 === 1 ? "bg-gray-50/40 dark:bg-gray-900/20" : ""}`}
+                      >
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.deliveryType?.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.lotSize?.toLocaleString() || '0'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.unitMaster?.name || material.unit || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.scale || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.defaultLocation?.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.loadingPoint?.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.supplier?.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.processLine?.name || '-'}</td>
+                        <td className="sticky right-0 z-10 bg-white px-4 py-3 text-center whitespace-nowrap shadow-[-4px_0_8px_-4px_rgba(0,0,0,.06)] dark:bg-gray-900">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => handleEdit(material)} className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button onClick={() => handleDelete(material)} className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

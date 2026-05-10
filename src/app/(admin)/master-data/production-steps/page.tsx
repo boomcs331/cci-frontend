@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
@@ -61,27 +62,29 @@ export default function MasterDataProductionStepsPage() {
             เลือกสินค้าเพื่อจัดการลำดับขั้นตอนผลิต (ข้อมูลจะถูกบันทึกลง `product_production_steps`)
           </p>
           <PaginationSelector currentLimit={limit} />
-          {products.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-max w-full table-auto">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                      รหัสสินค้า
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                      ชื่อสินค้า
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                      จำนวน BOM
-                    </th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                      การทำงาน
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {products.map((prod) => (
+          <div className="overflow-x-auto">
+            <table className="min-w-max w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                    รหัสสินค้า
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                    ชื่อสินค้า
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                    จำนวน BOM
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                    การทำงาน
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {products.length === 0 ? (
+                  <TableEmptyRow colSpan={4} />
+                ) : (
+                  products.map((prod) => (
                     <tr key={prod.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
                         {prod.productCode}
@@ -101,13 +104,11 @@ export default function MasterDataProductionStepsPage() {
                         </Link>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">ไม่พบข้อมูลสินค้า</div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
           {pagination && (
             <PaginationFooter
               size="sm"

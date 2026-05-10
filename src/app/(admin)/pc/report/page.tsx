@@ -1,11 +1,17 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import { apiFetch } from "@/utils/api";
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import {
+  ensureThaiPdfFontsLoaded,
+  registerThaiFontOnDoc,
+  THAI_PDF_FONT,
+} from "@/utils/jspdf-thai-font";
 
 interface TransactionReport {
   materialId: number;
@@ -27,29 +33,164 @@ interface TransactionReport {
 /** YYYY-MM-DD จาก API = วันปฏิทินไทย — parse ที่เที่ยง UTC+7 แล้วแสดงใน Asia/Bangkok */
 function formatReportYmd(
   ymd: string | null | undefined,
-  locale: 'th-TH' | 'en-GB' = 'th-TH',
+  locale: "th-TH" | "en-GB" = "th-TH",
 ): string {
-  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return '-';
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return "-";
   const d = new Date(`${ymd}T12:00:00+07:00`);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleDateString(locale, { timeZone: 'Asia/Bangkok' });
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString(locale, { timeZone: "Asia/Bangkok" });
 }
 
+/** แถวจ่ายออก (รวมแถวรวมหลายครั้ง — transactionId อาจเป็น null) */
 function isIssueRow(r: TransactionReport): boolean {
-  return r.transactionId != null;
+  return Number(r.issued) > 0;
+}
+
+/** แสดงในคอลัมน์ประเภทให้สอดคล้องบัตรสต็อก (RECEIVE / ISSUE) */
+function displayMovementType(r: TransactionReport): string {
+  const t = (r.transactionType || "").trim();
+  if (t) return t.toUpperCase();
+  return isIssueRow(r) ? "ISSUE" : "RECEIVE";
+}
+
+type StockCardGroup = {
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unit: string;
+  rows: TransactionReport[];
+  currentBalance: number;
+};
+
+/** หัวคอลัมน์ตาราง — ต้องตรงกับ preview */
+const STOCK_CARD_TABLE_HEADERS = [
+  "เลขที่ใบรับ",
+  "วันที่รับเข้า",
+  "วันที่จ่าย",
+  "เลขที่ใบจ่าย",
+  "เลข TXN",
+  "ประเภท",
+  "รหัส วัตถุดิบ",
+  "ชื่อ วัตถุดิบ",
+  "รับเข้า",
+  "จ่ายออก",
+  "คงเหลือ",
+] as const;
+
+/** ค่าแต่ละแถวใน export ให้ตรงรูปแบบ preview (วันที่ th-TH, ตัวเลข toLocaleString) */
+function stockCardPreviewRowCells(r: TransactionReport): string[] {
+  return [
+    r.receivingNo || "-",
+    formatReportYmd(r.receivingDate, "th-TH"),
+    formatReportYmd(r.issueDate ?? undefined, "th-TH"),
+    r.referenceNo ?? "-",
+    r.transactionNo ?? "-",
+    displayMovementType(r),
+    r.materialCode,
+    r.materialName,
+    parseFloat(r.received.toString()).toLocaleString(),
+    parseFloat(r.issued.toString()).toLocaleString(),
+    parseFloat(r.balance.toString()).toLocaleString(),
+  ];
+}
+
+function escapeCsvField(val: string): string {
+  if (/[",\n\r]/.test(val)) return `"${val.replace(/"/g, '""')}"`;
+  return val;
+}
+
+function buildStockCardExportAoA(groups: StockCardGroup[]): (string | number)[][] {
+  const aoa: (string | number)[][] = [];
+  for (const g of groups) {
+    aoa.push([`Stock Card : ${g.materialCode}`]);
+    aoa.push([g.materialName]);
+    aoa.push([]);
+    aoa.push([...STOCK_CARD_TABLE_HEADERS]);
+    for (const r of g.rows) {
+      aoa.push(stockCardPreviewRowCells(r));
+    }
+    aoa.push([]);
+    aoa.push([
+      `Current Balance : ${g.currentBalance.toLocaleString()} ${g.unit}`,
+    ]);
+    aoa.push([]);
+  }
+  return aoa;
+}
+
+function buildStockCardCsv(groups: StockCardGroup[]): string {
+  const lines: string[] = [];
+  for (const g of groups) {
+    lines.push(escapeCsvField(`Stock Card : ${g.materialCode}`));
+    lines.push(escapeCsvField(g.materialName));
+    lines.push("");
+    lines.push(STOCK_CARD_TABLE_HEADERS.map(escapeCsvField).join(","));
+    for (const r of g.rows) {
+      lines.push(stockCardPreviewRowCells(r).map(escapeCsvField).join(","));
+    }
+    lines.push("");
+    lines.push(
+      escapeCsvField(
+        `Current Balance : ${g.currentBalance.toLocaleString()} ${g.unit}`,
+      ),
+    );
+    lines.push("");
+  }
+  return lines.join("\r\n");
+}
+
+function buildStockCardGroups(
+  reports: TransactionReport[],
+  unitByMaterialId: Map<number, string>,
+): StockCardGroup[] {
+  const order: number[] = [];
+  const seen = new Set<number>();
+  for (const r of reports) {
+    if (!seen.has(r.materialId)) {
+      seen.add(r.materialId);
+      order.push(r.materialId);
+    }
+  }
+  return order.map((mid) => {
+    const rows = reports.filter((r) => r.materialId === mid);
+    const last = rows[rows.length - 1];
+    return {
+      materialId: mid,
+      materialCode: rows[0].materialCode,
+      materialName: rows[0].materialName,
+      unit: unitByMaterialId.get(mid) || "PCS",
+      rows,
+      currentBalance: last ? Number(last.balance) : 0,
+    };
+  });
 }
 
 export default function PCReportPage() {
   const [reports, setReports] = useState<TransactionReport[]>([]);
   const [loading, setLoading] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [materialId, setMaterialId] = useState('');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [materialId, setMaterialId] = useState("");
   const [materials, setMaterials] = useState<any[]>([]);
+
+  const unitByMaterialId = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const x of materials) {
+      const u = x.unitMaster?.code || x.unitMaster?.name;
+      const label = u && String(u).trim() ? String(u) : "PCS";
+      m.set(Number(x.id), label);
+    }
+    return m;
+  }, [materials]);
+
+  const stockCardGroups = useMemo(
+    () => buildStockCardGroups(reports, unitByMaterialId),
+    [reports, unitByMaterialId],
+  );
 
   const fetchMaterials = async () => {
     try {
-      const res = await apiFetch('/materials/all');
+      const res = await apiFetch("/materials/all");
       const data = await res.json();
       setMaterials(data.data || []);
     } catch (err) {
@@ -60,7 +201,7 @@ export default function PCReportPage() {
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
-      let url = '/materials/transactions/report/transactions?';
+      let url = "/materials/transactions/report/transactions?";
       if (startDate) url += `startDate=${startDate}&`;
       if (endDate) url += `endDate=${endDate}&`;
       if (materialId) url += `materialId=${materialId}&`;
@@ -87,125 +228,163 @@ export default function PCReportPage() {
   };
 
   const handleReset = () => {
-    setStartDate('');
-    setEndDate('');
-    setMaterialId('');
+    setStartDate("");
+    setEndDate("");
+    setMaterialId("");
     setTimeout(() => fetchReport(), 100);
   };
 
-  const rowToExport = (r: TransactionReport) => ({
-    'เลขที่ใบรับ': r.receivingNo || '-',
-    'วันที่รับเข้า': formatReportYmd(r.receivingDate, 'th-TH'),
-    'วันที่จ่ายออก': formatReportYmd(r.issueDate ?? undefined, 'th-TH'),
-    'เลขที่ใบจ่าย': r.referenceNo ?? '-',
-    'เลขที่รายการ (TXN)': r.transactionNo ?? '-',
-    'Lot': r.lotNo ?? '-',
-    'ประเภท': r.transactionType ?? '-',
-    'รหัสวัตถุดิบ': r.materialCode,
-    'ชื่อวัตถุดิบ': r.materialName,
-    'รับเข้า': r.received,
-    'จ่ายออก': r.issued,
-    'คงเหลือ': r.balance
-  });
-
   const handleExportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(reports.map(rowToExport));
+    const aoa = buildStockCardExportAoA(stockCardGroups);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'รายงาน');
-    XLSX.writeFile(wb, `รายงานวัตถุดิบ_${new Date().toLocaleDateString('th-TH')}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Stock Card");
+    XLSX.writeFile(
+      wb,
+      `StockCard_${new Date().toLocaleDateString("th-TH")}.xlsx`,
+    );
   };
 
   const handleExportCSV = () => {
-    const ws = XLSX.utils.json_to_sheet(reports.map(rowToExport));
-    const csv = XLSX.utils.sheet_to_csv(ws);
-    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const csv = buildStockCardCsv(stockCardGroups);
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `รายงานวัตถุดิบ_${new Date().toLocaleDateString('th-TH')}.csv`;
+    link.download = `StockCard_${new Date().toLocaleDateString("th-TH")}.csv`;
     link.click();
   };
 
   const handleExportPDF = async () => {
-    const doc = new jsPDF({ orientation: 'landscape' });
-    
-    autoTable(doc, {
-      head: [[
-        'Recv.No', 'Recv.D', 'Iss.D', 'Iss.doc', 'TXN', 'Lot', 'Typ', 'Code', 'Name', 'In', 'Out', 'Bal'
-      ]],
-      body: reports.map(r => [
-        r.receivingNo || '-',
-        formatReportYmd(r.receivingDate, 'en-GB'),
-        formatReportYmd(r.issueDate ?? undefined, 'en-GB'),
-        r.referenceNo || '-',
-        r.transactionNo || '-',
-        r.lotNo || '-',
-        r.transactionType || '-',
-        r.materialCode || '',
-        r.materialName || '',
-        r.received?.toLocaleString() || '0',
-        r.issued?.toLocaleString() || '0',
-        r.balance?.toLocaleString() || '0'
-      ]),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [55, 65, 81] },
-    });
-    doc.save(`Material_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    try {
+      await ensureThaiPdfFontsLoaded();
+    } catch (e) {
+      console.error(e);
+      window.alert("ไม่สามารถโหลดฟอนต์ไทยสำหรับ PDF ได้");
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: "landscape" });
+    registerThaiFontOnDoc(doc);
+    const margin = 14;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    let y = 12;
+
+    for (let gi = 0; gi < stockCardGroups.length; gi++) {
+      const g = stockCardGroups[gi];
+      if (gi > 0 && y > pageH - 50) {
+        doc.addPage();
+        y = 12;
+      }
+
+      doc.setFontSize(11);
+      doc.setFont(THAI_PDF_FONT, "bold");
+      doc.text(`Stock Card : ${g.materialCode}`, margin, y);
+      y += 6;
+      doc.setFont(THAI_PDF_FONT, "normal");
+      doc.setFontSize(9);
+      const nameLines = doc.splitTextToSize(g.materialName, pageW - 2 * margin);
+      doc.text(nameLines, margin, y);
+      y += nameLines.length * 4 + 6;
+
+      autoTable(doc, {
+        startY: y,
+        head: [STOCK_CARD_TABLE_HEADERS.slice() as string[]],
+        body: g.rows.map((r) => stockCardPreviewRowCells(r)),
+        styles: {
+          font: THAI_PDF_FONT,
+          fontStyle: "normal",
+          fontSize: 7,
+        },
+        headStyles: {
+          font: THAI_PDF_FONT,
+          fontStyle: "bold",
+          fillColor: [31, 41, 55],
+        },
+        margin: { left: margin, right: margin },
+      });
+
+      const lastY = (doc as unknown as { lastAutoTable: { finalY: number } })
+        .lastAutoTable.finalY;
+      y = lastY + 8;
+      doc.setFontSize(10);
+      doc.setFont(THAI_PDF_FONT, "bold");
+      doc.text(
+        `Current Balance : ${g.currentBalance.toLocaleString()} ${g.unit}`,
+        margin,
+        y,
+      );
+      y += 14;
+      doc.setFont(THAI_PDF_FONT, "normal");
+    }
+
+    doc.save(`StockCard_${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
   return (
     <div>
       <PageBreadcrumb pageTitle="รายงาน" />
       <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">รายงานการรับเข้า-จ่ายออกวัตถุดิบ</h2>
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            รายงานการรับเข้า-จ่ายออกวัตถุดิบ
+          </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            รับเข้าสรุปต่อใบรับ — จ่ายออกแยกรายการตาม material_transactions (แต่ละครั้งจ่ายจาก lot) — คงเหลือสะสมต่อใบรับตามลำดับเวลา
+            แยกตามรหัสวัตถุดิบเป็น Stock Card — ตารางครบทุกฟิลด์ — คงเหลือสะสมต่อใบรับตามลำดับแถว
           </p>
         </div>
 
         <ComponentCard title="ค้นหา">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่เริ่มต้น</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                วันที่เริ่มต้น
+              </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่สิ้นสุด</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                วันที่สิ้นสุด
+              </label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วัตถุดิบ</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                วัตถุดิบ
+              </label>
               <select
                 value={materialId}
                 onChange={(e) => setMaterialId(e.target.value)}
-                className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               >
                 <option value="">ทั้งหมด</option>
-                {materials.map(m => (
-                  <option key={m.id} value={m.id}>{m.matCode} - {m.matName}</option>
+                {materials.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.matCode} - {m.matName}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="flex items-end gap-2">
               <button
                 onClick={handleSearch}
-                className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                className="h-11 flex-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
               >
                 ค้นหา
               </button>
               <button
                 onClick={handleReset}
-                className="flex-1 h-11 bg-gray-500 hover:bg-gray-600 text-white rounded-lg"
+                className="h-11 flex-1 rounded-lg bg-gray-500 text-white hover:bg-gray-600"
               >
                 รีเซ็ต
               </button>
@@ -213,85 +392,139 @@ export default function PCReportPage() {
           </div>
         </ComponentCard>
 
-        <ComponentCard title={`รายงาน (${reports.length})`}>
+        <ComponentCard
+          title={`Stock Card (${stockCardGroups.length} วัตถุดิบ · ${reports.length} แถว)`}
+        >
           {reports.length > 0 && (
-            <div className="mb-4 flex gap-2">
-              <button onClick={handleExportExcel} className="h-11 px-6 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                onClick={handleExportExcel}
+                className="h-11 rounded-lg bg-green-600 px-6 text-white hover:bg-green-700"
+              >
                 Excel
               </button>
-              <button onClick={handleExportCSV} className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+              <button
+                onClick={handleExportCSV}
+                className="h-11 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
+              >
                 CSV
               </button>
-              <button onClick={handleExportPDF} className="h-11 px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+              <button
+                onClick={() => void handleExportPDF().catch((e) => console.error(e))}
+                className="h-11 rounded-lg bg-red-600 px-6 text-white hover:bg-red-700"
+              >
                 PDF
               </button>
             </div>
           )}
           {loading ? (
-            <div className="text-center py-8">กำลังโหลด...</div>
+            <div className="py-8 text-center">กำลังโหลด...</div>
           ) : reports.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">ไม่พบข้อมูล</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full table-auto min-w-[1100px]">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[960px] table-auto text-xs sm:text-sm">
                 <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800">
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">เลขที่ใบรับ</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่รับเข้า</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่จ่าย</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">เลขที่ใบจ่าย</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">เลข TXN</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Lot</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ประเภท</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">รหัส วัตถุดิบ</th>
-                    <th className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อ วัตถุดิบ</th>
-                    <th className="px-3 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">รับเข้า</th>
-                    <th className="px-3 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จ่ายออก</th>
-                    <th className="px-3 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">คงเหลือ</th>
+                  <tr className="border-b border-gray-800 bg-gray-50 dark:border-gray-300 dark:bg-gray-800/80">
+                    {STOCK_CARD_TABLE_HEADERS.map((h, hi) => (
+                      <th
+                        key={h}
+                        className={`px-2 py-2 font-medium sm:px-3 sm:py-3 ${hi >= 8 ? "text-right" : "text-left"}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {reports.map((report, index) => (
-                    <tr
-                      key={`${report.materialId}-${report.receivingNo}-${report.transactionId ?? 'recv'}-${index}`}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${isIssueRow(report) ? '' : 'bg-gray-50/50 dark:bg-gray-800/30'}`}
-                    >
-                      <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                        {report.receivingNo || '-'}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                        {formatReportYmd(report.receivingDate, 'th-TH')}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                        {formatReportYmd(report.issueDate ?? undefined, 'th-TH')}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                        {report.referenceNo ?? '-'}
-                      </td>
-                      <td className="px-3 py-3 text-xs font-mono text-gray-800 dark:text-gray-200 max-w-[140px] truncate" title={report.transactionNo ?? ''}>
-                        {report.transactionNo ?? '-'}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                        {report.lotNo ?? '-'}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                        {report.transactionType ?? '-'}
-                      </td>
-                      <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">{report.materialCode}</td>
-                      <td className="px-3 py-3 text-sm text-gray-900 dark:text-white">{report.materialName}</td>
-                      <td className="px-3 py-3 text-sm text-right text-green-600 dark:text-green-400 font-medium">
-                        {parseFloat(report.received.toString()).toLocaleString()}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-right text-red-600 dark:text-red-400 font-medium">
-                        {parseFloat(report.issued.toString()).toLocaleString()}
-                      </td>
-                      <td className="px-3 py-3 text-sm text-right text-blue-600 dark:text-blue-400 font-medium">
-                        {parseFloat(report.balance.toString()).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
+                  <TableEmptyRow colSpan={STOCK_CARD_TABLE_HEADERS.length} />
                 </tbody>
               </table>
+            </div>
+          ) : (
+            <div className="flex w-full flex-col gap-10">
+              {stockCardGroups.map((group) => (
+                <div
+                  key={group.materialId}
+                  className="w-full rounded-sm border-2 border-gray-800 bg-white p-4 font-mono text-sm text-gray-900 shadow-sm dark:border-gray-300 dark:bg-gray-950 dark:text-gray-100 sm:p-5"
+                >
+                  <div className="mb-3 w-full border-t-2 border-gray-800 dark:border-gray-300" />
+                  <div className="border-b-2 border-gray-800 pb-3 text-center text-base font-semibold tracking-tight dark:border-gray-300">
+                    Stock Card : {group.materialCode}
+                  </div>
+                  <div className="mb-3 mt-2 break-words text-center text-xs text-gray-600 dark:text-gray-400">
+                    {group.materialName}
+                  </div>
+                  <div className="mb-3 w-full border-t border-gray-800 dark:border-gray-300" />
+
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full min-w-[960px] table-auto text-xs sm:text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800 bg-gray-50 dark:border-gray-300 dark:bg-gray-800/80">
+                          {STOCK_CARD_TABLE_HEADERS.map((h, hi) => (
+                            <th
+                              key={h}
+                              className={`px-2 py-2 font-medium sm:px-3 sm:py-3 ${hi >= 8 ? "text-right" : "text-left"}`}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {group.rows.map((report, index) => (
+                          <tr
+                            key={`${report.materialId}-${report.receivingNo}-${report.transactionId ?? (Number(report.issued) > 0 ? "issue" : "recv")}-${index}`}
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-800/60 ${isIssueRow(report) ? "" : "bg-gray-50/50 dark:bg-gray-800/40"}`}
+                          >
+                            <td className="whitespace-nowrap px-2 py-2 font-medium sm:px-3 sm:py-3">
+                              {report.receivingNo || "-"}
+                            </td>
+                            <td className="whitespace-nowrap px-2 py-2 sm:px-3 sm:py-3">
+                              {formatReportYmd(report.receivingDate, "th-TH")}
+                            </td>
+                            <td className="whitespace-nowrap px-2 py-2 sm:px-3 sm:py-3">
+                              {formatReportYmd(report.issueDate ?? undefined, "th-TH")}
+                            </td>
+                            <td className="whitespace-nowrap px-2 py-2 sm:px-3 sm:py-3">
+                              {report.referenceNo ?? "-"}
+                            </td>
+                            <td
+                              className="max-w-[120px] truncate px-2 py-2 font-mono text-[11px] sm:max-w-[140px] sm:px-3 sm:py-3 sm:text-xs"
+                              title={report.transactionNo ?? ""}
+                            >
+                              {report.transactionNo ?? "-"}
+                            </td>
+                            <td className="whitespace-nowrap px-2 py-2 sm:px-3 sm:py-3">
+                              {displayMovementType(report)}
+                            </td>
+                            <td className="px-2 py-2 font-medium sm:px-3 sm:py-3">
+                              {report.materialCode}
+                            </td>
+                            <td className="px-2 py-2 sm:px-3 sm:py-3">
+                              {report.materialName}
+                            </td>
+                            <td className="px-2 py-2 text-right font-medium text-green-700 dark:text-green-400 sm:px-3 sm:py-3">
+                              {parseFloat(report.received.toString()).toLocaleString()}
+                            </td>
+                            <td className="px-2 py-2 text-right font-medium text-red-700 dark:text-red-400 sm:px-3 sm:py-3">
+                              {parseFloat(report.issued.toString()).toLocaleString()}
+                            </td>
+                            <td className="px-2 py-2 text-right font-medium text-blue-700 dark:text-blue-300 sm:px-3 sm:py-3">
+                              {parseFloat(report.balance.toString()).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4 w-full border-t border-gray-800 dark:border-gray-300" />
+                  <div className="mt-3 text-right text-sm font-semibold sm:text-base">
+                    Current Balance : {group.currentBalance.toLocaleString()}{" "}
+                    {group.unit}
+                  </div>
+                  <div className="mt-3 w-full border-t-2 border-gray-800 dark:border-gray-300" />
+                </div>
+              ))}
             </div>
           )}
         </ComponentCard>

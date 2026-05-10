@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import { apiFetch } from "@/utils/api";
 
 interface StockItem {
@@ -217,10 +218,6 @@ export default function PCStockPage() {
 
                   {lotLoading ? (
                     <div className="text-center py-8 text-gray-500">กำลังโหลดข้อมูล lot...</div>
-                  ) : lotItems.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      ไม่พบ lot/QR ที่ยังมีคงเหลือสำหรับวัตถุดิบนี้
-                    </div>
                   ) : (
                     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                       <table className="w-full table-auto">
@@ -235,46 +232,53 @@ export default function PCStockPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {lotItems.map((lot) => (
-                            <tr key={lot.id}>
-                              <td className="px-3 py-2 text-sm">
-                                <div className="font-medium">{lot.receiving?.receivingNo || "-"}</div>
-                                <div className="text-xs text-gray-500">
-                                  {lot.receiving?.receivingDate
-                                    ? new Date(lot.receiving.receivingDate).toLocaleDateString("th-TH")
-                                    : "-"}
-                                  {lot.receiving?.supplier?.name
-                                    ? ` | ${lot.receiving.supplier.name}`
-                                    : ""}
-                                </div>
-                                <div className="text-xs text-gray-500">{lot.receiving?.poNo || "-"}</div>
-                              </td>
-                              <td className="px-3 py-2 text-sm">
-                                <div className="font-medium">{lot.lotNo}</div>
-                                <div className="text-xs text-gray-500">{lot.lotPdNo || "-"}</div>
-                              </td>
-                              <td className="px-3 py-2 text-sm text-right">
-                                {Number(lot.quantity || 0).toLocaleString()} {lot.unit || selectedStock.unit}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-right">
-                                {Number(lot.remainingQuantity || 0).toLocaleString()} {lot.unit || selectedStock.unit}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-center">
-                                <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs">
-                                  {lot.status}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-sm">
-                                <button
-                                  type="button"
-                                  onClick={() => void openQrTransactions(lot.qrCode)}
-                                  className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs"
-                                >
-                                  {lot.qrCode}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {lotItems.length === 0 ? (
+                            <TableEmptyRow
+                              colSpan={6}
+                              message="ไม่พบ lot/QR ที่ยังมีคงเหลือสำหรับวัตถุดิบนี้"
+                            />
+                          ) : (
+                            lotItems.map((lot) => (
+                              <tr key={lot.id}>
+                                <td className="px-3 py-2 text-sm">
+                                  <div className="font-medium">{lot.receiving?.receivingNo || "-"}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {lot.receiving?.receivingDate
+                                      ? new Date(lot.receiving.receivingDate).toLocaleDateString("th-TH")
+                                      : "-"}
+                                    {lot.receiving?.supplier?.name
+                                      ? ` | ${lot.receiving.supplier.name}`
+                                      : ""}
+                                  </div>
+                                  <div className="text-xs text-gray-500">{lot.receiving?.poNo || "-"}</div>
+                                </td>
+                                <td className="px-3 py-2 text-sm">
+                                  <div className="font-medium">{lot.lotNo}</div>
+                                  <div className="text-xs text-gray-500">{lot.lotPdNo || "-"}</div>
+                                </td>
+                                <td className="px-3 py-2 text-sm text-right">
+                                  {Number(lot.quantity || 0).toLocaleString()} {lot.unit || selectedStock.unit}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-right">
+                                  {Number(lot.remainingQuantity || 0).toLocaleString()} {lot.unit || selectedStock.unit}
+                                </td>
+                                <td className="px-3 py-2 text-sm text-center">
+                                  <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs">
+                                    {lot.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-sm">
+                                  <button
+                                    type="button"
+                                    onClick={() => void openQrTransactions(lot.qrCode)}
+                                    className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs"
+                                  >
+                                    {lot.qrCode}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -287,8 +291,6 @@ export default function PCStockPage() {
                       </h4>
                       {qrLoading ? (
                         <div className="text-sm text-gray-500">กำลังโหลดรายการเคลื่อนไหว...</div>
-                      ) : qrTransactions.length === 0 ? (
-                        <div className="text-sm text-gray-500">ไม่พบรายการเคลื่อนไหวของ QR นี้</div>
                       ) : (
                         <div className="overflow-x-auto rounded-lg border border-blue-200 dark:border-blue-800">
                           <table className="w-full table-auto">
@@ -302,23 +304,30 @@ export default function PCStockPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-blue-100 dark:divide-blue-900/40">
-                              {qrTransactions.map((tx) => (
-                                <tr key={tx.id}>
-                                  <td className="px-3 py-2 text-sm">
-                                    {tx.transactionDate
-                                      ? new Date(tx.transactionDate).toLocaleString("th-TH")
-                                      : "-"}
-                                  </td>
-                                  <td className="px-3 py-2 text-sm">{tx.transactionType || "-"}</td>
-                                  <td className="px-3 py-2 text-sm text-right">
-                                    {Number(tx.quantity || 0).toLocaleString()}
-                                  </td>
-                                  <td className="px-3 py-2 text-sm text-right">
-                                    {Number(tx.remainingQuantity || 0).toLocaleString()}
-                                  </td>
-                                  <td className="px-3 py-2 text-sm">{tx.referenceNo || tx.remark || "-"}</td>
-                                </tr>
-                              ))}
+                              {qrTransactions.length === 0 ? (
+                                <TableEmptyRow
+                                  colSpan={5}
+                                  message="ไม่พบรายการเคลื่อนไหวของ QR นี้"
+                                />
+                              ) : (
+                                qrTransactions.map((tx) => (
+                                  <tr key={tx.id}>
+                                    <td className="px-3 py-2 text-sm">
+                                      {tx.transactionDate
+                                        ? new Date(tx.transactionDate).toLocaleString("th-TH")
+                                        : "-"}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm">{tx.transactionType || "-"}</td>
+                                    <td className="px-3 py-2 text-sm text-right">
+                                      {Number(tx.quantity || 0).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm text-right">
+                                      {Number(tx.remainingQuantity || 0).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-sm">{tx.referenceNo || tx.remark || "-"}</td>
+                                  </tr>
+                                ))
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -433,8 +442,6 @@ export default function PCStockPage() {
         <ComponentCard title={`รายการ Stock (${filteredStocks.length})`}>
           {loading ? (
             <div className="text-center py-8">กำลังโหลด...</div>
-          ) : filteredStocks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">ไม่พบข้อมูล</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full table-auto">
@@ -451,48 +458,52 @@ export default function PCStockPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredStocks.map((stock) => (
-                    <tr key={stock.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{stock.matCode}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{stock.matName}</td>
-                      <td className="px-4 py-3 text-sm text-right text-blue-600 dark:text-blue-400 font-medium">
-                        {stock.currentStock.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400 font-medium">
-                        {stock.reservedStock.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right">
-                        <span className={`px-3 py-1 rounded-full font-medium ${getStockColor(stock.availableStock, stock.minStock)}`}>
-                          {stock.availableStock.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{stock.unit}</td>
-                      <td className="px-4 py-3 text-center">
-                        {stock.availableStock <= 0 ? (
-                          <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                            หมด
+                  {filteredStocks.length === 0 ? (
+                    <TableEmptyRow colSpan={8} />
+                  ) : (
+                    filteredStocks.map((stock) => (
+                      <tr key={stock.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{stock.matCode}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{stock.matName}</td>
+                        <td className="px-4 py-3 text-sm text-right text-blue-600 dark:text-blue-400 font-medium">
+                          {stock.currentStock.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400 font-medium">
+                          {stock.reservedStock.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <span className={`px-3 py-1 rounded-full font-medium ${getStockColor(stock.availableStock, stock.minStock)}`}>
+                            {stock.availableStock.toLocaleString()}
                           </span>
-                        ) : stock.availableStock < 10 ? (
-                          <span className="px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                            ใกล้หมด
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            พร้อมใช้
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => void openLotDetails(stock)}
-                          className="px-3 py-1 text-xs rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 hover:opacity-90"
-                        >
-                          ดู lot / QR
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white">{stock.unit}</td>
+                        <td className="px-4 py-3 text-center">
+                          {stock.availableStock <= 0 ? (
+                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              หมด
+                            </span>
+                          ) : stock.availableStock < 10 ? (
+                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              ใกล้หมด
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              พร้อมใช้
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => void openLotDetails(stock)}
+                            className="px-3 py-1 text-xs rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200 hover:opacity-90"
+                          >
+                            ดู lot / QR
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

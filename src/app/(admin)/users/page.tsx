@@ -2,6 +2,7 @@
 
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Alert from "@/components/ui/alert/Alert";
 import Button from "@/components/ui/button/Button";
 import Pagination from "@/components/tables/Pagination";
@@ -499,7 +500,10 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {paginatedUsers.map((user) => {
+                  {filteredUsers.length === 0 ? (
+                    <TableEmptyRow colSpan={6} />
+                  ) : (
+                    paginatedUsers.map((user) => {
                     const isProtected = PROTECTED_USERNAMES.has(user.username);
                     return (
                       <tr key={user.id}>
@@ -548,13 +552,7 @@ export default function UsersPage() {
                         </td>
                       </tr>
                     );
-                  })}
-                  {filteredUsers.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">
-                        No users found
-                      </td>
-                    </tr>
+                  })
                   )}
                 </tbody>
               </table>

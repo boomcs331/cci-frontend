@@ -9,6 +9,7 @@ import {
 } from "@/utils/productionLotTracking";
 import type { ProductLotStatusPayload } from "@/components/qr/QrCodeLookupPanel";
 import { stockBalanceTh as th } from "@/components/inventory/stockBalanceTh";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 
 export type StockBalanceMode = "material" | "product";
 
@@ -402,13 +403,15 @@ export function StockBalanceLookupPanel({
         </div>
       ) : null}
 
-      {mode === "product" && productSearchNote && productRows.length > 0 && !loading ? (
+      {mode === "product" && productSearchNote && !loading ? (
         <p className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-100">
           {productSearchNote}
         </p>
       ) : null}
 
-      {mode === "product" && productRows.length > 0 && !loading ? (
+      {mode === "product" &&
+      !loading &&
+      (productRows.length > 0 || lookupError === th.prodNotFound) ? (
         <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
           <table className="w-full min-w-[520px] text-left text-sm">
             <thead className="bg-gray-100 dark:bg-gray-800/80">
@@ -421,21 +424,25 @@ export function StockBalanceLookupPanel({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {productRows.map((p) => (
-                <tr key={p.id} className="bg-white/90 dark:bg-gray-900/40">
-                  <td className="px-3 py-2 font-mono text-gray-900 dark:text-white">{p.productCode}</td>
-                  <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{p.productName}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
-                    {p.currentStock.toLocaleString()} {p.unit}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-amber-800 dark:text-amber-200">
-                    {p.reservedStock.toLocaleString()}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-medium text-green-700 dark:text-green-300">
-                    {p.availableStock.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {productRows.length === 0 ? (
+                <TableEmptyRow colSpan={5} />
+              ) : (
+                productRows.map((p) => (
+                  <tr key={p.id} className="bg-white/90 dark:bg-gray-900/40">
+                    <td className="px-3 py-2 font-mono text-gray-900 dark:text-white">{p.productCode}</td>
+                    <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{p.productName}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
+                      {p.currentStock.toLocaleString()} {p.unit}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-amber-800 dark:text-amber-200">
+                      {p.reservedStock.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums font-medium text-green-700 dark:text-green-300">
+                      {p.availableStock.toLocaleString()}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

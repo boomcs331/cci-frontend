@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { apiFetch } from "@/utils/api";
 import { getSession, getUserDepartmentCode, isAdmin } from "@/utils/session";
@@ -728,8 +729,8 @@ export default function DeptStepScanPage() {
                 {deptLotsLoading ? "กำลังโหลด..." : "รีเฟรช"}
               </button>
             </div>
-            {myDeptLots.length === 0 && !deptLotsLoading ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">ไม่มีสินค้าในกระบวนการ</p>
+            {deptLotsLoading ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">กำลังโหลด...</p>
             ) : (() => {
               const totalPages = Math.ceil(myDeptLots.length / DEPT_PAGE_SIZE);
               const pageRows = myDeptLots.slice((deptPage - 1) * DEPT_PAGE_SIZE, deptPage * DEPT_PAGE_SIZE);
@@ -750,7 +751,10 @@ export default function DeptStepScanPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {pageRows.map((lot, i) => (
+                        {pageRows.length === 0 ? (
+                          <TableEmptyRow colSpan={8} message="ไม่มีสินค้าในกระบวนการ" />
+                        ) : (
+                          pageRows.map((lot, i) => (
                           <React.Fragment key={`${lot.qrCode}-${lot.lotNo}-${lot.orderNo}-${lot.status ?? 'NA'}-${i}`}>
                             <tr
                               className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer align-top"
@@ -978,7 +982,8 @@ export default function DeptStepScanPage() {
                               </tr>
                             )}
                           </React.Fragment>
-                        ))}
+                        ))
+                        )}
                       </tbody>
                     </table>
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import QRCodeGenerator from '@/components/common/QRCodeGenerator';
+import TableEmptyRow from '@/components/common/TableEmptyRow';
 
 interface PrintPlanQRProps {
   planCode: string;
@@ -56,14 +57,18 @@ export const PrintPlanQR: React.FC<PrintPlanQRProps> = ({ planCode, planName, pl
               </tr>
             </thead>
             <tbody>
-              {items.map((item, index) => (
-                <tr key={index}>
-                  <td className="border border-gray-300 px-4 py-2">{index + 1}</td>
-                  <td className="border border-gray-300 px-4 py-2">{item.productName || '-'}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-right">{item.quantity}</td>
-                  <td className="border border-gray-300 px-4 py-2 text-center">{item.unit}</td>
-                </tr>
-              ))}
+              {items.length === 0 ? (
+                <TableEmptyRow colSpan={4} />
+              ) : (
+                items.map((item, index) => (
+                  <tr key={index}>
+                    <td className="border border-gray-300 px-4 py-2">{index + 1}</td>
+                    <td className="border border-gray-300 px-4 py-2">{item.productName || '-'}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">{item.quantity}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">{item.unit}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Button from "@/components/ui/button/Button";
 import Pagination from "@/components/tables/Pagination";
 import Link from "next/link";
@@ -354,7 +355,10 @@ export default function RolesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {paginatedRoles.length > 0 ? paginatedRoles.map((role) => (
+                  {paginatedRoles.length === 0 ? (
+                    <TableEmptyRow colSpan={6} />
+                  ) : (
+                    paginatedRoles.map((role) => (
                     <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{role.code}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{role.name}</td>
@@ -416,10 +420,7 @@ export default function RolesPage() {
                         </div>
                       </td>
                     </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-500">No roles found</td>
-                    </tr>
+                  ))
                   )}
                 </tbody>
               </table>

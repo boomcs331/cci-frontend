@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
 import { apiFetch } from "@/utils/api";
@@ -493,11 +494,11 @@ export default function PickingSlipPage() {
   };
 
   const handleExportPdf = () => {
-    exportPdf({
+    void exportPdf({
       filename: `picking-slip_${new Date().toISOString().slice(0, 10)}`,
       columns: pickingExportColumns,
       rows: flatPickingRows,
-    });
+    }).catch((e) => console.error(e));
   };
 
   if (loading) {
@@ -826,30 +827,34 @@ export default function PickingSlipPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {order.materialGroups.map((mg) => (
-                            <tr
-                              key={`sum-${mg.materialId}`}
-                              className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                            >
-                              <td className="px-3 py-2 font-mono text-xs text-gray-900 dark:text-white">
-                                {mg.materialCode}
-                              </td>
-                              <td className="px-3 py-2 text-gray-900 dark:text-white">
-                                {mg.materialName}
-                              </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
-                                {mg.requiredQuantity != null
-                                  ? mg.requiredQuantity.toLocaleString()
-                                  : "—"}
-                              </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
-                                {mg.totalReserved.toLocaleString()}
-                              </td>
-                              <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
-                                {mg.unit || "—"}
-                              </td>
-                            </tr>
-                          ))}
+                          {order.materialGroups.length === 0 ? (
+                            <TableEmptyRow colSpan={5} />
+                          ) : (
+                            order.materialGroups.map((mg) => (
+                              <tr
+                                key={`sum-${mg.materialId}`}
+                                className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                              >
+                                <td className="px-3 py-2 font-mono text-xs text-gray-900 dark:text-white">
+                                  {mg.materialCode}
+                                </td>
+                                <td className="px-3 py-2 text-gray-900 dark:text-white">
+                                  {mg.materialName}
+                                </td>
+                                <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
+                                  {mg.requiredQuantity != null
+                                    ? mg.requiredQuantity.toLocaleString()
+                                    : "—"}
+                                </td>
+                                <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-white">
+                                  {mg.totalReserved.toLocaleString()}
+                                </td>
+                                <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                                  {mg.unit || "—"}
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -927,14 +932,10 @@ export default function PickingSlipPage() {
                               </thead>
                               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800/40">
                                 {mg.rows.length === 0 ? (
-                                  <tr>
-                                    <td
-                                      colSpan={6}
-                                      className="px-3 py-4 text-center text-gray-500 dark:text-gray-400"
-                                    >
-                                      ยังไม่มีรายการจองราย Lot/QR สำหรับวัตถุดิบนี้
-                                    </td>
-                                  </tr>
+                                  <TableEmptyRow
+                                    colSpan={6}
+                                    message="ยังไม่มีรายการจองราย Lot/QR สำหรับวัตถุดิบนี้"
+                                  />
                                 ) : (
                                   mg.rows.map((r, idx) => (
                                     <tr

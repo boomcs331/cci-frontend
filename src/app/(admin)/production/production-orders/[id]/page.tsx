@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import QRCode from "qrcode";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { fetchProductionOrder } from "@/services/productionOrdersService";
 import { getProductProductionSteps } from "@/services/productProductionStepsService";
@@ -413,94 +414,93 @@ export default function ProductionOrderQrPage() {
             )}
           </div>
         </div>
-        {lots.length === 0 ? (
-          <p className="text-gray-500">ยังไม่มีล็อต / QR</p>
-        ) : (
-          <>
-            <div className="mb-4">
-              <button
-                type="button"
-                onClick={() => handlePrintAll(lots, order, flowSteps)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg"
-              >
-                พิมพ์ QR ทั้งหมด
-              </button>
-            </div>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800">
-                    <th className="px-3 py-2 text-left">ลำดับ</th>
-                    <th className="px-3 py-2 text-left">PG (หลัก)</th>
-                    <th className="px-3 py-2 text-left">PD (คู่)</th>
-                    <th className="px-3 py-2 text-left">อ้างอิงใบสั่ง</th>
-                    <th className="px-3 py-2 text-center">QR</th>
-                    <th className="px-3 py-2 text-right">จำนวน</th>
-                    <th className="px-3 py-2 text-left">ขั้นตอนปัจจุบัน</th>
-                    <th className="px-3 py-2 text-center">สถานะ</th>
-                    <th className="px-3 py-2 text-left">ประวัติปิดงาน</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {lots.map((lot) => {
-                    const completedSteps = (lot.tracking ?? [])
-                      .filter((t) => t.status === "COMPLETED" && (t.process?.processCode || t.processCode))
-                      .sort((a, b) => new Date(a.endTime ?? 0).getTime() - new Date(b.endTime ?? 0).getTime());
-                    return (
-                      <tr key={lot.id}>
-                        <td className="px-3 py-2">{lot.sequenceNo}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{lot.lotNo}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{lot.lotPdNo ?? "—"}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{lot.orderLotLabel ?? "—"}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-col items-center gap-1">
-                            <QRCodeGenerator value={lot.qrCode} size={88} className="mx-auto" />
-                            <span className="font-mono text-[10px] text-gray-600 dark:text-gray-400 max-w-[200px] break-all text-center">
-                              {lot.qrCode}
-                            </span>
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => handlePrintAll(lots, order, flowSteps)}
+            disabled={lots.length === 0}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg disabled:opacity-50"
+          >
+            พิมพ์ QR ทั้งหมด
+          </button>
+        </div>
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-800">
+                <th className="px-3 py-2 text-left">ลำดับ</th>
+                <th className="px-3 py-2 text-left">PG (หลัก)</th>
+                <th className="px-3 py-2 text-left">PD (คู่)</th>
+                <th className="px-3 py-2 text-left">อ้างอิงใบสั่ง</th>
+                <th className="px-3 py-2 text-center">QR</th>
+                <th className="px-3 py-2 text-right">จำนวน</th>
+                <th className="px-3 py-2 text-left">ขั้นตอนปัจจุบัน</th>
+                <th className="px-3 py-2 text-center">สถานะ</th>
+                <th className="px-3 py-2 text-left">ประวัติปิดงาน</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {lots.length === 0 ? (
+                <TableEmptyRow colSpan={9} />
+              ) : (
+                lots.map((lot) => {
+                  const completedSteps = (lot.tracking ?? [])
+                    .filter((t) => t.status === "COMPLETED" && (t.process?.processCode || t.processCode))
+                    .sort((a, b) => new Date(a.endTime ?? 0).getTime() - new Date(b.endTime ?? 0).getTime());
+                  return (
+                    <tr key={lot.id}>
+                      <td className="px-3 py-2">{lot.sequenceNo}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{lot.lotNo}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{lot.lotPdNo ?? "—"}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{lot.orderLotLabel ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-col items-center gap-1">
+                          <QRCodeGenerator value={lot.qrCode} size={88} className="mx-auto" />
+                          <span className="font-mono text-[10px] text-gray-600 dark:text-gray-400 max-w-[200px] break-all text-center">
+                            {lot.qrCode}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right">{lot.quantity}</td>
+                      <td className="px-3 py-2 text-left max-w-[220px]">{lotCurrentStepLabel(lot)}</td>
+                      <td className="px-3 py-2 text-center">{lot.status}</td>
+                      <td className="px-3 py-2 min-w-[200px]">
+                        {completedSteps.length === 0 ? (
+                          <span className="text-xs text-gray-400">—</span>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {completedSteps.map((t, i) => (
+                              <div key={i} className="text-xs">
+                                <span className="font-medium text-gray-800 dark:text-gray-200">
+                                  {t.process?.processCode ?? t.processCode}
+                                </span>
+                                {" · "}
+                                <span className="text-gray-600 dark:text-gray-400">
+                                  {t.process?.processName ?? t.processName}
+                                </span>
+                                {t.endTime && (
+                                  <div className="text-gray-500 dark:text-gray-400 mt-0.5">
+                                    {new Date(t.endTime).toLocaleDateString("th-TH", {
+                                      year: "numeric", month: "short", day: "numeric",
+                                    })}
+                                    {" "}
+                                    {new Date(t.endTime).toLocaleTimeString("th-TH", {
+                                      hour: "2-digit", minute: "2-digit",
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        </td>
-                        <td className="px-3 py-2 text-right">{lot.quantity}</td>
-                        <td className="px-3 py-2 text-left max-w-[220px]">{lotCurrentStepLabel(lot)}</td>
-                        <td className="px-3 py-2 text-center">{lot.status}</td>
-                        <td className="px-3 py-2 min-w-[200px]">
-                          {completedSteps.length === 0 ? (
-                            <span className="text-xs text-gray-400">—</span>
-                          ) : (
-                            <div className="space-y-1.5">
-                              {completedSteps.map((t, i) => (
-                                <div key={i} className="text-xs">
-                                  <span className="font-medium text-gray-800 dark:text-gray-200">
-                                    {t.process?.processCode ?? t.processCode}
-                                  </span>
-                                  {" · "}
-                                  <span className="text-gray-600 dark:text-gray-400">
-                                    {t.process?.processName ?? t.processName}
-                                  </span>
-                                  {t.endTime && (
-                                    <div className="text-gray-500 dark:text-gray-400 mt-0.5">
-                                      {new Date(t.endTime).toLocaleDateString("th-TH", {
-                                        year: "numeric", month: "short", day: "numeric",
-                                      })}
-                                      {" "}
-                                      {new Date(t.endTime).toLocaleTimeString("th-TH", {
-                                        hour: "2-digit", minute: "2-digit",
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </ComponentCard>
     </div>
   );

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
@@ -123,7 +124,10 @@ function PageContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {apiResponse?.data?.map((item) => (
+                {(apiResponse?.data ?? []).length === 0 ? (
+                  <TableEmptyRow colSpan={4} />
+                ) : (
+                  (apiResponse?.data ?? []).map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-3 py-2 text-sm text-gray-900 dark:text-white font-medium">{item.code}</td>
                     <td className="px-3 py-2 text-sm text-gray-900 dark:text-white">{item.name}</td>
@@ -135,7 +139,8 @@ function PageContent() {
                       <button onClick={() => handleDelete(item.id)} className="px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Pagination from "@/components/tables/Pagination";
 import { apiFetch } from "@/utils/api";
 
@@ -241,8 +242,6 @@ export default function ProductionProductStockPage() {
         <ComponentCard title={`รายการ Stock (${total})`}>
           {loading ? (
             <div className="text-center py-8">กำลังโหลด...</div>
-          ) : stocks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">ไม่พบข้อมูล</div>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -259,7 +258,10 @@ export default function ProductionProductStockPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {stocks.map((stock) => (
+                    {stocks.length === 0 ? (
+                      <TableEmptyRow colSpan={7} />
+                    ) : (
+                      stocks.map((stock) => (
                       <tr key={stock.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{stock.productCode}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{stock.productName}</td>
@@ -293,7 +295,8 @@ export default function ProductionProductStockPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

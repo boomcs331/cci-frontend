@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import { apiFetch } from "@/utils/api";
 import {
   type GenerateProductQrOrdersBody,
@@ -304,36 +305,38 @@ export default function ProductionLotBatchPanel({
         <p className="text-xs text-indigo-800 dark:text-indigo-200 mb-3">{msg}</p>
       )}
 
-      {lots.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-indigo-200/60 dark:border-indigo-800/60 bg-white dark:bg-gray-900/40">
-          <table className="w-full table-auto text-sm">
-            <thead>
-              <tr className="bg-indigo-100/80 dark:bg-indigo-900/40">
-                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
-                  #
-                </th>
-                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
-                  จำนวนในล็อต
-                </th>
-                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
-                  ขั้นตอนปัจจุบัน
-                </th>
-                <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
-                  Lot status
-                </th>
-                <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
-                  QR
-                </th>
-                <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100 font-mono text-xs">
-                  ค่าใน QR
-                </th>
-                <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
-                  ติดตาม
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {lots.map((r) => (
+      <div className="overflow-x-auto rounded-lg border border-indigo-200/60 dark:border-indigo-800/60 bg-white dark:bg-gray-900/40">
+        <table className="w-full table-auto text-sm">
+          <thead>
+            <tr className="bg-indigo-100/80 dark:bg-indigo-900/40">
+              <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
+                #
+              </th>
+              <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
+                จำนวนในล็อต
+              </th>
+              <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100">
+                ขั้นตอนปัจจุบัน
+              </th>
+              <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
+                Lot status
+              </th>
+              <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
+                QR
+              </th>
+              <th className="px-3 py-2 text-left text-indigo-900 dark:text-indigo-100 font-mono text-xs">
+                ค่าใน QR
+              </th>
+              <th className="px-3 py-2 text-center text-indigo-900 dark:text-indigo-100">
+                ติดตาม
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {lots.length === 0 ? (
+              <TableEmptyRow colSpan={7} />
+            ) : (
+              lots.map((r) => (
                 <tr key={r.qrPayload} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   {(() => {
                     const st = statusByQr[r.qrPayload];
@@ -377,11 +380,11 @@ export default function ProductionLotBatchPanel({
                     );
                   })()}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {statusLoading && lots.length > 0 && (
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -389,11 +392,6 @@ export default function ProductionLotBatchPanel({
         </p>
       )}
 
-      {lots.length === 0 && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          ยังไม่มีล็อต — ระบุจำนวนต่อล็อตแล้วกดสร้าง QR
-        </p>
-      )}
     </div>
   );
 }

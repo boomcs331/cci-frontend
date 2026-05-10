@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import { apiFetch } from "@/utils/api";
 import { PERMISSIONS, hasPermission } from "@/constants/permissions";
 import { getUserPermissions } from "@/utils/session";
@@ -199,11 +200,11 @@ export default function ProductionSalesReservationsPage() {
   };
 
   const handleExportPdf = () => {
-    exportPdf({
+    void exportPdf({
       filename: `sales-reservations_${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
       rows: flatRows,
-    });
+    }).catch((e) => console.error(e));
   };
 
   const handleFulfill = async (id: string) => {
@@ -362,35 +363,39 @@ export default function ProductionSalesReservationsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {item.details.map((d) => (
-                        <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{d.referenceNo}</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {d.quantity.toLocaleString()} {item.unit}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                            {d.createDate ? new Date(d.createDate).toLocaleString() : "—"}
-                          </td>
-                          {canReserve && (
-                            <td className="px-4 py-3 text-center space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => handleRelease(d.id)}
-                                className="text-xs px-2 py-1 rounded border border-gray-400 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                ยกเลิกจอง
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleFulfill(d.id)}
-                                className="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
-                              >
-                                ตัดขาย
-                              </button>
+                      {item.details.length === 0 ? (
+                        <TableEmptyRow colSpan={canReserve ? 4 : 3} />
+                      ) : (
+                        item.details.map((d) => (
+                          <tr key={d.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{d.referenceNo}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              {d.quantity.toLocaleString()} {item.unit}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                              {d.createDate ? new Date(d.createDate).toLocaleString() : "—"}
+                            </td>
+                            {canReserve && (
+                              <td className="px-4 py-3 text-center space-x-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRelease(d.id)}
+                                  className="text-xs px-2 py-1 rounded border border-gray-400 dark:border-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  ยกเลิกจอง
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFulfill(d.id)}
+                                  className="text-xs px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                >
+                                  ตัดขาย
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

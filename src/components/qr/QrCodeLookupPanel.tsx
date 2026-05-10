@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/utils/api";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import {
   advanceLotStep,
   decodeProductionLotQr,
@@ -452,19 +453,21 @@ export function QrCodeLookupPanel({
               </div>
             ) : null}
           </div>
-          {productLotData.tracking?.length ? (
-            <div className="overflow-x-auto rounded-lg border border-violet-200 dark:border-violet-800">
-              <table className="w-full min-w-[480px] text-left text-xs sm:text-sm">
-                <thead className="bg-violet-100/80 dark:bg-violet-900/40">
-                  <tr>
-                    <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">ขั้นตอน</th>
-                    <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">สถานะ</th>
-                    <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">เริ่ม</th>
-                    <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">จบ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-violet-100 dark:divide-violet-800/80">
-                  {productLotData.tracking.map((t, i) => (
+          <div className="overflow-x-auto rounded-lg border border-violet-200 dark:border-violet-800">
+            <table className="w-full min-w-[480px] text-left text-xs sm:text-sm">
+              <thead className="bg-violet-100/80 dark:bg-violet-900/40">
+                <tr>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">ขั้นตอน</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">สถานะ</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">เริ่ม</th>
+                  <th className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">จบ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-violet-100 dark:divide-violet-800/80">
+                {(productLotData.tracking ?? []).length === 0 ? (
+                  <TableEmptyRow colSpan={4} />
+                ) : (
+                  (productLotData.tracking ?? []).map((t, i) => (
                     <tr key={`${t.processCode}-${i}`} className="bg-white/80 dark:bg-gray-900/40">
                       <td className="px-3 py-2 text-gray-900 dark:text-white">{t.processName}</td>
                       <td className="px-3 py-2 text-gray-700 dark:text-gray-300">{t.status}</td>
@@ -475,11 +478,11 @@ export function QrCodeLookupPanel({
                         {t.endTime ? new Date(t.endTime).toLocaleString("th-TH") : "—"}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 

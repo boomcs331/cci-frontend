@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import AlertComponent from "@/components/ui/alert/Alert";
 import {
   getProductProductionSteps,
@@ -237,21 +238,23 @@ export default function ProductBOMPage() {
           </button>
         </div>
 
-        {boms.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">รหัสวัตถุดิบ</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อวัตถุดิบ</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ประเภท</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน/หน่วย</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">หน่วย</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {boms.map((bom) => (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-800">
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">รหัสวัตถุดิบ</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อวัตถุดิบ</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ประเภท</th>
+                <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน/หน่วย</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">หน่วย</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {boms.length === 0 ? (
+                <TableEmptyRow colSpan={6} />
+              ) : (
+                boms.map((bom) => (
                   <tr key={bom.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{bom.material?.matCode}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{bom.material?.matName}</td>
@@ -266,13 +269,11 @@ export default function ProductBOMPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">ไม่มีรายการวัตถุดิบ</div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </ComponentCard>
 
       <ComponentCard title="ลำดับขั้นตอนผลิต (กำหนดหลัง BOM)">

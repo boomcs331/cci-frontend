@@ -1,5 +1,6 @@
 import React from "react";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 
 interface ReceivingDetailModalProps {
   show: boolean;
@@ -109,8 +110,11 @@ export default function ReceivingDetailModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {sortedLots.map((lot: any) => (
-                    <tr key={lot.id}>
+                  {sortedLots.length === 0 ? (
+                    <TableEmptyRow colSpan={7} />
+                  ) : (
+                    sortedLots.map((lot: any) => (
+                      <tr key={lot.id}>
                       <td className="px-3 py-2">{lot.lotNo}</td>
                       <td className="px-3 py-2">{lot.lotPdNo}</td>
                       <td className="px-3 py-2 text-center">
@@ -132,7 +136,8 @@ export default function ReceivingDetailModal({
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

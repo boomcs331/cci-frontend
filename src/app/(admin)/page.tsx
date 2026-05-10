@@ -25,6 +25,11 @@ import type { MenuItem } from "@/types/user";
 import { StatusDonutChart, TopBarChart, TrendLineChart } from "@/components/dashboard/DashboardCharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  ensureThaiPdfFontsLoaded,
+  registerThaiFontOnDoc,
+  THAI_PDF_FONT,
+} from "@/utils/jspdf-thai-font";
 
 type ProductionPlanRow = {
   id: number;
@@ -590,8 +595,10 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [autoRefresh, load]);
 
-  const handleDownloadReport = useCallback(() => {
+  const handleDownloadReport = useCallback(async () => {
+    await ensureThaiPdfFontsLoaded();
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    registerThaiFontOnDoc(doc);
     const dateStr = new Date().toLocaleString("th-TH");
     const rangeLabel =
       range.key === "all"
@@ -600,11 +607,26 @@ export default function DashboardPage() {
         ? `${customFrom || "—"} ถึง ${customTo || "—"}`
         : TIME_RANGE_OPTIONS.find((o) => o.key === range.key)?.label ?? "";
 
+    doc.setFont(THAI_PDF_FONT, "bold");
     doc.setFontSize(16);
     doc.text("Dashboard Report", 14, 15);
+    doc.setFont(THAI_PDF_FONT, "normal");
     doc.setFontSize(10);
     doc.text(`สร้างเมื่อ: ${dateStr}`, 14, 22);
     doc.text(`ช่วง: ${rangeLabel}`, 14, 28);
+
+    const tableDefaults = {
+      styles: {
+        font: THAI_PDF_FONT,
+        fontStyle: "normal" as const,
+        fontSize: 10,
+      },
+      headStyles: {
+        font: THAI_PDF_FONT,
+        fontStyle: "bold" as const,
+        fillColor: [55, 65, 81] as [number, number, number],
+      },
+    };
 
     autoTable(doc, {
       startY: 34,
@@ -620,8 +642,7 @@ export default function DashboardPage() {
         ["แผนใกล้ครบกำหนด (7 วัน)", String(stats.upcomingPlans)],
         ["วัตถุดิบใกล้หมด", String(stats.lowStockMaterials)],
       ],
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [55, 65, 81] },
+      ...tableDefaults,
     });
 
     const afterKpi = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
@@ -634,8 +655,8 @@ export default function DashboardPage() {
         p.planDate ? new Date(p.planDate).toLocaleDateString("th-TH") : "—",
         (p.status ?? "").toUpperCase(),
       ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [55, 65, 81] },
+      styles: { ...tableDefaults.styles, fontSize: 9 },
+      headStyles: tableDefaults.headStyles,
     });
 
     const afterPlans = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
@@ -644,8 +665,8 @@ export default function DashboardPage() {
       startY: afterPlans,
       head: [["คำสั่งผลิตล่าสุด", "Lots", "สถานะ"]],
       body: latestOrders.map((o) => [o.orderNo, String(o.totalLots), o.status]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [55, 65, 81] },
+      styles: { ...tableDefaults.styles, fontSize: 9 },
+      headStyles: tableDefaults.headStyles,
     });
 
     const afterOrders = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
@@ -659,8 +680,8 @@ export default function DashboardPage() {
         Number(m.totalReserved || 0).toLocaleString(),
         m.unit || "",
       ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [55, 65, 81] },
+      styles: { ...tableDefaults.styles, fontSize: 9 },
+      headStyles: tableDefaults.headStyles,
     });
 
     const afterTop = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
@@ -675,8 +696,8 @@ export default function DashboardPage() {
         Number(m.minStock || 0).toLocaleString(),
         m.unit || "",
       ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [55, 65, 81] },
+      styles: { ...tableDefaults.styles, fontSize: 9 },
+      headStyles: tableDefaults.headStyles,
     });
 
     doc.save(`dashboard-report_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -747,7 +768,7 @@ export default function DashboardPage() {
           </label>
           <button
             type="button"
-            onClick={handleDownloadReport}
+            onClick={() => void handleDownloadReport().catch((e) => console.error(e))}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
           >

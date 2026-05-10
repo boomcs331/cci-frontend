@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
@@ -346,22 +347,24 @@ export default function PCOutcomePage() {
             </div>
           </div>
 
-          {outcomes.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full table-auto">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">เลขที่ใบจ่าย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่จ่าย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วัตถุดิบ</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">แผนก</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Work Order</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">เอกสาร</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {outcomes.map((out) => (
+          <div className="overflow-x-auto">
+            <table className="w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">เลขที่ใบจ่าย</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่จ่าย</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วัตถุดิบ</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">แผนก</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Work Order</th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน</th>
+                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">เอกสาร</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {outcomes.length === 0 ? (
+                  <TableEmptyRow colSpan={7} />
+                ) : (
+                  outcomes.map((out) => (
                     <tr key={out.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{out.issueNo}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{new Date(out.issueDate).toLocaleDateString('th-TH')}</td>
@@ -418,13 +421,11 @@ export default function PCOutcomePage() {
                         )}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลรายการจ่ายออก</div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {pagination && (
             <PaginationFooter

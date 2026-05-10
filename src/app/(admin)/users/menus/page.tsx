@@ -2,6 +2,7 @@
 
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Alert from "@/components/ui/alert/Alert";
 import Button from "@/components/ui/button/Button";
 import type { MenuItem } from "@/types/user";
@@ -311,7 +312,10 @@ export default function MenusPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredMenus.map((menu) => (
+                  {filteredMenus.length === 0 ? (
+                    <TableEmptyRow colSpan={7} />
+                  ) : (
+                    filteredMenus.map((menu) => (
                     <tr key={menu.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{menu.code}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{menu.label}</td>
@@ -338,13 +342,7 @@ export default function MenusPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
-                  {filteredMenus.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">
-                        No menus found
-                      </td>
-                    </tr>
+                  ))
                   )}
                 </tbody>
               </table>

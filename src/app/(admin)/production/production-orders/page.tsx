@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { fetchProductionOrders } from "@/services/productionOrdersService";
@@ -101,11 +102,11 @@ function ProductionOrdersPageContent() {
   };
 
   const handleExportPdf = () => {
-    exportPdf({
+    void exportPdf({
       filename: `production-orders_${new Date().toISOString().slice(0, 10)}`,
       columns: exportColumns,
       rows: filteredOrders,
-    });
+    }).catch((e) => console.error(e));
   };
 
   if (loading) {
@@ -166,7 +167,7 @@ function ProductionOrdersPageContent() {
 
           {error && <div className="py-4 text-red-600 dark:text-red-400">{error}</div>}
 
-          {!error && data && filteredOrders.length > 0 ? (
+          {!error && data ? (
             <>
               <div className="overflow-x-auto">
                 <table className="min-w-max w-full table-auto">
@@ -193,7 +194,10 @@ function ProductionOrdersPageContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredOrders.map((o) => (
+                    {filteredOrders.length === 0 ? (
+                      <TableEmptyRow colSpan={6} />
+                    ) : (
+                      filteredOrders.map((o) => (
                       <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white whitespace-nowrap">
                           {o.orderNo}
@@ -227,7 +231,8 @@ function ProductionOrdersPageContent() {
                           </Link>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -238,8 +243,6 @@ function ProductionOrdersPageContent() {
                 totalPages={data.totalPages}
               />
             </>
-          ) : !error ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">ไม่พบคำสั่งผลิต</div>
           ) : null}
         </ComponentCard>
       </div>

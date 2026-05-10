@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/utils/api';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
+import TableEmptyRow from '@/components/common/TableEmptyRow';
 import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBatchPanel';
 import QRScannerModal from '@/components/qr/QRScannerModal';
 
@@ -186,10 +187,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
 
-          {data.reservations && data.reservations.length > 0 && (
-            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
               <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-                รายการจองวัตถุดิบ ({data.reservations.length} รายการ)
+                รายการจองวัตถุดิบ ({(data.reservations ?? []).length} รายการ)
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full table-auto">
@@ -205,26 +205,29 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-200 dark:divide-blue-800">
-                    {data.reservations.map((r, idx) => (
-                      <tr key={idx} className="hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialCode}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialName}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
-                        <td className="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
-                        <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
-                          {r.reservedQuantity.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-center text-gray-900 dark:text-white">
-                          {new Date(r.createDate).toLocaleDateString('th-TH')}
-                        </td>
-                      </tr>
-                    ))}
+                    {(data.reservations ?? []).length === 0 ? (
+                      <TableEmptyRow colSpan={7} />
+                    ) : (
+                      (data.reservations ?? []).map((r, idx) => (
+                        <tr key={idx} className="hover:bg-blue-100 dark:hover:bg-blue-900/30">
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialCode}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialName}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
+                          <td className="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
+                          <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
+                            {r.reservedQuantity.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-center text-gray-900 dark:text-white">
+                            {new Date(r.createDate).toLocaleDateString('th-TH')}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
 
           {planItems.map((item, itemIndex) => {
             const materials = Array.isArray(item.materials) ? item.materials : [];
@@ -247,32 +250,36 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {materials.map((m) => {
-                      const ratio = m.requiredQuantity > 0 ? m.availableQty / m.requiredQuantity : 0;
-                      const bgColor = ratio <= 1 ? 'bg-red-50 dark:bg-red-900/20' :
-                                      ratio <= 2 ? 'bg-orange-50 dark:bg-orange-900/20' :
-                                      ratio <= 3 ? 'bg-green-50 dark:bg-green-900/20' :
-                                      'bg-blue-50 dark:bg-blue-900/20';
-                      return (
-                        <tr key={m.materialId} className={`hover:opacity-80 ${bgColor}`}>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td> 
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {m.requiredQuantity} {m.unit}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {m.availableQty} {m.unit}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {m.availableQty >= m.requiredQuantity ? (
-                              <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
-                            ) : (
-                              <span className="text-red-600 dark:text-red-400 text-xl">✗</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {materials.length === 0 ? (
+                      <TableEmptyRow colSpan={5} />
+                    ) : (
+                      materials.map((m) => {
+                        const ratio = m.requiredQuantity > 0 ? m.availableQty / m.requiredQuantity : 0;
+                        const bgColor = ratio <= 1 ? 'bg-red-50 dark:bg-red-900/20' :
+                                        ratio <= 2 ? 'bg-orange-50 dark:bg-orange-900/20' :
+                                        ratio <= 3 ? 'bg-green-50 dark:bg-green-900/20' :
+                                        'bg-blue-50 dark:bg-blue-900/20';
+                        return (
+                          <tr key={m.materialId} className={`hover:opacity-80 ${bgColor}`}>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td> 
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              {m.requiredQuantity} {m.unit}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              {m.availableQty} {m.unit}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {m.availableQty >= m.requiredQuantity ? (
+                                <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
+                              ) : (
+                                <span className="text-red-600 dark:text-red-400 text-xl">✗</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

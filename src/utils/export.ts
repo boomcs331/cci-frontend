@@ -1,6 +1,11 @@
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import {
+  ensureThaiPdfFontsLoaded,
+  registerThaiFontOnDoc,
+  THAI_PDF_FONT,
+} from "@/utils/jspdf-thai-font";
 
 export type ExportColumn<T> = {
   header: string;
@@ -41,22 +46,41 @@ export function exportXlsx<T>({ filename, columns, rows }: ExportOptions<T>): vo
 }
 
 /**
- * Export rows as a simple PDF table and trigger browser download.
+ * Export rows as a simple PDF table and trigger browser download (รองรับภาษาไทย).
  */
-export function exportPdf<T>({ filename, columns, rows }: ExportOptions<T>): void {
+export async function exportPdf<T>({
+  filename,
+  columns,
+  rows,
+}: ExportOptions<T>): Promise<void> {
+  await ensureThaiPdfFontsLoaded();
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  registerThaiFontOnDoc(doc);
+
   const head = [columns.map((c) => c.header)];
   const body: RowInput[] = rows.map((r) => toRow(columns, r) as RowInput);
+
+  doc.setFont(THAI_PDF_FONT, "normal");
+  doc.setFontSize(10);
+  doc.text(filename, 10, 10);
 
   autoTable(doc, {
     head,
     body,
-    styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [55, 65, 81], textColor: 255 },
+    styles: {
+      font: THAI_PDF_FONT,
+      fontStyle: "normal",
+      fontSize: 9,
+      cellPadding: 2,
+    },
+    headStyles: {
+      font: THAI_PDF_FONT,
+      fontStyle: "bold",
+      fillColor: [55, 65, 81],
+      textColor: 255,
+    },
     margin: { top: 16, left: 10, right: 10 },
   });
 
-  doc.setFontSize(10);
-  doc.text(filename, 10, 10);
   doc.save(`${sanitizeFilename(filename)}.pdf`);
 }

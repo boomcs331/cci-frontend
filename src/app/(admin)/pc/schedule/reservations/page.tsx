@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
 import {
@@ -386,11 +387,7 @@ export default function ScheduleReservationsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredPlans.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                      ไม่มีแผนผลิตที่จองสำเร็จ
-                    </td>
-                  </tr>
+                  <TableEmptyRow colSpan={6} message="ไม่มีแผนผลิตที่จองสำเร็จ" />
                 ) : (
                   filteredPlans.map((plan) => (
                     <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">

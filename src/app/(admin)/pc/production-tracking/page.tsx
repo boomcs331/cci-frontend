@@ -7,6 +7,7 @@ import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
+import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
@@ -473,14 +474,10 @@ export default function ProductionTrackingPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {pagination.slice.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-gray-500 dark:text-gray-400"
-                    >
-                      ไม่มีแผนที่ตรงกับตัวกรอง
-                    </td>
-                  </tr>
+                  <TableEmptyRow
+                    colSpan={6}
+                    message="ไม่มีแผนที่ตรงกับตัวกรอง"
+                  />
                 ) : (
                   pagination.slice.map((plan) => (
                     <tr
