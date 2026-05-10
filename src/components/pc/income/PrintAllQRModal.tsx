@@ -145,8 +145,8 @@ export default function PrintAllQRModal({ show, onClose, receiving }: PrintAllQR
     .map((x: any) => x.lot);
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4" id="print-modal">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4" id="print-modal">
+      <div className="bg-white rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-6xl max-h-[90vh] overflow-hidden">
         <div className="sticky top-0 bg-white px-6 py-4 border-b flex justify-between items-center print:hidden">
           <h3 className="text-xl font-semibold">พิมพ์สติ๊กเกอร์ QR Code - {receiving.receivingNo}</h3>
           <div className="flex gap-2">

@@ -170,11 +170,11 @@ export default function PCStockPage() {
         {selectedStock && (
           <>
             <div
-              className="fixed inset-0 bg-black/80 z-[99999]"
+              className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in z-[99999]"
               onClick={() => setSelectedStock(null)}
             />
             <div className="fixed inset-0 z-[99999] p-4 flex items-center justify-center">
-              <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl flex flex-col">
+              <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-cci-popup animate-cci-modal-in flex flex-col">
                 <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -332,7 +332,7 @@ export default function PCStockPage() {
         )}
 
         {!selectedStock && showAlert && (lowStockItems.length > 0 || criticalStockItems.length > 0) && (
-          <div className="fixed top-20 right-6 z-50 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-red-500 dark:border-red-600 p-5 max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="fixed top-20 right-6 z-50 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in border-2 border-red-500 dark:border-red-600 p-5 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">⚠️</span>

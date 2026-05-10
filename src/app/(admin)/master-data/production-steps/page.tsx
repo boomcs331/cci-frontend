@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
-import PaginationFooter from "@/components/master-data/PaginationFooter";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
 
 export default function MasterDataProductionStepsPage() {
@@ -110,6 +110,7 @@ export default function MasterDataProductionStepsPage() {
           )}
           {pagination && (
             <PaginationFooter
+              size="sm"
               page={pagination.page}
               limit={pagination.limit}
               total={pagination.total}

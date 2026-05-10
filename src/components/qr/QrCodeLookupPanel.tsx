@@ -20,6 +20,7 @@ export type ProductLotStatusPayload = {
   quantity: number;
   status: string;
   orderNo: string;
+  orderCreateDate?: string | null;
   productCode: string;
   productName: string;
   currentProcess?: string | null;
@@ -376,6 +377,14 @@ export function QrCodeLookupPanel({
             <div>
               <span className="text-gray-500 dark:text-gray-400">ใบสั่ง</span>
               <div className="font-medium text-gray-900 dark:text-white">{productLotData.orderNo}</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">วันที่สั่งผลิต</span>
+              <div className="font-medium text-gray-900 dark:text-white">
+                {productLotData.orderCreateDate
+                  ? new Date(productLotData.orderCreateDate).toLocaleDateString("th-TH")
+                  : "—"}
+              </div>
             </div>
             <div>
               <span className="text-gray-500 dark:text-gray-400">สินค้า</span>

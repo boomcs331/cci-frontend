@@ -66,7 +66,14 @@ export interface ProductionOrderDetail {
   totalLots: number;
   status: string;
   remarks?: string;
-  product?: { id: number; productCode: string; productName: string };
+  product?: {
+    id: number;
+    productCode: string;
+    productName: string;
+    customerId?: number | null;
+    /** master.customers — property names จาก entity: code, name */
+    customer?: { id: number; code: string; name: string } | null;
+  };
   lots?: ProductionOrderLot[];
 }
 

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
-import PaginationFooter from "@/components/master-data/PaginationFooter";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
 
@@ -136,13 +136,13 @@ function PageContent() {
               </tbody>
             </table>
           </div>
-          {apiResponse?.pagination && <PaginationFooter {...apiResponse.pagination} />}
+          {apiResponse?.pagination && <PaginationFooter size="sm" {...apiResponse.pagination} />}
         </ComponentCard>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-md border border-gray-200 dark:border-gray-700">
             <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingItem ? "แก้ไข" : "เพิ่ม"}ประเภทการส่ง</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>

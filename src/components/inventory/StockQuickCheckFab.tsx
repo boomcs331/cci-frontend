@@ -135,7 +135,7 @@ export default function StockQuickCheckFab() {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[99950] flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-[99950] flex items-center justify-center bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="stock-quick-check-title"

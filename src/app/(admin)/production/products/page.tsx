@@ -4,8 +4,20 @@ import { useSearchParams, useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
-import PaginationFooter from "@/components/master-data/PaginationFooter";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
+
+/** FK จากฟอร์ม → ตัวเลขบวก หรือ null (ส่ง JSON ให้ backend ชัดเจน) */
+function normalizeFk(v: number | null | undefined): number | null {
+  if (v == null || !Number.isFinite(Number(v))) return null;
+  const n = Math.trunc(Number(v));
+  return n > 0 ? n : null;
+}
+
+function normalizeOptionalNonNegInt(v: number | null | undefined): number | null {
+  if (v == null || !Number.isFinite(Number(v))) return null;
+  return Math.trunc(Number(v));
+}
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -190,7 +202,20 @@ export default function ProductsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { bom, ...productData } = formData;
+      const { bom, ...rest } = formData;
+      const productData = {
+        ...rest,
+        productTypeId: normalizeFk(rest.productTypeId),
+        defaultLocationId: normalizeFk(rest.defaultLocationId),
+        lotSize: normalizeOptionalNonNegInt(rest.lotSize),
+        minStock: normalizeOptionalNonNegInt(rest.minStock),
+        customerId: normalizeFk(rest.customerId),
+        modelId: normalizeFk(rest.modelId),
+        deliveryTypeId: normalizeFk(rest.deliveryTypeId),
+        unitId: normalizeFk(rest.unitId),
+        loadingPointId: normalizeFk(rest.loadingPointId),
+        processLineId: normalizeFk(rest.processLineId),
+      };
       const response = await apiFetch(`/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,7 +259,20 @@ export default function ProductsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { bom, ...productData } = formData;
+      const { bom, ...rest } = formData;
+      const productData = {
+        ...rest,
+        productTypeId: normalizeFk(rest.productTypeId),
+        defaultLocationId: normalizeFk(rest.defaultLocationId),
+        lotSize: normalizeOptionalNonNegInt(rest.lotSize),
+        minStock: normalizeOptionalNonNegInt(rest.minStock),
+        customerId: normalizeFk(rest.customerId),
+        modelId: normalizeFk(rest.modelId),
+        deliveryTypeId: normalizeFk(rest.deliveryTypeId),
+        unitId: normalizeFk(rest.unitId),
+        loadingPointId: normalizeFk(rest.loadingPointId),
+        processLineId: normalizeFk(rest.processLineId),
+      };
       const response = await apiFetch(`/products/${selectedProduct.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -288,7 +326,7 @@ export default function ProductsPage() {
       customerId: product.customerId,
       modelId: product.modelId,
       deliveryTypeId: product.deliveryTypeId,
-      unitId: product.unitId,
+      unitId: product.unitId != null ? normalizeFk(product.unitId) : null,
       scale: product.scale || '',
       loadingPointId: product.loadingPointId,
       processLineId: product.processLineId,
@@ -411,8 +449,8 @@ export default function ProductsPage() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">เพิ่มสินค้าใหม่</h3>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
@@ -557,8 +595,8 @@ export default function ProductsPage() {
       )}
 
       {showEditModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">แก้ไขสินค้า</h3>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">

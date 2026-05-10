@@ -329,11 +329,11 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         {errorAlert.show && errorAlert.materials.length > 0 && (
           <>
             {/* Backdrop */}
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+            <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in z-40"></div>
             
             {/* Modal */}
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-red-500 dark:border-red-600 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in border-2 border-red-500 dark:border-red-600 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-red-200 dark:border-red-800">
                   <div className="flex items-center gap-3">
                     <span className="text-4xl">⛔</span>

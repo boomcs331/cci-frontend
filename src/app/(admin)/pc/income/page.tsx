@@ -1,15 +1,16 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
+import { createPaginationHrefBuilder } from "@/lib/pagination";
 import ReceivingTable from "@/components/pc/income/ReceivingTable";
 import AddReceivingModal from "@/components/pc/income/AddReceivingModal";
 import ReceivingDetailModal from "@/components/pc/income/ReceivingDetailModal";
 import QRCodeModal from "@/components/pc/income/QRCodeModal";
 import PrintAllQRModal from "@/components/pc/income/PrintAllQRModal";
-import Pagination from "@/components/pc/income/Pagination";
 import { getSession } from "@/utils/session";
 import { apiFetch } from "@/utils/api";
 import { useToast } from "@/context/ToastContext";
@@ -48,6 +49,11 @@ export default function PCIncomePage() {
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
+
+  const paginationHref = useMemo(
+    () => createPaginationHrefBuilder(searchParams, limit),
+    [searchParams.toString(), limit],
+  );
 
   const handleMaterialChange = async (matId: number) => {
     setMaterialId(matId);
@@ -282,7 +288,15 @@ export default function PCIncomePage() {
             getStatusBadge={getStatusBadge}
           />
 
-          <Pagination pagination={pagination} currentPage={page} limit={limit} />
+          {pagination && (
+            <PaginationFooter
+              page={page}
+              limit={limit}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+              hrefBuilder={paginationHref}
+            />
+          )}
         </ComponentCard>
       </div>
 

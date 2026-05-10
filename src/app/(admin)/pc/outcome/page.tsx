@@ -1,9 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
+import { createPaginationHrefBuilder } from "@/lib/pagination";
 import QRScannerModal from "@/components/qr/QRScannerModal";
 import AlertComponent from "@/components/ui/alert/Alert";
 import ConfirmModal from "@/components/ui/modal/ConfirmModal";
@@ -47,6 +49,11 @@ export default function PCOutcomePage() {
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
+
+  const paginationHref = useMemo(
+    () => createPaginationHrefBuilder(searchParams, limit),
+    [searchParams.toString(), limit],
+  );
 
   useEffect(() => {
     const fetchData = async () => {
@@ -419,47 +426,21 @@ export default function PCOutcomePage() {
             <div className="text-center py-8 text-gray-500">ไม่พบข้อมูลรายการจ่ายออก</div>
           )}
 
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, pagination.total)} of {pagination.total} results
-              </div>
-              <div className="flex items-center">
-                <a href={`?page=${Math.max(1, page - 1)}&limit=${limit}`} className={`mr-2.5 flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                  page <= 1 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}>
-                  Previous
-                </a>
-                <div className="flex items-center gap-2">
-                  {page > 3 && <span className="px-2">...</span>}
-                  {Array.from({ length: Math.min(3, pagination.totalPages) }, (_, i) => {
-                    const pageNum = i + Math.max(page - 1, 1);
-                    return (
-                      <a key={pageNum} href={`?page=${pageNum}&limit=${limit}`} className={`px-4 py-2 rounded ${
-                        page === pageNum
-                          ? "bg-brand-500 text-white"
-                          : "text-gray-700 dark:text-gray-400"
-                      } flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500`}>
-                        {pageNum}
-                      </a>
-                    );
-                  })}
-                  {page < pagination.totalPages - 2 && <span className="px-2">...</span>}
-                </div>
-                <a href={`?page=${Math.min(pagination.totalPages, page + 1)}&limit=${limit}`} className={`ml-2.5 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                  page >= pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''
-                }`}>
-                  Next
-                </a>
-              </div>
-            </div>
+          {pagination && (
+            <PaginationFooter
+              page={page}
+              limit={limit}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+              hrefBuilder={paginationHref}
+            />
           )}
         </ComponentCard>
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">จ่ายวัตถุดิบออก (FIFO)</h3>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">

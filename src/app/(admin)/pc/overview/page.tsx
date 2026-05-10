@@ -12,6 +12,7 @@ import {
   faChartSimple,
   faClipboardList,
   faQrcode,
+  faSitemap,
 } from "@fortawesome/free-solid-svg-icons";
 
 const items = [
@@ -56,6 +57,12 @@ const items = [
     path: "/pc/report",
     description: "รายงานที่เกี่ยวข้องกับคลังวัตถุดิบ",
     icon: <FontAwesomeIcon icon={faChartSimple} />,
+  },
+  {
+    name: "รายงานการสอบกลับ",
+    path: "/pc/traceability",
+    description: "สอบจาก Lot/QR หรือใบจ่าย — โซ่รับเข้าและการใช้งาน",
+    icon: <FontAwesomeIcon icon={faSitemap} />,
   },
   {
     name: "สแกนติดตามการผลิต",

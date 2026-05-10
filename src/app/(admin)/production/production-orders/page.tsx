@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
-import PaginationFooter from "@/components/master-data/PaginationFooter";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { fetchProductionOrders } from "@/services/productionOrdersService";
 import type { ProductionOrderDetail } from "@/types/production";
 import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";

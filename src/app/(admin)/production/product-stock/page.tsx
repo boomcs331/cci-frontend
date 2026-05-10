@@ -126,7 +126,7 @@ export default function ProductionProductStockPage() {
       <PageBreadcrumb pageTitle="ยอดคงเหลือ สินค้าขาย" />
       <div className="space-y-6">
         {showAlert && (lowStockItems.length > 0 || criticalStockItems.length > 0) && (
-          <div className="fixed top-20 right-6 z-50 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-red-500 dark:border-red-600 p-5 max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="fixed top-20 right-6 z-50 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in border-2 border-red-500 dark:border-red-600 p-5 max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">⚠️</span>

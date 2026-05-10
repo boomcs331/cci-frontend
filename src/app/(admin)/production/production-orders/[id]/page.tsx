@@ -8,7 +8,22 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { fetchProductionOrder } from "@/services/productionOrdersService";
-import type { ProductionOrderDetail, ProductionOrderLot } from "@/types/production";
+import { getProductProductionSteps } from "@/services/productProductionStepsService";
+import type {
+  ProductionOrderDetail,
+  ProductionOrderLot,
+  ProductProductionStepRow,
+} from "@/types/production";
+
+function lotHasCompletedProcess(lot: ProductionOrderLot, processCode: string): boolean {
+  const code = (processCode ?? "").trim();
+  if (!code) return false;
+  return (lot.tracking ?? []).some(
+    (t) =>
+      t.status === "COMPLETED" &&
+      (t.process?.processCode === code || t.processCode === code)
+  );
+}
 
 function lotCurrentStepLabel(lot: ProductionOrderLot): string {
   if (lot.status === "COMPLETED") return "เสร็จสิ้น";
@@ -53,6 +68,7 @@ export default function ProductionOrderQrPage() {
   const params = useParams();
   const id = Number(params.id);
   const [order, setOrder] = useState<ProductionOrderDetail | null>(null);
+  const [flowSteps, setFlowSteps] = useState<ProductProductionStepRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,9 +79,18 @@ export default function ProductionOrderQrPage() {
     try {
       const o = await fetchProductionOrder(id);
       setOrder(o);
+      try {
+        const steps = await getProductProductionSteps(o.productId);
+        setFlowSteps(
+          [...steps].sort((a, b) => a.stepOrder - b.stepOrder || a.id - b.id)
+        );
+      } catch {
+        setFlowSteps([]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "โหลดไม่สำเร็จ");
       setOrder(null);
+      setFlowSteps([]);
     } finally {
       setLoading(false);
     }
@@ -75,39 +100,238 @@ export default function ProductionOrderQrPage() {
     load();
   }, [load]);
 
-  const handlePrintAll = async (lots: ProductionOrderLot[], o: ProductionOrderDetail) => {
+  const handlePrintAll = async (
+    lots: ProductionOrderLot[],
+    o: ProductionOrderDetail,
+    steps: ProductProductionStepRow[]
+  ) => {
     if (lots.length === 0) return;
-    const cells: string[] = [];
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const today = new Date();
+    const dateStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+    const stdPack = o.lotSize || 100;
+    const partNo = o.product?.productCode ?? "";
+    const partName = o.product?.productName ?? "";
+    const customerBrand =
+      o.product?.customer?.name?.trim() ||
+      o.product?.customer?.code?.trim() ||
+      "";
+    const orderedSteps = [...steps].sort((a, b) => a.stepOrder - b.stepOrder || a.id - b.id);
+
+    const tags: string[] = [];
     for (const lot of lots) {
-      const dataUrl = await QRCode.toDataURL(lot.qrCode, { width: 140, margin: 1 });
-      const ref = lot.orderLotLabel || "";
-      const pd = lot.lotPdNo || "";
-      cells.push(`
-        <div class="cell">
-          <img src="${dataUrl}" alt="" />
-          <div class="meta">${o.orderNo} · ${o.product?.productName ?? ""}</div>
-          <div class="meta">${lot.lotNo}${pd ? " · " + pd : ""} · ${lot.quantity} ชิ้น</div>
-          ${ref ? `<div class="meta">ใบสั่ง: ${ref}</div>` : ""}
-          <div class="code">${lot.qrCode}</div>
+      const dataUrl = await QRCode.toDataURL(lot.qrCode, { width: 220, margin: 0 });
+      const kanbanNo = String(lot.sequenceNo).padStart(3, "0");
+      const fullQty = Math.floor(lot.quantity / stdPack);
+      const remainQty = lot.quantity % stdPack;
+      const lotMat = lot.lotPdNo || lot.lotNo || "";
+      const qrLabel = `${partNo}/${stdPack}/${lot.sequenceNo}`;
+
+      const flowHeaderCells =
+        orderedSteps.length > 0
+          ? orderedSteps
+              .map((s) => {
+                const p = s.process;
+                const label = p
+                  ? `${p.processCode}${p.processName ? ` · ${p.processName}` : ""}`
+                  : `#${s.processId}`;
+                return `<td class="lbl flow-step">${escapeHtml(label)}</td>`;
+              })
+              .join("")
+          : `<td class="lbl flow-step" colspan="1">${escapeHtml("ยังไม่กำหนดลำดับขั้น (product_production_steps)")}</td>`;
+
+      const flowStatusCells =
+        orderedSteps.length > 0
+          ? orderedSteps
+              .map((s) => {
+                const code = s.process?.processCode ?? "";
+                const done = lotHasCompletedProcess(lot, code);
+                return `<td class="check-cell">${done ? "&#10003;" : ""}</td>`;
+              })
+              .join("")
+          : `<td></td>`;
+
+      tags.push(`
+        <div class="kanban">
+          <div class="vert"><div class="vert-inner">CHIEW CHAN INDUSTRY (1989)CO.,LTD.(CCI)</div></div>
+          <div class="body">
+            <table class="top">
+              <colgroup>
+                <col style="width:13%" />
+                <col style="width:28%" />
+                <col style="width:11%" />
+                <col style="width:13%" />
+                <col style="width:10%" />
+                <col style="width:10%" />
+                <col style="width:15%" />
+              </colgroup>
+              <tr>
+                <td class="lbl">PART NO</td>
+                <td class="val big">${escapeHtml(partNo)}</td>
+                <td rowspan="5" class="customer-brand"><span>${escapeHtml(customerBrand || "—")}</span></td>
+                <td class="lbl">Number Kanban</td>
+                <td colspan="2" class="val big bold">${kanbanNo}</td>
+                <td rowspan="5" class="qr">
+                  <img src="${dataUrl}" alt="qr" />
+                  <div class="qr-label">${escapeHtml(qrLabel)}</div>
+                </td>
+              </tr>
+              <tr>
+                <td rowspan="2" class="lbl">PART NAME</td>
+                <td rowspan="2" class="val big">${escapeHtml(partName)}</td>
+                <td rowspan="2" class="lbl">QTY</td>
+                <td class="sublbl">จำนวนเต็ม</td>
+                <td class="sublbl">จำนวนเศษ</td>
+              </tr>
+              <tr>
+                <td class="val big">${fullQty}</td>
+                <td class="val big">${remainQty}</td>
+              </tr>
+              <tr>
+                <td class="lbl">วันเดือนปีผลิต</td>
+                <td class="val">${dateStr}</td>
+                <td rowspan="2" class="lbl">STD. PACKING</td>
+                <td class="val">BOX</td>
+                <td class="val">RACK <span class="check">&#10003;</span></td>
+              </tr>
+              <tr>
+                <td class="lbl">Lot No. mat</td>
+                <td class="val">${escapeHtml(lotMat)}</td>
+                <td colspan="2" class="val big center">${stdPack}</td>
+              </tr>
+            </table>
+            <table class="flow">
+              <tr>
+                <td class="lbl flow-lbl">Flow Process</td>
+                ${flowHeaderCells}
+              </tr>
+              <tr class="status-row">
+                <td class="lbl">สถานะ</td>
+                ${flowStatusCells}
+              </tr>
+            </table>
+          </div>
         </div>
       `);
     }
+
     const w = window.open("", "_blank");
     if (!w) {
       alert("กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์");
       return;
     }
-    w.document.write(`<!DOCTYPE html><html><head><title>QR ล็อตผลิต</title>
+    w.document.write(`<!DOCTYPE html><html><head><title>Kanban Tag — ${escapeHtml(o.orderNo)}</title>
+      <meta charset="utf-8" />
       <style>
-        body { font-family: system-ui, sans-serif; padding: 16px; }
-        .grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: flex-start; }
-        .cell { border: 1px solid #ccc; padding: 12px; width: 200px; text-align: center; page-break-inside: avoid; }
-        .meta { font-size: 11px; margin-top: 6px; color: #333; }
-        .code { font-size: 9px; font-family: monospace; margin-top: 4px; word-break: break-all; color: #666; }
+        @page { size: A4 portrait; margin: 8mm; }
+        * { box-sizing: border-box; }
+        html, body { background: #f0f0f0; }
+        body { font-family: "Segoe UI", "Sarabun", "Tahoma", sans-serif; padding: 0; margin: 0; color: #000; }
+        .toolbar {
+          position: sticky; top: 0; z-index: 10;
+          background: #fff; border-bottom: 1px solid #ddd;
+          padding: 8px 12px; display: flex; gap: 8px; justify-content: flex-end;
+        }
+        .toolbar button {
+          padding: 6px 14px; border: 1px solid #2563eb; background: #2563eb;
+          color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .toolbar .secondary { background: #fff; color: #2563eb; }
+        .sheet {
+          width: 194mm;
+          margin: 0 auto;
+          padding: 4mm 0;
+        }
+        .kanban {
+          display: flex;
+          border: 1px solid #000;
+          width: 100%;
+          margin: 0 auto 1.2mm auto;
+          page-break-inside: avoid;
+          break-inside: avoid;
+          background: #fff;
+        }
+        .kanban:last-child { margin-bottom: 0; }
+        .vert {
+          width: 18px;
+          border-right: 1px solid #000;
+          position: relative;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .vert-inner {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) rotate(180deg);
+          writing-mode: vertical-rl;
+          white-space: nowrap;
+          font-weight: 700;
+          font-size: 7px;
+          letter-spacing: 0.2px;
+        }
+        .body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .body > table:last-child { flex: 1; }
+        table.top, table.flow {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        table.top td, table.flow td {
+          border: 1px solid #000;
+          padding: 1px 3px;
+          font-size: 8.5px;
+          line-height: 1.15;
+          vertical-align: middle;
+        }
+        .lbl { font-weight: 600; font-size: 8px; text-align: center; background: #fafafa; }
+        .sublbl { font-size: 7.5px; text-align: center; background: #fafafa; }
+        .val { text-align: center; }
+        .val.big { font-size: 10.5px; font-weight: 700; }
+        .val.center { text-align: center; }
+        .bold { font-weight: 700; }
+        .customer-brand {
+          text-align: center;
+          font-weight: 900;
+          font-style: italic;
+          font-size: 14px;
+          letter-spacing: 0.5px;
+          background: #fff;
+          padding: 0 !important;
+          word-break: break-word;
+          line-height: 1.05;
+        }
+        .customer-brand span {
+          display: inline-block;
+          transform: skewX(-10deg);
+        }
+        .qr {
+          text-align: center;
+          padding: 1px !important;
+          background: #fff;
+        }
+        .qr img { width: 60px; height: 60px; display: block; margin: 0 auto; }
+        .qr-label { font-size: 6.5px; font-family: monospace; margin-top: 1px; word-break: break-all; line-height: 1.1; }
+        .check { color: #000; font-weight: 700; }
+        .flow td { padding: 1px 2px; text-align: center; }
+        .flow-lbl { width: 10%; min-width: 52px; }
+        .flow-step { font-size: 7px; line-height: 1.1; word-break: break-word; }
+        .status-row td { font-size: 10px; font-weight: 700; }
+        .check-cell { font-size: 11px; font-weight: 700; }
+        @media print {
+          html, body { background: #fff; }
+          .toolbar { display: none; }
+          .sheet { width: auto; padding: 0; margin: 0; }
+          .kanban { margin: 0 0 1.2mm 0; }
+        }
       </style></head><body>
-      <h2 style="font-size:16px;margin-bottom:12px;">คำสั่งผลิต ${o.orderNo} — สแกนได้เหมือน QR วัตถุดิบ (API ล็อตผลิต)</h2>
-      <div class="grid">${cells.join("")}</div>
-      <script>window.onload = function(){ window.print(); }</script>
+      <div class="toolbar">
+        <button class="secondary" onclick="window.close()">ปิด</button>
+        <button onclick="window.print()">พิมพ์</button>
+      </div>
+      <div class="sheet">${tags.join("")}</div>
+      <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); }</script>
       </body></html>`);
     w.document.close();
   };
@@ -150,6 +374,14 @@ export default function ProductionOrderQrPage() {
             {"ขั้นตอนปัจจุบัน (สรุปจากล็อต):"}{" "}
             <strong className="text-gray-900 dark:text-gray-100">{stepSummary}</strong>
           </p>
+          <p>
+            ลูกค้า:{" "}
+            <strong className="text-gray-900 dark:text-gray-100">
+              {order.product?.customer
+                ? `${order.product.customer.name}${order.product.customer.code ? ` (${order.product.customer.code})` : ""}`
+                : "—"}
+            </strong>
+          </p>
           <p className="text-xs">
             เลขล็อตหลัก <span className="font-mono">PG…</span> คู่ <span className="font-mono">PD…</span> แบบรับเข้า
             (วัตถุดิบใช้ <span className="font-mono">PC…</span>) — QR จากค่า PG เหมือน QR จาก PC
@@ -158,6 +390,28 @@ export default function ProductionOrderQrPage() {
             ข้อความใน QR = <span className="font-mono">qrCode</span> —{" "}
             <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">GET /production-orders/lots/&lt;qr&gt;/status</code>
           </p>
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+              Flow Process <span className="font-normal text-gray-500">(product_production_steps)</span>
+            </p>
+            {flowSteps.length === 0 ? (
+              <p className="text-xs text-gray-500">ยังไม่มีลำดับขั้นสำหรับสินค้านี้ หรือโหลดไม่สำเร็จ</p>
+            ) : (
+              <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                {flowSteps.map((s) => (
+                  <li key={s.id}>
+                    <span className="font-mono text-xs">{s.process?.processCode ?? s.processId}</span>
+                    {s.process?.processName ? (
+                      <>
+                        {" "}
+                        <span className="text-gray-600 dark:text-gray-400">— {s.process.processName}</span>
+                      </>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
         {lots.length === 0 ? (
           <p className="text-gray-500">ยังไม่มีล็อต / QR</p>
@@ -166,7 +420,7 @@ export default function ProductionOrderQrPage() {
             <div className="mb-4">
               <button
                 type="button"
-                onClick={() => handlePrintAll(lots, order)}
+                onClick={() => handlePrintAll(lots, order, flowSteps)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg"
               >
                 พิมพ์ QR ทั้งหมด

@@ -73,7 +73,7 @@ export default function TimePicker({ value, onChange, label, placeholder = "เ�
       {isOpen && (
         <div className="fixed inset-0 z-[100000] flex items-center justify-center">
           <div className="absolute inset-0" onClick={() => setIsOpen(false)}></div>
-          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ width: "380px" }}>
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in border border-gray-200 dark:border-gray-700 overflow-hidden" style={{ width: "380px" }}>
             {/* Header */}
             <div className="bg-blue-600 dark:bg-blue-700 p-6">
               <div className="text-white text-sm opacity-80 mb-2">เลือกเวลา</div>

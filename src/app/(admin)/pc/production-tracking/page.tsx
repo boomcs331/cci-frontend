@@ -8,6 +8,8 @@ import "flatpickr/dist/flatpickr.css";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
+import { createPaginationHrefBuilder } from "@/lib/pagination";
 import TimePicker from "@/components/ui/TimePicker";
 import { apiFetch } from "@/utils/api";
 
@@ -78,6 +80,11 @@ export default function ProductionTrackingPage() {
   const searchParams = useSearchParams();
   const page = parseInt(searchParams.get("page") || "1", 10);
   const limit = parseInt(searchParams.get("limit") || "10", 10);
+
+  const paginationHref = useMemo(
+    () => createPaginationHrefBuilder(searchParams, limit),
+    [searchParams.toString(), limit],
+  );
 
   const [allPlans, setAllPlans] = useState<ProductionPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -526,67 +533,18 @@ export default function ProductionTrackingPage() {
           </div>
 
           {pagination.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                แสดง {pagination.start + 1} ถึง{" "}
-                {Math.min(pagination.start + limit, pagination.total)} จาก{" "}
-                {pagination.total} รายการ
-              </div>
-              <div className="flex items-center">
-                <Link
-                  href={`?page=${Math.max(1, pagination.safePage - 1)}&limit=${limit}`}
-                  className={`mr-2.5 flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                    pagination.safePage <= 1
-                      ? "opacity-50 pointer-events-none"
-                      : ""
-                  }`}
-                >
-                  ก่อนหน้า
-                </Link>
-                <div className="flex items-center gap-2">
-                  {pagination.safePage > 3 && (
-                    <span className="px-2">...</span>
-                  )}
-                  {Array.from(
-                    { length: Math.min(3, pagination.totalPages) },
-                    (_, i) => {
-                      const pageNum =
-                        i + Math.max(pagination.safePage - 1, 1);
-                      if (pageNum > pagination.totalPages) return null;
-                      return (
-                        <Link
-                          key={pageNum}
-                          href={`?page=${pageNum}&limit=${limit}`}
-                          className={`px-4 py-2 rounded flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium ${
-                            pagination.safePage === pageNum
-                              ? "bg-brand-500 text-white"
-                              : "text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
-                          }`}
-                        >
-                          {pageNum}
-                        </Link>
-                      );
-                    }
-                  )}
-                  {pagination.safePage < pagination.totalPages - 2 && (
-                    <span className="px-2">...</span>
-                  )}
-                </div>
-                <Link
-                  href={`?page=${Math.min(
-                    pagination.totalPages,
-                    pagination.safePage + 1
-                  )}&limit=${limit}`}
-                  className={`ml-2.5 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                    pagination.safePage >= pagination.totalPages
-                      ? "opacity-50 pointer-events-none"
-                      : ""
-                  }`}
-                >
-                  ถัดไป
-                </Link>
-              </div>
-            </div>
+            <PaginationFooter
+              page={pagination.safePage}
+              limit={limit}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+              summaryLocale="th"
+              summaryRange={{
+                from: pagination.start + 1,
+                to: Math.min(pagination.start + limit, pagination.total),
+              }}
+              hrefBuilder={paginationHref}
+            />
           )}
         </ComponentCard>
       </div>

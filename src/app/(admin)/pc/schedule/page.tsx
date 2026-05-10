@@ -5,6 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import Alert from "@/components/ui/alert/Alert";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import TimePicker from "@/components/ui/TimePicker";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
@@ -13,6 +14,7 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { apiFetch } from "@/utils/api";
 import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
+import { createPaginationHrefBuilder } from "@/lib/pagination";
 
 interface Product {
   id: number;
@@ -112,6 +114,11 @@ export default function PCSchedulePage() {
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
+
+  const paginationHref = useMemo(
+    () => createPaginationHrefBuilder(searchParams, limit),
+    [searchParams.toString(), limit],
+  );
 
   const fetchPlans = useCallback(async () => {
     try {
@@ -800,58 +807,22 @@ export default function PCSchedulePage() {
             </table>
           </div>
           
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                แสดง {((page - 1) * limit) + 1} ถึง {Math.min(page * limit, pagination.total)} จาก {pagination.total} รายการ
-              </div>
-              <div className="flex items-center">
-                <a 
-                  href={`?page=${Math.max(1, page - 1)}&limit=${limit}`} 
-                  className={`mr-2.5 flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                    page <= 1 ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  ก่อนหน้า
-                </a>
-                <div className="flex items-center gap-2">
-                  {page > 3 && <span className="px-2">...</span>}
-                  {Array.from({ length: Math.min(3, pagination.totalPages) }, (_, i) => {
-                    const pageNum = i + Math.max(page - 1, 1);
-                    if (pageNum > pagination.totalPages) return null;
-                    return (
-                      <a 
-                        key={pageNum} 
-                        href={`?page=${pageNum}&limit=${limit}`} 
-                        className={`px-4 py-2 rounded ${
-                          page === pageNum
-                            ? "bg-brand-500 text-white"
-                            : "text-gray-700 dark:text-gray-400"
-                        } flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500`}
-                      >
-                        {pageNum}
-                      </a>
-                    );
-                  })}
-                  {page < pagination.totalPages - 2 && <span className="px-2">...</span>}
-                </div>
-                <a 
-                  href={`?page=${Math.min(pagination.totalPages, page + 1)}&limit=${limit}`} 
-                  className={`ml-2.5 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                    page >= pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  ถัดไป
-                </a>
-              </div>
-            </div>
+          {pagination && (
+            <PaginationFooter
+              page={page}
+              limit={limit}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+              summaryLocale="th"
+              hrefBuilder={paginationHref}
+            />
           )}
         </ComponentCard>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-5xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-8 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">{editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -1004,8 +975,8 @@ export default function PCSchedulePage() {
       )}
 
       {showDetailModal && selectedPlan && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-3xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">รายละเอียดแผนการผลิต - {selectedPlan.planCode}</h3>
               <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -1114,8 +1085,8 @@ export default function PCSchedulePage() {
       )}
 
       {showInsufficientModal && insufficientMaterials.length > 0 && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border-2 border-red-500 dark:border-red-600 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in border-2 border-red-500 dark:border-red-600 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b border-red-200 dark:border-red-800">
               <div className="flex items-center gap-3">
                 <span className="text-4xl">⛔</span>

@@ -1,11 +1,13 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
+import { createPaginationHrefBuilder } from "@/lib/pagination";
 
 interface Material {
   id: number;
@@ -175,18 +177,17 @@ export default function PCPage() {
   const totalPages = apiResponse?.pagination?.totalPages ?? 1;
   const totalItems = apiResponse?.pagination?.total ?? 0;
 
-  const getVisiblePages = (current: number, total: number) => {
-    const maxButtons = 5;
-    const clampedCurrent = Math.min(Math.max(current, 1), total);
+  const paginationHref = useMemo(
+    () => createPaginationHrefBuilder(searchParams, limit),
+    [searchParams.toString(), limit],
+  );
 
-    const half = Math.floor(maxButtons / 2);
-    let start = Math.max(1, clampedCurrent - half);
-    let end = Math.min(total, start + maxButtons - 1);
-    start = Math.max(1, end - maxButtons + 1);
+  useEffect(() => {
+    setSearchValue(searchParams.get("search") ?? "");
+    setUnitValue(searchParams.get("unit") ?? "");
+    setStatusValue(searchParams.get("isActive") ?? "");
+  }, [searchParams.toString()]);
 
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-  };
-  
   useEffect(() => {
     if (showAddModal || showEditModal || showDeleteModal) {
       document.body.style.overflow = 'hidden';
@@ -414,38 +415,37 @@ export default function PCPage() {
     fetchData();
   }, [page, limit]);
 
+  const pageShellClass =
+    "-mx-4 flex min-h-[calc(100dvh-5.25rem)] flex-col gap-4 px-4 pb-2 md:-mx-6 md:px-6 md:pb-4";
+
   if (loading) {
     return (
-      <div>
+      <div className={pageShellClass}>
         <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
-        <div className="space-y-6">
-          <ComponentCard title="ข้อมูลวัตถุดิบ">
-            <div className="text-center py-8">กำลังโหลด...</div>
-          </ComponentCard>
-        </div>
+        <ComponentCard title="ข้อมูลวัตถุดิบ">
+          <div className="py-8 text-center">กำลังโหลด...</div>
+        </ComponentCard>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div>
+      <div className={pageShellClass}>
         <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
-        <div className="space-y-6">
-          <ComponentCard title="ข้อมูลวัตถุดิบ">
-            <div className="text-center py-8 text-red-500">
-              เกิดข้อผิดพลาด: {error}
-            </div>
-          </ComponentCard>
-        </div>
+        <ComponentCard title="ข้อมูลวัตถุดิบ">
+          <div className="py-8 text-center text-red-500">
+            เกิดข้อผิดพลาด: {error}
+          </div>
+        </ComponentCard>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className={pageShellClass}>
       <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
-      <div className="space-y-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {submitSuccess && (
           <Alert
             variant="success"
@@ -463,10 +463,11 @@ export default function PCPage() {
         )}
         
         <ComponentCard title={`วัตถุดิบทั้งหมด (${totalItems})`}>
-          <div className="flex flex-col gap-4 mb-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div className="mb-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <PaginationSelector currentLimit={limit} />
               <button
+                type="button"
                 onClick={() => {
                 setFormData({
                   matCode: '',
@@ -488,7 +489,7 @@ export default function PCPage() {
                 });
                 setShowAddModal(true);
               }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 w-full sm:w-auto justify-center"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 sm:w-auto"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -610,22 +611,22 @@ export default function PCPage() {
             </div>
           </div>
           {apiResponse?.data && apiResponse.data.length > 0 ? (
-            <div className="overflow-x-auto -mx-6 px-6">
-              <table className="w-full table-auto min-w-max">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">รหัสวัตถุดิบ</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ชื่อวัตถุดิบ</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">โมเดล</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ประเภทการส่ง</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ขนาดล็อต</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">หน่วย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">Scale</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ที่เก็บ</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">จุดขนถ่าย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ผู้จัดจำหน่าย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">สายการผลิต</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap sticky right-0 bg-gray-50 dark:bg-gray-800">จัดการ</th>
+            <div className="max-h-[min(70dvh,calc(100dvh-17rem))] overflow-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <table className="min-w-max w-full table-auto">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gray-50 shadow-sm dark:bg-gray-800">
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">รหัสวัตถุดิบ</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ชื่อวัตถุดิบ</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">โมเดล</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ประเภทการส่ง</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ขนาดล็อต</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">หน่วย</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">Scale</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ที่เก็บ</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">จุดขนถ่าย</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ผู้จัดจำหน่าย</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">สายการผลิต</th>
+                    <th className="sticky right-0 z-20 bg-gray-50 px-4 py-3 text-center text-sm font-medium whitespace-nowrap text-gray-900 shadow-[-4px_0_8px_-4px_rgba(0,0,0,.08)] dark:bg-gray-800 dark:text-white">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -645,7 +646,7 @@ export default function PCPage() {
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.loadingPoint?.name || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.supplier?.name || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.processLine?.name || '-'}</td>
-                      <td className="px-4 py-3 text-center whitespace-nowrap sticky right-0 bg-white dark:bg-gray-900">
+                      <td className="sticky right-0 z-10 bg-white px-4 py-3 text-center whitespace-nowrap shadow-[-4px_0_8px_-4px_rgba(0,0,0,.06)] dark:bg-gray-900">
                         <div className="flex items-center justify-center gap-2">
                           <button onClick={() => handleEdit(material)} className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -672,81 +673,22 @@ export default function PCPage() {
               </div>
             </div>
           )}
-          
-          {apiResponse?.pagination && totalPages > 1 && (
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Showing {Math.min(((page - 1) * limit) + 1, totalItems)} to {Math.min(page * limit, totalItems)} of {totalItems} results
-              </div>
-              <div className="flex items-center justify-between lg:justify-end gap-2">
-                <a
-                  href={`?page=${Math.max(1, page - 1)}&limit=${limit}`}
-                  aria-disabled={page <= 1}
-                  className={`flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                    page <= 1 ? 'opacity-50 pointer-events-none' : ''
-                  }`}
-                >
-                  Previous
-                </a>
 
-                <div className="flex items-center gap-1">
-                  {getVisiblePages(page, totalPages)[0] > 1 && (
-                    <>
-                      <a
-                        href={`?page=1&limit=${limit}`}
-                        className="flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
-                      >
-                        1
-                      </a>
-                      <span className="px-1 text-gray-400">…</span>
-                    </>
-                  )}
-
-                  {getVisiblePages(page, totalPages).map((pageNum) => (
-                    <a
-                      key={pageNum}
-                      href={`?page=${pageNum}&limit=${limit}`}
-                      className={`flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium ${
-                        page === pageNum
-                          ? "bg-brand-500 text-white"
-                          : "text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
-                      }`}
-                    >
-                      {pageNum}
-                    </a>
-                  ))}
-
-                  {getVisiblePages(page, totalPages).slice(-1)[0] < totalPages && (
-                    <>
-                      <span className="px-1 text-gray-400">…</span>
-                      <a
-                        href={`?page=${totalPages}&limit=${limit}`}
-                        className="flex w-10 items-center justify-center h-10 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-400 hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500"
-                      >
-                        {totalPages}
-                      </a>
-                    </>
-                  )}
-                </div>
-
-                <a
-                  href={`?page=${Math.min(totalPages, page + 1)}&limit=${limit}`}
-                  aria-disabled={page >= totalPages}
-                  className={`flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${
-                    page >= totalPages ? 'opacity-50 pointer-events-none' : ''
-                  }`}
-                >
-                  Next
-                </a>
-              </div>
-            </div>
+          {apiResponse?.pagination && (
+            <PaginationFooter
+              page={page}
+              limit={limit}
+              total={totalItems}
+              totalPages={totalPages}
+              hrefBuilder={paginationHref}
+            />
           )}
         </ComponentCard>
       </div>
       
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">เพิ่มวัตถุดิบใหม่</h3>
               <button 
@@ -1003,8 +945,8 @@ export default function PCPage() {
       )}
       
       {showEditModal && editingMaterial && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">แก้ไขวัตถุดิบ</h3>
               <button 
@@ -1280,8 +1222,8 @@ export default function PCPage() {
       )}
       
       {showDeleteModal && deletingMaterial && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white">ยืนยันการลบ</h3>
               <button 

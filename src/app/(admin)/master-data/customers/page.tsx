@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
+import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
 
@@ -144,38 +145,21 @@ function PageContent() {
             </table>
           </div>
           
-          {apiResponse?.pagination && apiResponse.pagination.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, apiResponse.pagination.total)} of {apiResponse.pagination.total} results
-              </div>
-              <div className="flex items-center">
-                <a href={`?page=${Math.max(1, page - 1)}&limit=${limit}`} className={`mr-2 flex items-center h-8 justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-700 hover:bg-gray-50 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${page <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  Previous
-                </a>
-                <div className="flex items-center gap-1.5">
-                  {Array.from({ length: Math.min(5, apiResponse.pagination.totalPages) }, (_, i) => {
-                    const pageNum = i + Math.max(page - 2, 1);
-                    if (pageNum > apiResponse.pagination.totalPages) return null;
-                    return (
-                      <a key={pageNum} href={`?page=${pageNum}&limit=${limit}`} className={`rounded ${page === pageNum ? "bg-brand-500 text-white" : "text-gray-700 dark:text-gray-400"} flex w-8 items-center justify-center h-8 rounded-lg text-xs font-medium hover:bg-blue-500/[0.08] hover:text-brand-500 dark:hover:text-brand-500`}>
-                        {pageNum}
-                      </a>
-                    );
-                  })}
-                </div>
-                <a href={`?page=${Math.min(apiResponse.pagination.totalPages, page + 1)}&limit=${limit}`} className={`ml-2 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-700 text-xs hover:bg-gray-50 h-8 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] ${page >= apiResponse.pagination.totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  Next
-                </a>
-              </div>
-            </div>
+          {apiResponse?.pagination && (
+            <PaginationFooter
+              size="sm"
+              page={page}
+              limit={limit}
+              total={apiResponse.pagination.total}
+              totalPages={apiResponse.pagination.totalPages}
+            />
           )}
         </ComponentCard>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-md border border-gray-200 dark:border-gray-700">
             <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingItem ? "แก้ไข" : "เพิ่ม"}ลูกค้า</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>

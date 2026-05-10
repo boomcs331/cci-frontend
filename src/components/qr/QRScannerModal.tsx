@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect } from "react";
 import { QrCodeLookupPanel } from "@/components/qr/QrCodeLookupPanel";
@@ -35,14 +35,14 @@ export default function QRScannerModal({ isOpen, onClose, contextHint }: QRScann
 
   return (
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
       role="presentation"
     >
       <div
-        className="max-h-[min(94vh,920px)] w-full max-w-5xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+        className="max-h-[min(94vh,920px)] w-full max-w-5xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-cci-popup animate-cci-modal-in dark:border-gray-700 dark:bg-gray-800"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

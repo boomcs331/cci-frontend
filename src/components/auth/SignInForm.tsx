@@ -38,7 +38,7 @@ export default function SignInForm() {
       setAlert({
         variant: "error",
         title: "ไม่มีสิทธิ์เข้าใช้งาน",
-        message: "กรุณาเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์",
+        message: "กรุณาเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์ถูกต้อง",
       });
     }
   }, [searchParams]);

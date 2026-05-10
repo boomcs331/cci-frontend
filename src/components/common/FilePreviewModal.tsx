@@ -43,8 +43,8 @@ export default function FilePreviewModal({ files, initialIndex, onClose }: FileP
   const isPDF = (fileName: string) => /\.pdf$/i.test(fileName);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in z-[99999] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in overflow-hidden" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
