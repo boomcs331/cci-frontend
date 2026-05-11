@@ -99,10 +99,10 @@ function AddReceivingModalInner({
   );
 
   return (
-    <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">รับวัตถุดิบเข้า</h3>
+    <div className="fixed inset-0 z-[99999] flex animate-cci-backdrop-in items-center justify-center bg-gray-900/70 p-3 backdrop-blur-sm sm:p-4">
+      <div className="animate-cci-modal-in max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-cci-popup dark:border-gray-700 dark:bg-gray-800 sm:max-h-[90vh]">
+        <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">รับวัตถุดิบเข้า</h3>
           <button 
             onClick={onClose} 
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -113,9 +113,9 @@ function AddReceivingModalInner({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+        <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(92vh - 72px)" }}>
           <form onSubmit={onSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วัตถุดิบ *</label>
                 <div className="relative">
@@ -207,7 +207,7 @@ function AddReceivingModalInner({
                   disabled
                 />
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต (MFG Date) *</label>
                 <div className="relative">
                   <input 
@@ -238,7 +238,7 @@ function AddReceivingModalInner({
                   <p className="mt-1 text-xs text-red-600 dark:text-red-400">{mfgDateError}</p>
                 )}
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">เลขที่ PO</label>
                 <input 
                   type="text" 
@@ -247,7 +247,7 @@ function AddReceivingModalInner({
                   className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
                 />
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">หมายเหตุ</label>
                 <textarea 
                   value={remark} 
@@ -258,21 +258,24 @@ function AddReceivingModalInner({
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
-              <button 
-                type="submit" 
-                disabled={submitLoading || !!validateMfgDate(mfgDate ?? '')} 
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded"
-                onClick={() => { setMfgDateTouched(true); setMfgDateError(validateMfgDate(mfgDate ?? '')); }}
-              >
-                {submitLoading ? 'กำลังบันทึก...' : 'บันทึก'}
-              </button>
-              <button 
-                type="button" 
-                onClick={onClose} 
-                className="px-6 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded"
+            <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-stretch">
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-11 rounded-xl bg-gray-500 px-6 text-sm font-medium text-white hover:bg-gray-600 sm:w-auto sm:shrink-0"
               >
                 ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={submitLoading || !!validateMfgDate(mfgDate ?? "")}
+                className="h-11 flex-1 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-400"
+                onClick={() => {
+                  setMfgDateTouched(true);
+                  setMfgDateError(validateMfgDate(mfgDate ?? ""));
+                }}
+              >
+                {submitLoading ? "กำลังบันทึก..." : "บันทึก"}
               </button>
             </div>
           </form>

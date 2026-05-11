@@ -7,7 +7,7 @@ import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
-import { apiFetch } from "@/utils/api";
+import { apiFetch, getApiBaseUrl } from "@/utils/api";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
 
 interface Material {
@@ -80,6 +80,8 @@ interface Material {
     id: number;
     name: string;
   };
+  /** Path จาก API อัปโหลด เช่น uploads/material-workpieces/xxx.jpg */
+  workpieceImagePath?: string | null;
   stock: {
     materialId: number;
     totalQty: number;
@@ -111,6 +113,12 @@ interface ApiResponse {
     totalPages: number;
   };
   timestamp: string;
+}
+
+function workpieceImageUrl(path: string | null | undefined): string | null {
+  if (!path?.trim()) return null;
+  const base = getApiBaseUrl().replace(/\/$/, "");
+  return `${base}/${path.replace(/^\//, "")}`;
 }
 
 async function getMaterials(page: number = 1, limit: number = 10, filters: any = {}): Promise<ApiResponse> {
@@ -171,7 +179,27 @@ export default function PCPage() {
     minStock: 0,
     createBy: ''
   });
-  
+  const [addWorkpieceFile, setAddWorkpieceFile] = useState<File | null>(null);
+  const [addWorkpiecePreviewUrl, setAddWorkpiecePreviewUrl] = useState<string | null>(null);
+  const [editWorkpieceFile, setEditWorkpieceFile] = useState<File | null>(null);
+  const [editWorkpiecePreviewUrl, setEditWorkpiecePreviewUrl] = useState<string | null>(null);
+
+  const setAddWorkpieceFromInput = (file: File | null) => {
+    setAddWorkpiecePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+    setAddWorkpieceFile(file);
+  };
+
+  const setEditWorkpieceFromInput = (file: File | null) => {
+    setEditWorkpiecePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+    setEditWorkpieceFile(file);
+  };
+
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
 
@@ -199,7 +227,27 @@ export default function PCPage() {
       document.body.style.overflow = 'unset';
     };
   }, [showAddModal, showEditModal, showDeleteModal]);
-  
+
+  useEffect(() => {
+    if (!showAddModal) {
+      setAddWorkpieceFile(null);
+      setAddWorkpiecePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    }
+  }, [showAddModal]);
+
+  useEffect(() => {
+    if (!showEditModal) {
+      setEditWorkpieceFile(null);
+      setEditWorkpiecePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    }
+  }, [showEditModal]);
+
   const getMaterialTypes = async () => {
     const response = await apiFetch('/masters/materials-types/all');
     const result = await response.json();
@@ -268,6 +316,11 @@ export default function PCPage() {
       minStock: material.minStock || 0,
       createBy: material.createBy
     });
+    setEditWorkpieceFile(null);
+    setEditWorkpiecePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setShowEditModal(true);
   };
   
@@ -304,8 +357,32 @@ export default function PCPage() {
     e.preventDefault();
     setSubmitError(null);
     setSubmitSuccess(null);
-    
+
+    if (!addWorkpieceFile) {
+      setSubmitError("กรุณาแนบรูปภาพชิ้นงาน");
+      return;
+    }
+
     try {
+      const fd = new FormData();
+      fd.append("file", addWorkpieceFile);
+      const uploadRes = await apiFetch("/materials/upload/workpiece-image", {
+        method: "POST",
+        body: fd,
+      });
+      const uploadJson = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok || uploadJson?.success === false) {
+        setSubmitError(
+          typeof uploadJson?.message === "string" ? uploadJson.message : "อัปโหลดรูปภาพไม่สำเร็จ",
+        );
+        return;
+      }
+      const imagePath = uploadJson?.data?.filePath as string | undefined;
+      if (!imagePath?.trim()) {
+        setSubmitError("อัปโหลดรูปภาพไม่สำเร็จ");
+        return;
+      }
+
       const payload: any = {
         matCode: formData.matCode,
         matName: formData.name,
@@ -315,7 +392,8 @@ export default function PCPage() {
         lotSize: formData.lotSize,
         minStock: formData.minStock || 0,
         isActive: true,
-        createBy: currentUser
+        createBy: currentUser,
+        workpieceImagePath: imagePath,
       };
 
       if (formData.supplierId && formData.supplierId > 0) payload.supplierId = formData.supplierId;
@@ -618,6 +696,7 @@ export default function PCPage() {
                   <tr className="bg-gray-50 shadow-sm dark:bg-gray-800">
                     <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">รหัสวัตถุดิบ</th>
                     <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ชื่อวัตถุดิบ</th>
+                    <th className="px-4 py-3 text-center text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">รูปชิ้นงาน</th>
                     <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">โมเดล</th>
                     <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ประเภทการส่ง</th>
                     <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ขนาดล็อต</th>
@@ -632,15 +711,24 @@ export default function PCPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {apiResponse.data.length === 0 ? (
-                    <TableEmptyRow colSpan={12} />
+                    <TableEmptyRow colSpan={13} />
                   ) : (
-                    apiResponse.data.map((material, idx) => (
+                    apiResponse.data.map((material, idx) => {
+                      const wpSrc = workpieceImageUrl(material.workpieceImagePath);
+                      return (
                       <tr
                         key={material.id}
                         className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${idx % 2 === 1 ? "bg-gray-50/40 dark:bg-gray-900/20" : ""}`}
                       >
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
+                        <td className="px-4 py-3 text-center align-middle">
+                          {wpSrc ? (
+                            <img src={wpSrc} alt="" className="mx-auto h-10 w-10 rounded border border-gray-200 object-cover dark:border-gray-600" />
+                          ) : (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.deliveryType?.name || '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.lotSize?.toLocaleString() || '0'}</td>
@@ -665,7 +753,8 @@ export default function PCPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   )}
                 </tbody>
               </table>
@@ -735,6 +824,22 @@ export default function PCPage() {
                   className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
                   required 
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  รูปภาพชิ้นงาน <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
+                  onChange={(e) => setAddWorkpieceFromInput(e.target.files?.[0] ?? null)}
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
+                {addWorkpiecePreviewUrl ? (
+                  <img src={addWorkpiecePreviewUrl} alt="" className="mt-2 max-h-40 rounded-lg border border-gray-200 dark:border-gray-600" />
+                ) : null}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -968,7 +1073,28 @@ export default function PCPage() {
               <form onSubmit={async (e) => {
               e.preventDefault();
               try {
-                const updateData = {
+                let newWorkpiecePath: string | undefined;
+                if (editWorkpieceFile) {
+                  const fd = new FormData();
+                  fd.append("file", editWorkpieceFile);
+                  const up = await apiFetch("/materials/upload/workpiece-image", { method: "POST", body: fd });
+                  const upJson = await up.json().catch(() => ({}));
+                  if (!up.ok || upJson?.success === false) {
+                    setSubmitError(
+                      typeof upJson?.message === "string" ? upJson.message : "อัปโหลดรูปภาพไม่สำเร็จ",
+                    );
+                    setTimeout(() => setSubmitError(null), 5000);
+                    return;
+                  }
+                  const p = upJson?.data?.filePath as string | undefined;
+                  if (!p?.trim()) {
+                    setSubmitError("อัปโหลดรูปภาพไม่สำเร็จ");
+                    setTimeout(() => setSubmitError(null), 5000);
+                    return;
+                  }
+                  newWorkpiecePath = p;
+                }
+                const updateData: Record<string, unknown> = {
                   matCode: formData.matCode,
                   matName: formData.name || '',
                   description: formData.description || '',
@@ -986,6 +1112,9 @@ export default function PCPage() {
                   minStock: formData.minStock || 0,
                   isActive: true
                 };
+                if (newWorkpiecePath) {
+                  updateData.workpieceImagePath = newWorkpiecePath;
+                }
                 const response = await apiFetch(`/materials/${editingMaterial.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
@@ -1034,6 +1163,26 @@ export default function PCPage() {
                   className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
                   required 
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รูปภาพชิ้นงาน</label>
+                {(() => {
+                  const existingSrc = workpieceImageUrl(editingMaterial.workpieceImagePath);
+                  const preview = editWorkpiecePreviewUrl || existingSrc;
+                  return preview ? (
+                    <img src={preview} alt="" className="mb-2 max-h-36 rounded-lg border border-gray-200 dark:border-gray-600" />
+                  ) : (
+                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">ยังไม่มีรูป — เลือกไฟล์ด้านล่างเพื่อเพิ่ม</p>
+                  );
+                })()}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
+                  onChange={(e) => setEditWorkpieceFromInput(e.target.files?.[0] ?? null)}
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">เว้นว่างเพื่อคงรูปเดิม — JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

@@ -65,12 +65,6 @@ const items = [
     icon: <FontAwesomeIcon icon={faSitemap} />,
   },
   {
-    name: "สแกนติดตามการผลิต",
-    path: "/pc/production-step-scan",
-    description: "สแกน QR ติดตามขั้นตอน",
-    icon: <FontAwesomeIcon icon={faQrcode} />,
-  },
-  {
     name: "ยิง QR ตามแผนก",
     path: "/production/dept-step-scan",
     description: "ทางลัดไปหน้าสแกนตามแผนก (Production)",

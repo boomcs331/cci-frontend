@@ -59,12 +59,6 @@ const items = [
     icon: <FontAwesomeIcon icon={faBoxesStacked} />,
   },
   {
-    name: "จองสินค้าเพื่อขาย",
-    path: "/production/sales-reservations",
-    description: "จองยอดจากสต็อกพร้อมขาย",
-    icon: <FontAwesomeIcon icon={faCartShopping} />,
-  },
-  {
     name: "ติดตามสถานะการผลิต",
     path: "/pc/production-tracking",
     description: "มุมมองติดตาม (ฝั่งสายการผลิต)",

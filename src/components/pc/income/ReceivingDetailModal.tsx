@@ -66,10 +66,10 @@ export default function ReceivingDetailModal({
     .map((x: any) => x.lot);
 
   return (
-    <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-4xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white">รายละเอียดการรับเข้า</h3>
+    <div className="fixed inset-0 z-[99999] flex animate-cci-backdrop-in items-center justify-center bg-gray-900/70 p-3 backdrop-blur-sm sm:p-4">
+      <div className="animate-cci-modal-in max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-cci-popup dark:border-gray-700 dark:bg-gray-800 sm:max-h-[90vh]">
+        <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-4">
+          <h3 className="truncate pr-2 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">รายละเอียดการรับเข้า</h3>
           <button 
             onClick={onClose} 
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -80,24 +80,41 @@ export default function ReceivingDetailModal({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
-          <div className="grid grid-cols-2 gap-4">
-            <div><span className="font-medium">เลขที่ใบรับ:</span> {receiving.receivingNo}</div>
-            <div><span className="font-medium">วันที่รับ:</span> {new Date(receiving.receivingDate).toLocaleString('th-TH')}</div>
-            <div><span className="font-medium">วัตถุดิบ:</span> {receiving.material?.matCode} - {receiving.material?.matName}</div>
-            <div><span className="font-medium">ซัพพลายเออร์:</span> {receiving.supplier?.name || '-'}</div>
-            <div><span className="font-medium">จำนวนรวม:</span> {parseFloat(receiving.totalQuantity).toLocaleString()} {receiving.unit}</div>
-            <div><span className="font-medium">PO:</span> {receiving.poNo || '-'}</div>
+        <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(92vh - 72px)" }}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="text-sm">
+              <span className="font-medium">เลขที่ใบรับ:</span> {receiving.receivingNo}
+            </div>
+            <div className="text-sm">
+              <span className="font-medium">วันที่รับ:</span> {new Date(receiving.receivingDate).toLocaleString("th-TH")}
+            </div>
+            <div className="text-sm sm:col-span-2">
+              <span className="font-medium">วัตถุดิบ:</span> {receiving.material?.matCode} - {receiving.material?.matName}
+            </div>
+            <div className="text-sm">
+              <span className="font-medium">ซัพพลายเออร์:</span> {receiving.supplier?.name || "-"}
+            </div>
+            <div className="text-sm">
+              <span className="font-medium">จำนวนรวม:</span> {parseFloat(receiving.totalQuantity).toLocaleString()} {receiving.unit}
+            </div>
+            <div className="text-sm">
+              <span className="font-medium">PO:</span> {receiving.poNo || "-"}
+            </div>
             {receiving.lots?.[0]?.incomeSupplireDate && (
-              <div><span className="font-medium">วันที่ผลิต:</span> {new Date(receiving.lots[0].incomeSupplireDate).toLocaleDateString('th-TH')}</div>
+              <div className="text-sm">
+                <span className="font-medium">วันที่ผลิต:</span>{" "}
+                {new Date(receiving.lots[0].incomeSupplireDate).toLocaleDateString("th-TH")}
+              </div>
             )}
-            <div className="col-span-2"><span className="font-medium">หมายเหตุ:</span> {receiving.remark || '-'}</div>
+            <div className="text-sm sm:col-span-2">
+              <span className="font-medium">หมายเหตุ:</span> {receiving.remark || "-"}
+            </div>
           </div>
 
-          <div className="border-t pt-4 mt-4">
-            <h4 className="font-semibold mb-3">รายการ Lot ({receiving.lots?.length || 0})</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="mt-4 border-t pt-4">
+            <h4 className="mb-3 font-semibold">รายการ Lot ({receiving.lots?.length || 0})</h4>
+            <div className="-mx-1 overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-700 sm:mx-0">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <th className="px-3 py-2 text-left">Lot No</th>
@@ -118,11 +135,8 @@ export default function ReceivingDetailModal({
                       <td className="px-3 py-2">{lot.lotNo}</td>
                       <td className="px-3 py-2">{lot.lotPdNo}</td>
                       <td className="px-3 py-2 text-center">
-                        <div 
-                          className="inline-block cursor-pointer hover:opacity-80"
-                          onClick={() => onViewQR(lot)}
-                        >
-                          <QRCodeGenerator value={lot.qrCode} size={80} className="mx-auto" />
+                        <div className="inline-block cursor-pointer hover:opacity-80" onClick={() => onViewQR(lot)}>
+                          <QRCodeGenerator value={lot.qrCode} size={72} className="mx-auto" />
                         </div>
                       </td>
                       <td className="px-3 py-2 text-sm">

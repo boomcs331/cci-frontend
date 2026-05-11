@@ -20,6 +20,8 @@ export default function StockQuickCheckFab() {
   );
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("qrMaterial");
+  /** แถบไอคอนลอย: เริ่มต้นหุบ — แสดงเฉพาะปุ่มเปิด/ปิดกลุ่มทางลัด */
+  const [stackOpen, setStackOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -70,68 +72,94 @@ export default function StockQuickCheckFab() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-[9990] flex flex-col items-center gap-3 md:bottom-8 md:right-8">
-        <Link
-          href="/production/dept-step-scan"
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-sky-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400/40"
-          title="ยิง QR ตามแผนก (เปิดหน้าเต็ม)"
-          aria-label="ไปหน้ายิง QR ตามแผนก"
-        >
-          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 7V5a2 2 0 012-2h2M7 21H5a2 2 0 01-2-2v-2m16-10V5a2 2 0 00-2-2h-2m0 18h2a2 2 0 002-2v-2M7 7h.01M12 7h.01M17 7h.01M7 12h.01M12 12h.01M17 12h.01M7 17h.01M12 17h.01M17 17h.01"
-            />
-          </svg>
-        </Link>
+      <nav
+        className="fixed bottom-6 right-6 z-[9990] flex flex-col items-center gap-3 md:bottom-8 md:right-8"
+        aria-label="ทางลัดด่วน QR และยอดคงเหลือ"
+      >
+        {stackOpen ? (
+          <>
+            <Link
+              href="/production/dept-step-scan"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-sky-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-400/40"
+              title="ยิง QR ตามแผนก (เปิดหน้าเต็ม)"
+              aria-label="ไปหน้ายิง QR ตามแผนก"
+            >
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7V5a2 2 0 012-2h2M7 21H5a2 2 0 01-2-2v-2m16-10V5a2 2 0 00-2-2h-2m0 18h2a2 2 0 002-2v-2M7 7h.01M12 7h.01M17 7h.01M7 12h.01M12 12h.01M17 12h.01M7 17h.01M12 17h.01M17 17h.01"
+                />
+              </svg>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-brand-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-400/40"
+              title={"\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a QR / \u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d \u2014 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a / \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"}
+              aria-label={"\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a QR / \u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d \u2014 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a / \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"}
+            >
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                />
+              </svg>
+            </button>
+
+            <Link
+              href="/production/product-stock"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-lg shadow-violet-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-violet-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400/40"
+              title={"\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 (\u0e40\u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e15\u0e47\u0e21)"}
+              aria-label={"\u0e44\u0e1b\u0e2b\u0e19\u0e49\u0e32\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"}
+            >
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
+              </svg>
+            </Link>
+
+            <Link
+              href="/pc/stock"
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/40"
+              title={"\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a (\u0e40\u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e15\u0e47\u0e21)"}
+              aria-label={"\u0e44\u0e1b\u0e2b\u0e19\u0e49\u0e32\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a"}
+            >
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+            </Link>
+          </>
+        ) : null}
 
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-brand-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-400/40"
-          title={"\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a QR / \u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d \u2014 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a / \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"}
-          aria-label={"\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a QR / \u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d \u2014 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a / \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"}
+          onClick={() => setStackOpen((v) => !v)}
+          aria-expanded={stackOpen}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-lg shadow-slate-900/30 transition hover:scale-105 hover:shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-400/40 dark:from-slate-500 dark:to-slate-700"
+          title={stackOpen ? "หุบเมนูทางลัด" : "เปิดเมนูทางลัด (QR / ยอดคงเหลือ)"}
+          aria-label={stackOpen ? "หุบเมนูทางลัด" : "เปิดเมนูทางลัด"}
         >
-          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-            />
-          </svg>
+          {stackOpen ? (
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          ) : (
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+            </svg>
+          )}
         </button>
-
-        <Link
-          href="/production/product-stock"
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-lg shadow-violet-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-violet-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400/40"
-          title={"\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32 (\u0e40\u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e15\u0e47\u0e21)"}
-          aria-label={"\u0e44\u0e1b\u0e2b\u0e19\u0e49\u0e32\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32"}
-        >
-          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-            />
-          </svg>
-        </Link>
-
-        <Link
-          href="/pc/stock"
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/35 transition hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400/40"
-          title={"\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a (\u0e40\u0e1b\u0e34\u0e14\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e15\u0e47\u0e21)"}
-          aria-label={"\u0e44\u0e1b\u0e2b\u0e19\u0e49\u0e32\u0e22\u0e2d\u0e14\u0e04\u0e07\u0e40\u0e2b\u0e25\u0e37\u0e2d\u0e27\u0e31\u0e15\u0e16\u0e38\u0e14\u0e34\u0e1a"}
-        >
-          <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-            />
-          </svg>
-        </Link>
-      </div>
+      </nav>
 
       {open ? (
         <div

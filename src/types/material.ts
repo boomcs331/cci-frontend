@@ -14,6 +14,8 @@ export interface Material {
   updateDate: string | null;
   updateBy: string | null;
   supplierId?: number;
+  /** Path รูปชิ้นงานจาก API อัปโหลด */
+  workpieceImagePath?: string | null;
   itemsName?: ItemsName;
   supplier?: Supplier;
   materialType?: MaterialType;

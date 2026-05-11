@@ -41,6 +41,7 @@ const SESSION_TIMEOUT = 3600000; // 1 hour
  * บันทึก session พร้อมกำหนดเวลาหมดอายุ
  */
 export function setSession(data: SessionData): void {
+  if (typeof window === 'undefined') return;
   const sessionData: SessionData = {
     ...data,
     expiresAt: Date.now() + SESSION_TIMEOUT,
@@ -52,6 +53,7 @@ export function setSession(data: SessionData): void {
  * ดึงข้อมูล session และตรวจสอบว่าหมดอายุหรือไม่
  */
 export function getSession(): SessionData | null {
+  if (typeof window === 'undefined') return null;
   try {
     const sessionStr = localStorage.getItem('session');
     if (!sessionStr) return null;
@@ -76,6 +78,7 @@ export function getSession(): SessionData | null {
  * ลบ session
  */
 export function clearSession(): void {
+  if (typeof window === 'undefined') return;
   localStorage.removeItem('session');
 }
 

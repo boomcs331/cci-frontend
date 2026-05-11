@@ -145,20 +145,27 @@ export default function PrintAllQRModal({ show, onClose, receiving }: PrintAllQR
     .map((x: any) => x.lot);
 
   return (
-    <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4" id="print-modal">
-      <div className="bg-white rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-6xl max-h-[90vh] overflow-hidden">
-        <div className="sticky top-0 bg-white px-6 py-4 border-b flex justify-between items-center print:hidden">
-          <h3 className="text-xl font-semibold">พิมพ์สติ๊กเกอร์ QR Code - {receiving.receivingNo}</h3>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => window.print()} 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    <div
+      className="fixed inset-0 z-[99999] flex animate-cci-backdrop-in items-center justify-center bg-gray-900/70 p-3 backdrop-blur-sm sm:p-4"
+      id="print-modal"
+    >
+      <div className="animate-cci-modal-in max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-xl bg-white shadow-cci-popup sm:max-h-[90vh]">
+        <div className="sticky top-0 flex flex-col gap-3 border-b bg-white px-4 py-3 print:hidden sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <h3 className="truncate text-base font-semibold sm:pr-4 sm:text-xl">
+            พิมพ์สติ๊กเกอร์ QR Code - {receiving.receivingNo}
+          </h3>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="h-11 w-full rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 sm:w-auto"
             >
               พิมพ์
             </button>
-            <button 
-              onClick={onClose} 
-              className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 sm:w-auto sm:p-1"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -167,8 +174,8 @@ export default function PrintAllQRModal({ show, onClose, receiving }: PrintAllQR
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}} id="print-content">
-          <div className="grid grid-cols-5 gap-3" id="qr-grid">
+        <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(92vh - 100px)" }} id="print-content">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5" id="qr-grid">
             {sortedLots.map((lot: any) => (
               <div key={lot.id} className="qr-sticker border border-gray-300 p-2 rounded bg-white text-center break-inside-avoid">
                 <div className="bg-white p-1 inline-block mb-1">

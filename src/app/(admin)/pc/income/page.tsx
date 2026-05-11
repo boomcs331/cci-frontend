@@ -100,7 +100,6 @@ export default function PCIncomePage() {
         setMaterials(matsData.data || []);
         setLocations(locsData.data || []);
         setSuppliers(suppsData.data || []);
-        console.log('Locations:', locsData);
       } catch (err) {
         console.error(err);
       } finally {
@@ -209,72 +208,93 @@ export default function PCIncomePage() {
 
   if (loading) {
     return (
-      <div>
+      <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-4 lg:px-6">
         <PageBreadcrumb pageTitle="รายการรับเข้า" />
         <ComponentCard title="รายการรับเข้าวัตถุดิบ">
-          <div className="text-center py-8">กำลังโหลด...</div>
+          <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">กำลังโหลด...</div>
         </ComponentCard>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-4 lg:px-6">
       <PageBreadcrumb pageTitle="รายการรับเข้า" />
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">รายการรับเข้าวัตถุดิบ</h2>
-          </div>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="rounded-xl border border-gray-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-gray-800/90 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">รายการรับเข้าวัตถุดิบ</h2>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
+            กรองตามวัตถุดิบ ซัพพลายเออร์ และช่วงวันที่ — บันทึกรับเข้าใหม่จากปุ่มด้านล่าง
+          </p>
         </div>
 
         <ComponentCard title={`รายการรับเข้าวัตถุดิบ (${pagination?.total || 0})`}>
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-5 gap-3">
-            <input
-              type="text"
-              placeholder="ค้นหา (เลขที่ใบรับ, PO)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
-            <select
-              value={filterMaterial}
-              onChange={(e) => setFilterMaterial(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">ทุกวัตถุดิบ</option>
-              {materials.map(m => <option key={m.id} value={m.id}>{m.matCode}</option>)}
-            </select>
-            <select
-              value={filterSupplier}
-              onChange={(e) => setFilterSupplier(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">ทุกซัพพลายเออร์</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="วันที่เริ่มต้น"
-            />
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="วันที่สิ้นสุด"
-            />
+          <div className="mb-4 space-y-3 rounded-xl border border-gray-200/80 bg-gray-50/50 p-3 dark:border-gray-700 dark:bg-gray-900/30 sm:p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <input
+                type="text"
+                placeholder="ค้นหา (เลขที่ใบรับ, PO)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+              <select
+                value={filterMaterial}
+                onChange={(e) => setFilterMaterial(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="">ทุกวัตถุดิบ</option>
+                {materials.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.matCode}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterSupplier}
+                onChange={(e) => setFilterSupplier(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white sm:col-span-2 lg:col-span-1"
+              >
+                <option value="">ทุกซัพพลายเออร์</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">วันที่เริ่ม</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">วันที่สิ้นสุด</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <PaginationSelector currentLimit={limit} />
             <button
-              onClick={() => { resetForm(); setShowAddModal(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              type="button"
+              onClick={() => {
+                resetForm();
+                setShowAddModal(true);
+              }}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:w-auto"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               รับเข้า

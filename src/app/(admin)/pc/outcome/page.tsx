@@ -303,61 +303,83 @@ export default function PCOutcomePage() {
 
   if (loading) {
     return (
-      <div>
+      <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-4 lg:px-6">
         <PageBreadcrumb pageTitle="รายการจ่ายออก" />
         <ComponentCard title="รายการจ่ายออก">
-          <div className="text-center py-8">กำลังโหลด...</div>
+          <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">กำลังโหลด...</div>
         </ComponentCard>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-4 lg:px-6">
       <PageBreadcrumb pageTitle="รายการจ่ายออก" />
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">รายการจ่ายออกวัตถุดิบ</h2>
-          </div>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="rounded-xl border border-gray-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-gray-800/90 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">รายการจ่ายออกวัตถุดิบ</h2>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
+            ติดตามใบจ่าย FIFO และเปิดตรวจ QR ล็อตวัตถุดิบได้จากปุ่มด้านล่าง
+          </p>
         </div>
 
         <ComponentCard title={`รายการจ่ายออก (${pagination?.total || 0})`}>
-          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mb-4 text-xs leading-relaxed text-gray-600 dark:text-gray-400 sm:text-sm">
             <span className="font-medium text-gray-800 dark:text-gray-200">ตรวจสอบ QR (วัตถุดิบ):</span>{" "}
-            ปุ่มสีเขียวด้านล่างเปิดช่องกรอกหรือวางค่า QR ล็อตวัตถุดิบ (เช่น จากใบรับเข้า FIFO) แล้วแสดงคงเหลือและสถานะ — ใช้ตรวจก่อนหรือหลังจ่ายออกที่หน้านี้
+            ปุ่มสีเขียวเปิดช่องกรอกหรือวางค่า QR ล็อต (เช่น จากใบรับเข้า FIFO) แล้วแสดงคงเหลือและสถานะ
           </p>
-          <div className="flex justify-between items-center mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <PaginationSelector currentLimit={limit} />
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <button
                 type="button"
                 onClick={() => setShowScanner(true)}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 sm:w-auto"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                 </svg>
                 ตรวจสอบ QR
               </button>
-              <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                จ่ายออก (FIFO)
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:w-auto"
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="sm:inline">จ่ายออก</span>
+                <span className="hidden sm:inline"> (FIFO)</span>
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full table-auto">
+          <div className="-mx-1 overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-700 sm:mx-0">
+            <table className="w-full min-w-[760px] table-auto text-left">
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">เลขที่ใบจ่าย</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่จ่าย</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วัตถุดิบ</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">แผนก</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Work Order</th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">เอกสาร</th>
+                <tr className="border-b border-gray-200 bg-gray-50/90 dark:border-gray-700 dark:bg-gray-800/90">
+                  <th className="sticky left-0 z-[1] whitespace-nowrap bg-gray-50/95 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-800/95 dark:text-gray-300 sm:px-4 sm:text-sm">
+                    เลขที่ใบจ่าย
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
+                    วันที่จ่าย
+                  </th>
+                  <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
+                    วัตถุดิบ
+                  </th>
+                  <th className="hidden px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 md:table-cell sm:px-4 sm:text-sm">
+                    แผนก
+                  </th>
+                  <th className="hidden px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 lg:table-cell sm:px-4 sm:text-sm">
+                    Work Order
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
+                    จำนวน
+                  </th>
+                  <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
+                    เอกสาร
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -365,59 +387,79 @@ export default function PCOutcomePage() {
                   <TableEmptyRow colSpan={7} />
                 ) : (
                   outcomes.map((out) => (
-                    <tr key={out.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{out.issueNo}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{new Date(out.issueDate).toLocaleDateString('th-TH')}</td>
-                      <td className="px-4 py-3 text-sm">
+                    <tr key={out.id} className="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
+                      <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-gray-100 bg-white/95 px-3 py-3 text-sm font-medium text-gray-900 dark:border-gray-800 dark:bg-gray-900/95 dark:text-white sm:px-4">
+                        {out.issueNo}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-900 dark:text-white sm:px-4">
+                        {new Date(out.issueDate).toLocaleDateString("th-TH")}
+                      </td>
+                      <td className="max-w-[200px] px-3 py-3 text-sm sm:max-w-xs sm:px-4">
                         <div className="font-medium text-gray-900 dark:text-white">{out.items?.[0]?.material?.matCode}</div>
-                        <div className="text-xs text-gray-500">{out.items?.[0]?.material?.matName}</div>
+                        <div className="truncate text-xs text-gray-500 dark:text-gray-400" title={out.items?.[0]?.material?.matName}>
+                          {out.items?.[0]?.material?.matName}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400 md:hidden">
+                          {out.department ? <span>แผนก: {out.department}</span> : null}
+                          {(out.productionOrderNo || out.workOrderNo) && (
+                            <span className="truncate" title={out.productionOrderNo || out.workOrderNo}>
+                              WO: {out.productionOrderNo || out.workOrderNo}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {out.department || '-'}
+                      <td className="hidden px-3 py-3 text-sm text-gray-900 dark:text-white md:table-cell sm:px-4">
+                        {out.department || "-"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {out.productionOrderNo || out.workOrderNo || '-'}
+                      <td className="hidden max-w-[140px] truncate px-3 py-3 text-sm text-gray-900 dark:text-white lg:table-cell sm:px-4" title={out.productionOrderNo || out.workOrderNo || ""}>
+                        {out.productionOrderNo || out.workOrderNo || "-"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">{parseFloat(out.items?.[0]?.issuedQuantity || 0).toLocaleString()} {out.items?.[0]?.unit}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-white sm:px-4">
+                        {parseFloat(out.items?.[0]?.issuedQuantity || 0).toLocaleString()} {out.items?.[0]?.unit}
+                      </td>
+                      <td className="px-2 py-3 text-center sm:px-4">
                         {out.documents && out.documents.length > 0 ? (
                           <button
+                            type="button"
                             onClick={() => {
                               setPreviewFiles(out.documents);
                               setPreviewIndex(0);
                               setShowPreview(true);
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 text-xs font-medium transition-colors"
+                            className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-lg bg-blue-100 px-2 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 sm:px-3"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                             ดูไฟล์ ({out.documents.length})
                           </button>
-                        ) : out.documentFile && out.documentFile !== '/uploads/default.pdf' ? (
+                        ) : out.documentFile && out.documentFile !== "/uploads/default.pdf" ? (
                           <button
+                            type="button"
                             onClick={() => {
-                              const fileName = out.documentFile.split('/').pop() || 'document';
-                              setPreviewFiles([{
-                                id: out.id,
-                                fileName: fileName,
-                                filePath: out.documentFile,
-                                fileSize: 0
-                              }]);
+                              const fileName = out.documentFile.split("/").pop() || "document";
+                              setPreviewFiles([
+                                {
+                                  id: out.id,
+                                  fileName: fileName,
+                                  filePath: out.documentFile,
+                                  fileSize: 0,
+                                },
+                              ]);
                               setPreviewIndex(0);
                               setShowPreview(true);
                             }}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 text-xs font-medium transition-colors"
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 sm:px-3"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            ดูไฟล์ (1)
+                            ดูไฟล์
                           </button>
                         ) : (
-                          <span className="text-xs text-gray-400">ไม่มีไฟล์</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
                         )}
                       </td>
                     </tr>
@@ -440,32 +482,38 @@ export default function PCOutcomePage() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">จ่ายวัตถุดิบออก (FIFO)</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/70 p-3 backdrop-blur-sm animate-cci-backdrop-in sm:p-4">
+          <div className="max-h-[min(92vh,880px)] w-full max-w-2xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-cci-popup animate-cci-modal-in dark:border-gray-700 dark:bg-gray-800">
+            <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
+              <h3 className="min-w-0 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">จ่ายวัตถุดิบออก (FIFO)</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+            <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(90vh - 80px)" }}>
               {alertMsg && (
                 <div className="mb-4">
                   <AlertComponent variant={alertMsg.variant} title={alertMsg.title} message={alertMsg.message} />
                 </div>
               )}
-              <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="mb-6 grid grid-cols-2 gap-0 border-b border-gray-200 dark:border-gray-700 sm:flex sm:gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    setIssueMode('manual');
+                    setIssueMode("manual");
                     resetForm();
                   }}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    issueMode === 'manual'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  className={`min-w-0 px-2 py-3 text-center text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm ${
+                    issueMode === "manual"
+                      ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                   }`}
                 >
                   จ่ายแบบ Manual
@@ -473,13 +521,13 @@ export default function PCOutcomePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setIssueMode('production');
+                    setIssueMode("production");
                     resetForm();
                   }}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    issueMode === 'production'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  className={`min-w-0 px-2 py-3 text-center text-xs font-medium transition-colors sm:px-4 sm:py-2 sm:text-sm ${
+                    issueMode === "production"
+                      ? "border-b-2 border-blue-600 text-blue-600 dark:text-blue-400"
+                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                   }`}
                 >
                   จ่ายตาม BOM
@@ -568,9 +616,12 @@ export default function PCOutcomePage() {
                       {documentFiles.length > 0 && (
                         <div className="mt-2 space-y-1">
                           {documentFiles.map((file, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded">
-                              <span>ไฟล์ {idx + 1}: {file.name}</span>
-                              <span className="text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            <div
+                              key={idx}
+                              className="flex flex-col gap-1 rounded bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <span className="min-w-0 break-all">ไฟล์ {idx + 1}: {file.name}</span>
+                              <span className="shrink-0 text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
                             </div>
                           ))}
                           <div className="text-xs text-gray-500 mt-2">
@@ -625,19 +676,28 @@ export default function PCOutcomePage() {
                         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">วัตถุดิบที่จะถูกจ่าย (PC):</h4>
                         <div className="space-y-2">
                           {materialPreview.requiredMaterials.map((mat: any, idx: number) => (
-                            <div key={idx} className={`flex justify-between items-center p-3 rounded border ${
-                              mat.isAvailable ? 'bg-white dark:bg-gray-800' : 'bg-red-50 dark:bg-red-900/20 border-red-300'
-                            }`}>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
+                            <div
+                              key={idx}
+                              className={`flex flex-col gap-2 rounded border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                                mat.isAvailable ? "bg-white dark:bg-gray-800" : "border-red-300 bg-red-50 dark:bg-red-900/20"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <span className="font-medium text-gray-900 dark:text-white">{mat.materialCode}</span>
-                                  {!mat.isAvailable && <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">ไม่พอ</span>}
+                                  {!mat.isAvailable && (
+                                    <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                                      ไม่พอ
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="text-xs text-gray-500 mt-1">{mat.materialName}</div>
+                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{mat.materialName}</div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium">ต้องการ: {mat.requiredQuantity.toLocaleString()} {mat.unit}</div>
-                                <div className={`text-xs ${mat.isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                              <div className="shrink-0 text-left sm:text-right">
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  ต้องการ: {mat.requiredQuantity.toLocaleString()} {mat.unit}
+                                </div>
+                                <div className={`text-xs ${mat.isAvailable ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                                   คงเหลือ: {mat.currentStock.toLocaleString()} {mat.unit}
                                 </div>
                               </div>
@@ -685,11 +745,21 @@ export default function PCOutcomePage() {
                   </>
                 )}
 
-                <div className="flex gap-3 pt-4 border-t">
-                  <button type="submit" disabled={submitLoading} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded">
-                    {submitLoading ? 'กำลังบันทึก...' : 'บันทึก'}
+                <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="w-full rounded-lg bg-gray-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-600 sm:w-auto sm:shrink-0"
+                  >
+                    ยกเลิก
                   </button>
-                  <button type="button" onClick={() => setShowAddModal(false)} className="px-6 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded">ยกเลิก</button>
+                  <button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-400 sm:flex-1"
+                  >
+                    {submitLoading ? "กำลังบันทึก..." : "บันทึก"}
+                  </button>
                 </div>
               </form>
             </div>
