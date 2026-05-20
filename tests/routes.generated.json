@@ -142,6 +142,16 @@
       "requiresAuth": true
     },
     {
+      "path": "/master-data/product-production-steps",
+      "sourceFile": "src/app/(admin)/master-data/product-production-steps/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/master-data/production-processes",
+      "sourceFile": "src/app/(admin)/master-data/production-processes/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/master-data/production-steps",
       "sourceFile": "src/app/(admin)/master-data/production-steps/page.tsx",
       "requiresAuth": true
@@ -219,6 +229,11 @@
     {
       "path": "/pc/schedule/reservations/1",
       "sourceFile": "src/app/(admin)/pc/schedule/reservations/[id]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/schedule/reservations/1/print",
+      "sourceFile": "src/app/(admin)/pc/schedule/reservations/[id]/print/page.tsx",
       "requiresAuth": true
     },
     {

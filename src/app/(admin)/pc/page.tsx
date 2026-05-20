@@ -7,8 +7,34 @@ import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import Alert from "@/components/ui/alert/Alert";
-import { apiFetch, getApiBaseUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
+import { resolveWorkpieceImagePath, workpieceImageUrl } from "@/utils/workpieceImage";
+import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
+import WorkpieceImagePreviewModal from "@/components/pc/shared/WorkpieceImagePreviewModal";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
+import { OverviewHubSection } from "@/components/overview/OverviewHubSection";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRightFromBracket,
+  faArrowRightToBracket,
+} from "@fortawesome/free-solid-svg-icons";
+
+const warehouseTxnItems = [
+  {
+    name: "รายการรับเข้า",
+    path: "/pc/income",
+    description: "บันทึกการรับวัตถุดิบเข้าคลัง",
+    icon: <FontAwesomeIcon icon={faArrowRightToBracket} />,
+    accent: "success" as const,
+  },
+  {
+    name: "รายการจ่ายออก",
+    path: "/pc/outcome",
+    description: "จ่ายวัตถุดิบตามแผน (FIFO)",
+    icon: <FontAwesomeIcon icon={faArrowRightFromBracket} />,
+    accent: "orange" as const,
+  },
+];
 
 interface Material {
   id: number;
@@ -115,12 +141,6 @@ interface ApiResponse {
   timestamp: string;
 }
 
-function workpieceImageUrl(path: string | null | undefined): string | null {
-  if (!path?.trim()) return null;
-  const base = getApiBaseUrl().replace(/\/$/, "");
-  return `${base}/${path.replace(/^\//, "")}`;
-}
-
 async function getMaterials(page: number = 1, limit: number = 10, filters: any = {}): Promise<ApiResponse> {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -183,6 +203,11 @@ export default function PCPage() {
   const [addWorkpiecePreviewUrl, setAddWorkpiecePreviewUrl] = useState<string | null>(null);
   const [editWorkpieceFile, setEditWorkpieceFile] = useState<File | null>(null);
   const [editWorkpiecePreviewUrl, setEditWorkpiecePreviewUrl] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<{
+    src: string;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   const setAddWorkpieceFromInput = (file: File | null) => {
     setAddWorkpiecePreviewUrl((prev) => {
@@ -540,6 +565,12 @@ export default function PCPage() {
             message={submitError}
           />
         )}
+
+        <OverviewHubSection
+          title="รับเข้า / จ่ายออก"
+          sectionDescription="ธุรกรรมคลังวัตถุดิบ — เปิดรายการรับเข้าหรือจ่ายออกได้ทันที"
+          items={warehouseTxnItems}
+        />
         
         <ComponentCard title={`วัตถุดิบทั้งหมด (${totalItems})`}>
           <div className="mb-4 flex flex-col gap-4">
@@ -714,7 +745,7 @@ export default function PCPage() {
                     <TableEmptyRow colSpan={13} />
                   ) : (
                     apiResponse.data.map((material, idx) => {
-                      const wpSrc = workpieceImageUrl(material.workpieceImagePath);
+                      const wpPath = resolveWorkpieceImagePath(material);
                       return (
                       <tr
                         key={material.id}
@@ -723,11 +754,20 @@ export default function PCPage() {
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
                         <td className="px-4 py-3 text-center align-middle">
-                          {wpSrc ? (
-                            <img src={wpSrc} alt="" className="mx-auto h-10 w-10 rounded border border-gray-200 object-cover dark:border-gray-600" />
-                          ) : (
-                            <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                          )}
+                          <div className="flex justify-center">
+                            <WorkpieceImage
+                              path={wpPath}
+                              alt={material.matName || material.matCode}
+                              size="sm"
+                              onPreview={(src) =>
+                                setImagePreview({
+                                  src,
+                                  title: material.matName || material.matCode,
+                                  subtitle: material.matCode,
+                                })
+                              }
+                            />
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.deliveryType?.name || '-'}</td>
@@ -837,9 +877,17 @@ export default function PCPage() {
                   onChange={(e) => setAddWorkpieceFromInput(e.target.files?.[0] ?? null)}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
-                {addWorkpiecePreviewUrl ? (
-                  <img src={addWorkpiecePreviewUrl} alt="" className="mt-2 max-h-40 rounded-lg border border-gray-200 dark:border-gray-600" />
-                ) : null}
+                <div className="mt-2">
+                  <WorkpieceImage
+                    src={addWorkpiecePreviewUrl}
+                    path={null}
+                    size="lg"
+                      className="!h-auto !w-auto max-h-40"
+                      onPreview={(src) =>
+                        setImagePreview({ src, title: formData.name || formData.matCode || "รูปชิ้นงาน" })
+                      }
+                    />
+                  </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -1167,15 +1215,22 @@ export default function PCPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รูปภาพชิ้นงาน</label>
-                {(() => {
-                  const existingSrc = workpieceImageUrl(editingMaterial.workpieceImagePath);
-                  const preview = editWorkpiecePreviewUrl || existingSrc;
-                  return preview ? (
-                    <img src={preview} alt="" className="mb-2 max-h-36 rounded-lg border border-gray-200 dark:border-gray-600" />
-                  ) : (
-                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">ยังไม่มีรูป — เลือกไฟล์ด้านล่างเพื่อเพิ่ม</p>
-                  );
-                })()}
+                <div className="mb-2">
+                  <WorkpieceImage
+                    src={editWorkpiecePreviewUrl}
+                    path={editWorkpiecePreviewUrl ? null : resolveWorkpieceImagePath(editingMaterial)}
+                    alt={editingMaterial.matName || editingMaterial.matCode}
+                    size="lg"
+                    className="!h-auto !w-auto max-h-36"
+                    onPreview={(src) =>
+                      setImagePreview({
+                        src,
+                        title: editingMaterial.matName || editingMaterial.matCode,
+                        subtitle: editingMaterial.matCode,
+                      })
+                    }
+                  />
+                </div>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -1416,6 +1471,14 @@ export default function PCPage() {
           </div>
         </div>
       )}
+
+      <WorkpieceImagePreviewModal
+        open={!!imagePreview}
+        src={imagePreview?.src ?? null}
+        title={imagePreview?.title}
+        subtitle={imagePreview?.subtitle}
+        onClose={() => setImagePreview(null)}
+      />
     </div>
   );
 }

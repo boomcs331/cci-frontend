@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
@@ -21,12 +22,54 @@ import {
   THAI_PDF_FONT,
 } from "@/utils/jspdf-thai-font";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
+import { getSession } from "@/utils/session";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faBookmark,
+  faClipboardList,
+  faDiagramProject,
+  faFileLines,
+  faFilePdf,
+  faPenToSquare,
+  faPlus,
+  faPrint,
+  faRotateRight,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
+
+interface ApiBomRow {
+  materialId: number;
+  quantityPerUnit?: string | number;
+  unit?: string;
+  isActive?: boolean;
+  material?: { matCode?: string; matName?: string };
+}
 
 interface Product {
   id: number;
   productCode: string;
   productName: string;
   bom?: BOMItem[];
+  boms?: ApiBomRow[];
+}
+
+function mapApiBomRows(rows: ApiBomRow[] | undefined | null): BOMItem[] {
+  return (rows ?? [])
+    .filter((item) => item.isActive !== false)
+    .map((item) => ({
+      materialId: item.materialId,
+      materialCode: item.material?.matCode ?? "",
+      materialName: item.material?.matName ?? "",
+      quantity: parseFloat(String(item.quantityPerUnit ?? 0)),
+      unit: item.unit ?? "",
+    }));
+}
+
+function bomFromProduct(product: Product | undefined): BOMItem[] {
+  if (!product) return [];
+  if (product.bom?.length) return product.bom;
+  if (product.boms?.length) return mapApiBomRows(product.boms);
+  return [];
 }
 
 interface BOMItem {
@@ -68,7 +111,42 @@ interface PlanItem {
   unit: string;
   remarks?: string;
   product?: Product;
+  /** บาง response ใช้ snake_case */
+  product_code?: string;
   bom?: BOMItem[];
+}
+
+/** รหัสชิ้นงาน = รหัสสินค้าในแต่ละรายการแผน (ไม่ซ้ำ) */
+function planWorkpieceEntries(plan: ProductionPlan): { code: string; name?: string }[] {
+  const items = plan.items ?? [];
+  const seen = new Set<string>();
+  const out: { code: string; name?: string }[] = [];
+  for (const it of items) {
+    const code = (
+      it.product?.productCode ??
+      it.product_code ??
+      ""
+    )
+      .toString()
+      .trim();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    const name = it.product?.productName?.toString().trim();
+    out.push({ code, name: name || undefined });
+  }
+  return out;
+}
+
+function planMatchesSearch(plan: ProductionPlan, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  if (plan.planCode?.toLowerCase().includes(needle)) return true;
+  if (plan.planName?.toLowerCase().includes(needle)) return true;
+  for (const { code, name } of planWorkpieceEntries(plan)) {
+    if (code.toLowerCase().includes(needle)) return true;
+    if (name?.toLowerCase().includes(needle)) return true;
+  }
+  return false;
 }
 
 interface ProductionPlan {
@@ -90,6 +168,20 @@ const statusConfig = {
   confirmed: { label: "ยืนยันแล้ว", color: "success", en: "Confirmed" },
   cancelled: { label: "ยกเลิก", color: "error", en: "Cancelled" },
 };
+
+/** ปุ่มหน้าจัดงานล่วงหน้า — โฟกัส/โฮเวอร์/กดสม่ำเสมอ */
+const SCH = {
+  focus:
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 active:scale-[0.98] transition disabled:pointer-events-none disabled:opacity-45",
+  lgOutline:
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm hover:shadow sm:w-auto",
+  lgSolid:
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-md hover:shadow sm:w-auto",
+  smOutline:
+    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm hover:shadow",
+  iconClose:
+    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent text-gray-500 hover:border-gray-200 hover:bg-gray-100 hover:text-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200",
+} as const;
 
 export default function PCSchedulePage() {
   const router = useRouter();
@@ -140,10 +232,7 @@ export default function PCSchedulePage() {
 
         let filtered = allPlans;
         if (searchTerm) {
-          filtered = filtered.filter((p: ProductionPlan) =>
-            p.planCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.planName?.toLowerCase().includes(searchTerm.toLowerCase())
-          );
+          filtered = filtered.filter((p: ProductionPlan) => planMatchesSearch(p, searchTerm));
         }
         if (filterStatus) {
           filtered = filtered.filter((p: ProductionPlan) => p.status.toLowerCase() === filterStatus.toLowerCase());
@@ -199,6 +288,24 @@ export default function PCSchedulePage() {
     }
   }, []);
 
+  const loadBomForProduct = useCallback(
+    async (productId: number): Promise<BOMItem[]> => {
+      const fromCache = bomFromProduct(products.find((p) => p.id === productId));
+      if (fromCache.length > 0) return fromCache;
+
+      try {
+        const res = await apiFetch(`/products/${productId}/bom`);
+        if (!res.ok) return [];
+        const result = await res.json();
+        return mapApiBomRows(result.data || []);
+      } catch (error) {
+        console.error("Error fetching BOM:", error);
+        return [];
+      }
+    },
+    [products],
+  );
+
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
@@ -215,6 +322,13 @@ export default function PCSchedulePage() {
     () => [
       { header: "รหัสแผน", accessor: (p) => p.planCode },
       { header: "ชื่อแผน", accessor: (p) => p.planName },
+      {
+        header: "รหัสชิ้นงาน",
+        accessor: (p) =>
+          planWorkpieceEntries(p)
+            .map((x) => x.code)
+            .join(", "),
+      },
       {
         header: "วันที่",
         accessor: (p) => (p.planDate ? new Date(p.planDate).toLocaleDateString("th-TH") : ""),
@@ -294,6 +408,18 @@ export default function PCSchedulePage() {
     const invalidItem = form.items.find(item => item.productId === 0 || item.quantity <= 0);
     if (invalidItem) {
       setMessage({ type: "error", text: "กรุณาเลือกสินค้าและระบุจำนวนที่ถูกต้อง" });
+      return;
+    }
+    const itemWithoutBom = form.items.find(
+      (item) => item.productId > 0 && (!item.bom || item.bom.length === 0),
+    );
+    if (itemWithoutBom) {
+      const product = products.find((p) => p.id === itemWithoutBom.productId);
+      const label = product?.productName || product?.productCode || "สินค้าที่เลือก";
+      setMessage({
+        type: "error",
+        text: `สินค้า "${label}" ยังไม่มี BOM กรุณาเพิ่ม BOM ก่อนบันทึกแผนการผลิต`,
+      });
       return;
     }
     try {
@@ -379,18 +505,25 @@ export default function PCSchedulePage() {
 
 
 
-  const handleEdit = (plan: ProductionPlan) => {
+  const handleEdit = async (plan: ProductionPlan) => {
     setEditingPlan(plan);
-    // แยกวันที่และเวลาออกจากกัน
-    const dateStr = plan.planDate.split('T')[0];
-    const timeStr = plan.planTime ? plan.planTime.substring(0, 5) : '00:00'; // HH:mm
-    
-    setForm({ 
-      planName: plan.planName, 
+    const dateStr = plan.planDate.split("T")[0];
+    const timeStr = plan.planTime ? plan.planTime.substring(0, 5) : "00:00";
+
+    const baseItems = plan.items || [];
+    const itemsWithBom = await Promise.all(
+      baseItems.map(async (item) => ({
+        ...item,
+        bom: item.productId > 0 ? await loadBomForProduct(item.productId) : [],
+      })),
+    );
+
+    setForm({
+      planName: plan.planName,
       planDate: dateStr,
       planTime: timeStr,
-      remarks: plan.remarks || "", 
-      items: plan.items || [] 
+      remarks: plan.remarks || "",
+      items: itemsWithBom,
     });
     setShowModal(true);
   };
@@ -412,51 +545,168 @@ export default function PCSchedulePage() {
     try {
       const res = await apiFetch(`/production-plans/${plan.id}`);
       if (!res.ok) return;
-      const data = await res.json();
-      
-      const pdf = new jsPDF();
+      const data = (await res.json()) as ProductionPlan;
+
       await ensureThaiPdfFontsLoaded();
-      registerThaiFontOnDoc(pdf);
-      const qrDataUrl = await QRCode.toDataURL(data.planCode, { width: 150, margin: 1 });
-      
-      pdf.setFont(THAI_PDF_FONT, "bold");
-      pdf.setFontSize(18);
-      pdf.text("Production Plan", 105, 20, { align: "center" });
-      
-      pdf.addImage(qrDataUrl, "PNG", 80, 30, 50, 50);
-      
-      pdf.setFontSize(14);
-      pdf.text(data.planCode, 105, 90, { align: "center" });
-      
-      pdf.setFontSize(11);
-      pdf.setFont(THAI_PDF_FONT, "normal");
-      pdf.text(`Plan Name: ${data.planName}`, 20, 105);
-      pdf.text(`Date: ${new Date(data.planDate).toLocaleDateString('en-GB')}`, 20, 115);
-      const status = data.status as keyof typeof statusConfig;
-      pdf.text(`Status: ${statusConfig[status]?.en || data.status}`, 20, 125);
-      
-      pdf.setFont(THAI_PDF_FONT, "bold");
-      pdf.text("Products:", 20, 140);
-      
-      let y = 150;
-      pdf.setFont(THAI_PDF_FONT, "normal");
-      data.items?.forEach((item: any, i: number) => {
-        pdf.text(`${i + 1}. ${item.product?.productName || '-'} - ${item.quantity} ${item.unit}`, 25, y);
-        y += 8;
-        if (item.bom && item.bom.length > 0) {
-          pdf.setFontSize(9);
-          pdf.text('Materials:', 30, y);
-          y += 6;
-          item.bom.forEach((bom: any) => {
-            pdf.text(`- ${bom.materialCode}: ${bom.materialName} (${(bom.quantity * item.quantity).toFixed(2)} ${bom.unit})`, 35, y);
-            y += 5;
-          });
-          pdf.setFontSize(11);
-          y += 3;
-        }
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      registerThaiFontOnDoc(doc);
+
+      const session = getSession();
+      const printedBy =
+        session?.user?.username?.trim() ||
+        session?.user?.email?.trim() ||
+        (session?.user?.id != null ? String(session.user.id) : "") ||
+        "—";
+
+      const printedAt = new Date().toLocaleString("th-TH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
-      
-      pdf.save(`Plan_${data.planCode}.pdf`);
+
+      const statusKey = data.status as keyof typeof statusConfig;
+      const statusTh = statusConfig[statusKey]?.label ?? String(data.status);
+
+      const workpieces = planWorkpieceEntries(data);
+      const workpieceLine =
+        workpieces.length > 0 ? workpieces.map((w) => `${w.code}`).join(" · ") : "—";
+
+      const qrDataUrl = await QRCode.toDataURL(data.planCode, {
+        width: 200,
+        margin: 0,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+
+      const margin = 10;
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+
+      /** โทนสว่างประหยัดหมึก — หัวตารางเทาอ่อน ไม่ใช้พื้นดำ */
+      const tableDefaults = {
+        styles: {
+          font: THAI_PDF_FONT,
+          fontStyle: "normal" as const,
+          fontSize: 8,
+          cellPadding: 1.2,
+          overflow: "linebreak" as const,
+          textColor: [25, 25, 25] as [number, number, number],
+          lineColor: [200, 200, 200] as [number, number, number],
+          lineWidth: 0.08,
+        },
+        headStyles: {
+          font: THAI_PDF_FONT,
+          fontStyle: "bold" as const,
+          fillColor: [236, 236, 236] as [number, number, number],
+          textColor: [35, 35, 35] as [number, number, number],
+        },
+      };
+
+      let y = margin;
+
+      doc.setDrawColor(190, 190, 190);
+      doc.setLineWidth(0.25);
+      doc.line(margin, y + 16, pageW - margin, y + 16);
+
+      doc.setTextColor(0, 0, 0);
+      doc.setFont(THAI_PDF_FONT, "bold");
+      doc.setFontSize(12);
+      doc.text("แผนการผลิต", margin, y + 5);
+      doc.setFont(THAI_PDF_FONT, "normal");
+      doc.setFontSize(9);
+      doc.text(data.planCode ?? "", margin, y + 10);
+
+      const qrMm = 18;
+      doc.addImage(qrDataUrl, "PNG", pageW - margin - qrMm, y, qrMm, qrMm);
+
+      y += 18;
+
+      const planDateStr = new Date(data.planDate).toLocaleDateString("th-TH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      const planTimeStr = data.planTime ? data.planTime.substring(0, 5) : "00:00";
+
+      const metaBody: string[][] = [
+        ["ชื่อแผน", data.planName ?? "—"],
+        ["รหัสแผน", data.planCode ?? "—"],
+        ["วันที่", planDateStr],
+        ["เวลา", `${planTimeStr} น.`],
+        ["สถานะ", statusTh],
+        ["รหัสชิ้นงาน", workpieceLine],
+        ["ผู้พิมพ์", printedBy],
+        ["พิมพ์เมื่อ", printedAt],
+      ];
+      if (data.remarks?.trim()) {
+        metaBody.push(["หมายเหตุ", data.remarks.trim()]);
+      }
+
+      autoTable(doc, {
+        startY: y + 1,
+        head: [["รายการ", "ค่า"]],
+        body: metaBody,
+        theme: "plain",
+        margin: { left: margin, right: margin },
+        columnStyles: {
+          0: {
+            cellWidth: 34,
+            fontStyle: "bold",
+            fillColor: [250, 250, 250],
+            textColor: [45, 45, 45],
+          },
+          1: { cellWidth: pageW - margin * 2 - 34 },
+        },
+        ...tableDefaults,
+      });
+
+      const afterMeta =
+        (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 3;
+
+      const productRows =
+        (data.items ?? []).map((item) => {
+          const code =
+            item.product?.productCode?.trim() ||
+            item.product_code?.toString().trim() ||
+            "—";
+          return [
+            code,
+            item.product?.productName ?? "—",
+            String(item.quantity ?? ""),
+            item.unit ?? "—",
+          ];
+        }) ?? [];
+
+      autoTable(doc, {
+        startY: afterMeta,
+        head: [["รหัสชิ้นงาน", "ชื่อสินค้า", "จำนวน", "หน่วย"]],
+        body: productRows.length > 0 ? productRows : [["—", "ไม่มีรายการ", "", ""]],
+        margin: { left: margin, right: margin },
+        columnStyles: {
+          0: { cellWidth: 28, halign: "center" },
+          1: { cellWidth: pageW - margin * 2 - 28 - 22 - 18 },
+          2: { cellWidth: 22, halign: "right" },
+          3: { cellWidth: 18, halign: "center" },
+        },
+        ...tableDefaults,
+      });
+
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont(THAI_PDF_FONT, "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(130, 130, 130);
+        doc.text(
+          `CCI · แผนการผลิต ${data.planCode ?? ""} · ${i}/${totalPages}`,
+          pageW / 2,
+          pageH - 6,
+          { align: "center" },
+        );
+      }
+
+      doc.save(`Plan_${data.planCode}.pdf`);
     } catch (error) {
       console.error("Error:", error);
     }
@@ -475,7 +725,11 @@ export default function PCSchedulePage() {
         if (!res.ok) continue;
         const data = await res.json();
         
-        const qrDataUrl = await QRCode.toDataURL(data.planCode, { width: 200, margin: 1 });
+        const qrDataUrl = await QRCode.toDataURL(data.planCode, {
+          width: 200,
+          margin: 1,
+          color: { dark: "#000000", light: "#ffffff" },
+        });
         
         const materialCodes = data.items?.flatMap((item: any) => 
           item.bom?.map((bom: any) => bom.materialCode) || []
@@ -487,7 +741,7 @@ export default function PCSchedulePage() {
           code: data.planCode,
           name: data.planName,
           date: new Date(data.planDate).toLocaleDateString('en-GB'),
-          status: statusConfig[data.status as keyof typeof statusConfig]?.en || data.status,
+          status: statusConfig[data.status as keyof typeof statusConfig]?.label || data.status,
           materials: materials.substring(0, 50) + (materials.length > 50 ? '...' : '')
         });
       }
@@ -568,34 +822,19 @@ export default function PCSchedulePage() {
   
   const updateItem = async (index: number, field: keyof PlanItem, value: any) => {
     if (field === "quantity" && value < 0) return;
-    
-    if (field === "productId" && value > 0) {
-      try {
-        const res = await apiFetch(`/products/${value}/bom`);
-        if (res.ok) {
-          const result = await res.json();
-          const bomData = (result.data || []).map((item: any) => ({
-            materialId: item.materialId,
-            materialCode: item.material?.matCode || '',
-            materialName: item.material?.matName || '',
-            quantity: parseFloat(item.quantityPerUnit || 0),
-            unit: item.unit || ''
-          }));
-          
-          const newItems = [...form.items];
-          newItems[index] = { 
-            ...newItems[index], 
-            [field]: value,
-            bom: bomData
-          };
-          setForm({ ...form, items: newItems });
-          return;
-        }
-      } catch (error) {
-        console.error("Error fetching BOM:", error);
+
+    if (field === "productId") {
+      const newItems = [...form.items];
+      if (value > 0) {
+        const bomData = await loadBomForProduct(value);
+        newItems[index] = { ...newItems[index], productId: value, bom: bomData };
+      } else {
+        newItems[index] = { ...newItems[index], productId: value, bom: [] };
       }
+      setForm({ ...form, items: newItems });
+      return;
     }
-    
+
     const newItems = [...form.items];
     newItems[index] = { ...newItems[index], [field]: value };
     setForm({ ...form, items: newItems });
@@ -606,13 +845,23 @@ export default function PCSchedulePage() {
     <div className="min-h-0">
       <PageBreadcrumb pageTitle="จัดงานล่วงหน้า" />
       <div className="mx-auto max-w-[1600px] space-y-5 sm:space-y-6 px-1 sm:px-0">
-        <div className="rounded-2xl border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/80 p-5 shadow-sm dark:border-gray-700 dark:from-gray-800 dark:to-gray-900/80 sm:p-6">
-          <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-white sm:text-xl">
-            แผนการผลิต
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
-            ค้นหา กรองตามวันที่และเวลา จัดการแผน และส่งออกรายงาน — รองรับการใช้งานบนมือถือและแท็บเล็ต
-          </p>
+        <div className="relative overflow-hidden rounded-2xl border border-indigo-100/80 bg-gradient-to-br from-indigo-50/90 via-white to-slate-50 p-5 shadow-md dark:border-indigo-900/40 dark:from-indigo-950/50 dark:via-gray-900 dark:to-slate-950 sm:p-7">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-200/30 blur-3xl dark:bg-indigo-600/20" aria-hidden />
+          <div className="pointer-events-none absolute -bottom-20 -left-10 h-36 w-36 rounded-full bg-violet-200/25 blur-3xl dark:bg-violet-700/15" aria-hidden />
+          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200/70 bg-white/80 px-3 py-1 text-xs font-medium text-indigo-800 shadow-sm dark:border-indigo-500/30 dark:bg-indigo-950/40 dark:text-indigo-200">
+                <FontAwesomeIcon icon={faDiagramProject} className="h-3.5 w-3.5" aria-hidden />
+                แผนการผลิต
+              </div>
+              <h1 className="mt-2 text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
+                จัดงานล่วงหน้า
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                ค้นหาตามรหัสแผน ชื่อแผน หรือ<strong className="font-semibold text-gray-800 dark:text-gray-200"> รหัสชิ้นงาน (รหัสสินค้า)</strong> — กรองวันเวลา จัดการแผน และส่งออกรายงาน
+              </p>
+            </div>
+          </div>
         </div>
 
         {message && message.type === "success" && (
@@ -629,24 +878,26 @@ export default function PCSchedulePage() {
               type="button"
               onClick={handleExportPlansXlsx}
               disabled={plans.length === 0}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/80"
+              className={`${SCH.lgOutline} ${SCH.focus} border-emerald-200/90 bg-gradient-to-b from-white to-emerald-50/80 text-emerald-900 hover:border-emerald-300 hover:to-emerald-100 focus-visible:ring-emerald-400 dark:border-emerald-500/30 dark:from-emerald-950/30 dark:to-emerald-900/40 dark:text-emerald-100`}
             >
+              <FontAwesomeIcon icon={faFileLines} className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
               Export XLSX
             </button>
             <button
               type="button"
               onClick={handleExportPlansPdf}
               disabled={plans.length === 0}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 sm:w-auto dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700/80"
+              className={`${SCH.lgOutline} ${SCH.focus} border-rose-200/90 bg-gradient-to-b from-white to-rose-50/80 text-rose-900 hover:border-rose-300 hover:to-rose-100 focus-visible:ring-rose-400 dark:border-rose-500/30 dark:from-rose-950/30 dark:to-rose-900/40 dark:text-rose-100`}
             >
+              <FontAwesomeIcon icon={faFilePdf} className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
               Export PDF
             </button>
           </div>
-          <div className="mb-5 space-y-4 rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-700/80 dark:bg-gray-900/30 sm:p-5">
+          <div className="mb-5 space-y-4 rounded-2xl border border-indigo-100/70 bg-gradient-to-br from-white via-slate-50/40 to-indigo-50/20 p-4 shadow-sm dark:border-gray-700/90 dark:from-gray-900 dark:via-gray-900/80 dark:to-indigo-950/20 sm:p-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <input
                 type="text"
-                placeholder="ค้นหา (รหัส, ชื่อแผน)"
+                placeholder="รหัสแผน, ชื่อแผน, รหัสชิ้นงาน, ชื่อสินค้า…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
@@ -672,11 +923,9 @@ export default function PCSchedulePage() {
                   setFilterTimeFrom('');
                   setFilterTimeTo('');
                 }}
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gray-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-gray-700 sm:w-auto"
+                className={`${SCH.lgSolid} ${SCH.focus} border-slate-600 bg-gradient-to-b from-slate-600 to-slate-700 text-white hover:from-slate-500 hover:to-slate-600 focus-visible:ring-slate-500`}
               >
-                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+                <FontAwesomeIcon icon={faRotateRight} className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                 ล้างตัวกรอง
               </button>
             </div>
@@ -736,7 +985,7 @@ export default function PCSchedulePage() {
               <PaginationSelector currentLimit={limit} />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-              <button
+ {/*              <button
                 type="button"
                 onClick={() => router.push('/pc/reservations')}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-violet-700"
@@ -756,7 +1005,7 @@ export default function PCSchedulePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 PDF ทั้งหมด
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => {
@@ -766,37 +1015,86 @@ export default function PCSchedulePage() {
                   setProductSearches({});
                   setShowProductDropdowns({});
                 }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+                className={`${SCH.lgSolid} ${SCH.focus} border-blue-600 bg-gradient-to-b from-blue-600 to-blue-700 text-white hover:from-blue-500 hover:to-blue-600 focus-visible:ring-blue-500`}
               >
-                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                <FontAwesomeIcon icon={faPlus} className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
                 เพิ่มแผนใหม่
               </button>
             </div>
           </div>
-          <div className="-mx-1 overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-700 sm:mx-0">
-            <table className="w-full min-w-[760px] table-auto text-left">
+          <div className="-mx-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04] dark:border-slate-700 dark:bg-gray-950/40 dark:ring-white/[0.06] sm:mx-0">
+            <table className="w-full min-w-[980px] table-auto text-left">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/90 dark:border-gray-700 dark:bg-gray-800/90">
-                  <th className="sticky left-0 z-[1] whitespace-nowrap bg-gray-50/95 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-800/95 dark:text-gray-300 sm:px-4 sm:text-sm">รหัสแผน</th>
-                  <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">ชื่อแผน</th>
-                  <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">วันที่</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">สถานะ</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">สินค้า</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">Material</th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">จัดการ</th>
+                <tr className="border-b border-slate-200 bg-gradient-to-r from-slate-100 via-slate-50 to-white dark:border-slate-700 dark:from-slate-800 dark:via-slate-800/90 dark:to-slate-900/80">
+                  <th className="sticky left-0 z-[1] whitespace-nowrap border-r border-slate-200/80 bg-slate-100/95 px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/95 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    รหัสแผน
+                  </th>
+                  <th className="min-w-[140px] px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    ชื่อแผน
+                  </th>
+                  <th className="min-w-[160px] px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    รหัสชิ้นงาน
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    วันที่ / เวลา
+                  </th>
+                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    สถานะ
+                  </th>
+                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    สินค้า
+                  </th>
+                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    Material
+                  </th>
+                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
+                    จัดการ
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {plans.length === 0 ? (
-                  <TableEmptyRow colSpan={7} />
+                  <TableEmptyRow colSpan={8} />
                 ) : (
-                  plans.map((plan) => (
-                  <tr key={plan.id} className="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
-                    <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-gray-100 bg-white/95 px-3 py-3 text-sm font-medium text-gray-900 dark:border-gray-800 dark:bg-gray-900/95 dark:text-white sm:px-4">{plan.planCode}</td>
-                    <td className="max-w-[200px] truncate px-3 py-3 text-sm text-gray-900 dark:text-white sm:max-w-xs sm:px-4" title={plan.planName}>{plan.planName}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-900 dark:text-white sm:px-4">
+                  plans.map((plan) => {
+                    const workpieces = planWorkpieceEntries(plan);
+                    const badgeTone = [
+                      "border-indigo-200/80 bg-indigo-50 text-indigo-900 dark:border-indigo-500/30 dark:bg-indigo-950/45 dark:text-indigo-100",
+                      "border-sky-200/80 bg-sky-50 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/45 dark:text-sky-100",
+                      "border-violet-200/80 bg-violet-50 text-violet-900 dark:border-violet-500/30 dark:bg-violet-950/45 dark:text-violet-100",
+                      "border-teal-200/80 bg-teal-50 text-teal-900 dark:border-teal-500/30 dark:bg-teal-950/45 dark:text-teal-100",
+                    ];
+                    return (
+                  <tr
+                    key={plan.id}
+                    className="border-l-4 border-l-transparent transition-colors hover:border-l-indigo-400 hover:bg-indigo-50/25 dark:hover:bg-indigo-950/15"
+                  >
+                    <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-slate-100 bg-white/95 px-3 py-3.5 dark:border-slate-800 dark:bg-gray-950/95 sm:px-4">
+                      <span className="inline-flex rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-mono text-xs font-semibold tracking-tight text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+                        {plan.planCode}
+                      </span>
+                    </td>
+                    <td className="max-w-[220px] px-3 py-3.5 text-sm font-medium text-gray-900 dark:text-white sm:max-w-xs sm:px-4" title={plan.planName}>
+                      {plan.planName}
+                    </td>
+                    <td className="max-w-[220px] px-3 py-3.5 sm:px-4">
+                      {workpieces.length === 0 ? (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {workpieces.map((wp, wi) => (
+                            <span
+                              key={wp.code}
+                              title={wp.name ? `${wp.name}` : wp.code}
+                              className={`inline-flex max-w-[9rem] truncate rounded-md border px-2 py-0.5 font-mono text-[11px] font-semibold shadow-sm ${badgeTone[wi % badgeTone.length]}`}
+                            >
+                              {wp.code}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3.5 text-sm text-gray-900 dark:text-white sm:px-4">
                       {new Date(plan.planDate).toLocaleDateString("th-TH", {
                         year: 'numeric',
                         month: 'short',
@@ -804,10 +1102,10 @@ export default function PCSchedulePage() {
                       })}
                       <br />
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'}
+                        {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'} น.
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-center sm:px-4">
+                    <td className="px-3 py-3.5 text-center sm:px-4">
                       <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
                         plan.status === "draft" ? "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-400" :
                         plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :
@@ -815,26 +1113,57 @@ export default function PCSchedulePage() {
                         "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
                       }`}>{statusConfig[plan.status].label}</span>
                     </td>
-                    <td className="px-3 py-3 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">{plan.items?.length || 0}</td>
-                    <td className="px-3 py-3 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">
+                    <td className="px-3 py-3.5 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">{plan.items?.length || 0}</td>
+                    <td className="px-3 py-3.5 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">
                       {plan.items?.reduce((acc, item) => acc + (item.bom?.length || 0), 0) || 0}
                     </td>
-                    <td className="px-2 py-3 text-center sm:px-4">
-                      <div className="mx-auto flex max-w-[220px] flex-wrap items-center justify-center gap-1">
+                    <td className="px-2 py-3.5 text-center sm:px-4">
+                      <div className="mx-auto flex max-w-[300px] flex-wrap items-center justify-center gap-1.5">
                         {plan.status === "draft" && (
                           <>
-                            <button type="button" onClick={() => handleEdit(plan)} className="rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/40">แก้ไข</button>
-                            <button type="button" onClick={() => handleReserve(plan.id)} className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/30">จอง</button>
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(plan)}
+                              className={`${SCH.smOutline} ${SCH.focus} border-blue-200/90 bg-gradient-to-b from-white to-blue-50/90 text-blue-900 hover:border-blue-300 hover:to-blue-100 focus-visible:ring-blue-400 dark:border-blue-500/35 dark:from-blue-950/30 dark:to-blue-900/40 dark:text-blue-100`}
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                              แก้ไข
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReserve(plan.id)}
+                              className={`${SCH.smOutline} ${SCH.focus} border-amber-200/90 bg-gradient-to-b from-white to-amber-50/90 text-amber-950 hover:border-amber-300 hover:to-amber-100 focus-visible:ring-amber-400 dark:border-amber-500/35 dark:from-amber-950/30 dark:to-amber-900/40 dark:text-amber-100`}
+                            >
+                              <FontAwesomeIcon icon={faBookmark} className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                              จอง
+                            </button>
                           </>
                         )}
                         {(plan.status === "reserved" || plan.status === "confirmed") && (
-                          <button type="button" onClick={() => router.push(`/pc/schedule/${plan.id}`)} className="rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-200 dark:hover:bg-violet-900/30">รายละเอียด</button>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/pc/schedule/${plan.id}`)}
+                            className={`${SCH.smOutline} ${SCH.focus} border-violet-200/90 bg-gradient-to-b from-white to-violet-50/90 text-violet-900 hover:border-violet-300 hover:to-violet-100 hover:shadow focus-visible:ring-violet-400 dark:border-violet-500/35 dark:from-violet-950/30 dark:to-violet-900/40 dark:text-violet-100`}
+                          >
+                            <FontAwesomeIcon icon={faClipboardList} className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                            รายละเอียด
+                          </button>
                         )}
-                        <button type="button" onClick={() => handleExportPDF(plan)} className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/30">PDF</button>
+                        {plan.status === "reserved" && (
+                          <button
+                            type="button"
+                            onClick={() => handleExportPDF(plan)}
+                            className={`${SCH.smOutline} ${SCH.focus} border-emerald-200/90 bg-gradient-to-b from-white to-emerald-50/90 text-emerald-900 hover:border-emerald-300 hover:to-emerald-100 hover:shadow focus-visible:ring-emerald-400 dark:border-emerald-500/35 dark:from-emerald-950/30 dark:to-emerald-900/40 dark:text-emerald-100`}
+                          >
+                            <FontAwesomeIcon icon={faPrint} className="h-3.5 w-3.5 opacity-90" aria-hidden />
+                            พิมพ์ แผนผลิต
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -860,7 +1189,12 @@ export default function PCSchedulePage() {
               <h3 className="min-w-0 text-lg font-semibold text-gray-900 dark:text-white sm:text-2xl">
                 {editingPlan ? "แก้ไข" : "เพิ่ม"}แผนการผลิต
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className={`${SCH.iconClose} ${SCH.focus} focus-visible:ring-gray-400`}
+                aria-label="ปิด"
+              >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -906,11 +1240,9 @@ export default function PCSchedulePage() {
                     <button
                       type="button"
                       onClick={addItem}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 sm:w-auto"
+                      className={`${SCH.lgOutline} ${SCH.focus} min-h-10 border-blue-200/90 bg-gradient-to-b from-white to-blue-50/90 text-blue-900 hover:border-blue-300 hover:to-blue-100 focus-visible:ring-blue-400 dark:border-blue-500/35 dark:from-blue-950/25 dark:to-blue-900/35 dark:text-blue-100`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
+                      <FontAwesomeIcon icon={faPlus} className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                       เพิ่มรายการ
                     </button>
                   </div>
@@ -978,8 +1310,9 @@ export default function PCSchedulePage() {
                             <button
                               type="button"
                               onClick={() => removeItem(i)}
-                              className="w-full shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700 sm:w-auto"
+                              className={`${SCH.smOutline} ${SCH.focus} w-full border-red-200/90 bg-gradient-to-b from-white to-red-50/80 text-red-800 hover:border-red-300 hover:to-red-100 sm:w-auto dark:border-red-500/35 dark:from-red-950/25 dark:to-red-900/35 dark:text-red-100`}
                             >
+                              <FontAwesomeIcon icon={faTrash} className="h-3.5 w-3.5 opacity-90" aria-hidden />
                               ลบ
                             </button>
                           </div>
@@ -1014,7 +1347,14 @@ export default function PCSchedulePage() {
                               </>
                             ) : (
                               <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 rounded border border-amber-200 dark:border-amber-800">
-                                ⚠️ สินค้านี้ยังไม่มี BOM (Bill of Materials) กรุณาเพิ่ม BOM ก่อนสร้างแผนการผลิต
+                                ⚠️ สินค้านี้ยังไม่มี BOM (Bill of Materials) กรุณา{" "}
+                                <Link
+                                  href={`/production/products/${item.productId}/bom`}
+                                  className="font-medium underline hover:text-amber-800 dark:hover:text-amber-200"
+                                >
+                                  เพิ่ม BOM
+                                </Link>{" "}
+                                ก่อนสร้างแผนการผลิต
                               </div>
                             )}
                           </div>
@@ -1028,13 +1368,13 @@ export default function PCSchedulePage() {
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="w-full rounded-lg bg-gray-500 px-8 py-3 text-base font-medium text-white transition-colors hover:bg-gray-600 sm:w-auto sm:shrink-0"
+                    className={`${SCH.lgOutline} ${SCH.focus} border-slate-300/90 bg-gradient-to-b from-white to-slate-50 text-slate-800 hover:border-slate-400 hover:to-slate-100 focus-visible:ring-slate-400 sm:w-auto sm:shrink-0 sm:px-8`}
                   >
                     ยกเลิก
                   </button>
                   <button
                     type="submit"
-                    className="w-full rounded-lg bg-blue-600 py-3 text-base font-medium text-white transition-colors hover:bg-blue-700 sm:flex-1"
+                    className={`${SCH.lgSolid} ${SCH.focus} border-blue-600 bg-gradient-to-b from-blue-600 to-blue-700 text-white hover:from-blue-500 hover:to-blue-600 focus-visible:ring-blue-500 sm:flex-1`}
                   >
                     บันทึก
                   </button>
@@ -1052,7 +1392,12 @@ export default function PCSchedulePage() {
               <h3 className="min-w-0 break-words text-base font-semibold text-gray-900 dark:text-white sm:text-xl">
                 รายละเอียดแผนการผลิต — {selectedPlan.planCode}
               </h3>
-              <button onClick={() => setShowDetailModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className={`${SCH.iconClose} ${SCH.focus} focus-visible:ring-gray-400`}
+                aria-label="ปิด"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -1076,28 +1421,39 @@ export default function PCSchedulePage() {
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">รายการสินค้า</h4>
                   <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                    <table className="w-full min-w-[360px] text-sm">
-                      <thead className="bg-gray-50 dark:bg-gray-900">
+                    <table className="w-full min-w-[420px] text-sm">
+                      <thead className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900">
                         <tr>
-                          <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300">สินค้า</th>
-                          <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">จำนวน</th>
-                          <th className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">หน่วย</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-200">รหัสชิ้นงาน</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 dark:text-slate-200">สินค้า</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 dark:text-slate-200">จำนวน</th>
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 dark:text-slate-200">หน่วย</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {(selectedPlan.items?.length ?? 0) === 0 ? (
-                          <TableEmptyRow colSpan={3} />
+                          <TableEmptyRow colSpan={4} />
                         ) : (
-                          (selectedPlan.items ?? []).map((item, i) => (
+                          (selectedPlan.items ?? []).map((item, i) => {
+                            const wpCode =
+                              item.product?.productCode?.trim() ||
+                              item.product_code?.toString().trim() ||
+                              "—";
+                            return (
                           <React.Fragment key={i}>
-                            <tr>
+                            <tr className="bg-white/50 dark:bg-gray-900/30">
+                              <td className="px-4 py-3 align-top">
+                                <span className="inline-flex rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-mono text-xs font-semibold text-indigo-900 dark:border-indigo-500/30 dark:bg-indigo-950/50 dark:text-indigo-100">
+                                  {wpCode}
+                                </span>
+                              </td>
                               <td className="px-4 py-3 text-gray-900 dark:text-white">{item.product?.productName || "-"}</td>
                               <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.quantity}</td>
                               <td className="px-4 py-3 text-center text-gray-900 dark:text-white">{item.unit}</td>
                             </tr>
                             {item.bom && item.bom.length > 0 && (
                               <tr>
-                                <td colSpan={3} className="px-4 py-2 bg-gray-50 dark:bg-gray-800">
+                                <td colSpan={4} className="px-4 py-2 bg-slate-50 dark:bg-slate-900/50">
                                   <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Material ที่ต้องใช้:</div>
                                   <table className="w-full text-xs">
                                     <thead>
@@ -1121,7 +1477,8 @@ export default function PCSchedulePage() {
                               </tr>
                             )}
                           </React.Fragment>
-                          ))
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
@@ -1208,8 +1565,9 @@ export default function PCSchedulePage() {
                   กรุณาไปที่หน้า Material Receiving เพื่อเติม Stock
                 </p>
                 <button
+                  type="button"
                   onClick={() => setShowInsufficientModal(false)}
-                  className="w-full rounded-lg bg-red-600 px-6 py-2 font-medium text-white transition-colors hover:bg-red-700 sm:w-auto"
+                  className={`${SCH.lgSolid} ${SCH.focus} w-full border-slate-700 bg-gradient-to-b from-slate-700 to-slate-800 text-white hover:from-slate-600 hover:to-slate-700 focus-visible:ring-slate-500 sm:w-auto sm:px-8`}
                 >
                   รับทราบ
                 </button>

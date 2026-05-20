@@ -7,6 +7,9 @@ import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
+import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
+import ProductImageField from "@/components/production/ProductImageField";
+import { resolveProductImagePath, uploadProductImageFile } from "@/utils/productImage";
 
 /** FK จากฟอร์ม → ตัวเลขบวก หรือ null (ส่ง JSON ให้ backend ชัดเจน) */
 function normalizeFk(v: number | null | undefined): number | null {
@@ -30,6 +33,9 @@ export default function ProductsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [addImageFile, setAddImageFile] = useState<File | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [tablePreviewSrc, setTablePreviewSrc] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     productCode: '',
     productName: '',
@@ -47,6 +53,7 @@ export default function ProductsPage() {
     loadingPointId: null as number | null,
     processLineId: null as number | null,
     isActive: true,
+    productImagePath: null as string | null,
     bom: [] as Array<{materialId: number; quantityPerUnit: number; unit: string; remarks?: string}>
   });
   const [materials, setMaterials] = useState<any[]>([]);
@@ -199,13 +206,44 @@ export default function ProductsPage() {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      productCode: '',
+      productName: '',
+      description: '',
+      productTypeId: null,
+      defaultLocationId: null,
+      lr: '',
+      lotSize: null,
+      minStock: null,
+      customerId: null,
+      modelId: null,
+      deliveryTypeId: null,
+      unitId: null,
+      scale: '',
+      loadingPointId: null,
+      processLineId: null,
+      isActive: true,
+      productImagePath: null,
+      bom: [],
+    });
+    setAddImageFile(null);
+    setEditImageFile(null);
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      let productImagePath = formData.productImagePath;
+      if (addImageFile) {
+        const up = await uploadProductImageFile(addImageFile);
+        productImagePath = up.filePath;
+      }
       const { bom, ...rest } = formData;
       const productData = {
         ...rest,
+        productImagePath: productImagePath || undefined,
         productTypeId: normalizeFk(rest.productTypeId),
         defaultLocationId: normalizeFk(rest.defaultLocationId),
         lotSize: normalizeOptionalNonNegInt(rest.lotSize),
@@ -243,7 +281,7 @@ export default function ProductsPage() {
           alert(result.message || 'เพิ่มสินค้าสำเร็จ');
         }
         setShowAddModal(false);
-        setFormData({ productCode: '', productName: '', description: '', productTypeId: null, defaultLocationId: null, lr: '', lotSize: null, minStock: null, customerId: null, modelId: null, deliveryTypeId: null, unitId: null, scale: '', loadingPointId: null, processLineId: null, isActive: true, bom: [] });
+        resetForm();
         fetchProducts();
       } else {
         alert('เกิดข้อผิดพลาด: ' + (result.message || JSON.stringify(result)));
@@ -260,9 +298,15 @@ export default function ProductsPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      let productImagePath = formData.productImagePath;
+      if (editImageFile) {
+        const up = await uploadProductImageFile(editImageFile);
+        productImagePath = up.filePath;
+      }
       const { bom, ...rest } = formData;
       const productData = {
         ...rest,
+        productImagePath: productImagePath ?? null,
         productTypeId: normalizeFk(rest.productTypeId),
         defaultLocationId: normalizeFk(rest.defaultLocationId),
         lotSize: normalizeOptionalNonNegInt(rest.lotSize),
@@ -301,6 +345,7 @@ export default function ProductsPage() {
         }
         setShowEditModal(false);
         setSelectedProduct(null);
+        setEditImageFile(null);
         fetchProducts();
       } else {
         alert('เกิดข้อผิดพลาด: ' + (result.message || JSON.stringify(result)));
@@ -332,8 +377,10 @@ export default function ProductsPage() {
       loadingPointId: product.loadingPointId,
       processLineId: product.processLineId,
       isActive: product.isActive,
-      bom: []
+      productImagePath: resolveProductImagePath(product),
+      bom: [],
     });
+    setEditImageFile(null);
     setShowEditModal(true);
   };
 
@@ -375,7 +422,10 @@ export default function ProductsPage() {
           <div className="flex justify-between items-center mb-4">
             <PaginationSelector currentLimit={limit} />
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                resetForm();
+                setShowAddModal(true);
+              }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,6 +439,7 @@ export default function ProductsPage() {
             <table className="min-w-max w-full table-auto">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-800">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">รูป</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">รหัสสินค้า</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">ชื่อสินค้า</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">คำอธิบาย</th>
@@ -403,10 +454,18 @@ export default function ProductsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {products.length === 0 ? (
-                  <TableEmptyRow colSpan={10} />
+                  <TableEmptyRow colSpan={11} />
                 ) : (
                   products.map((prod) => (
                   <tr key={prod.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <WorkpieceImage
+                        path={resolveProductImagePath(prod)}
+                        alt={prod.productName}
+                        size="sm"
+                        onPreview={(src) => setTablePreviewSrc(src)}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">{prod.productCode}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{prod.productName}</td>
                     <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">{prod.description || '-'}</td>
@@ -473,6 +532,12 @@ export default function ProductsPage() {
                 <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">คำอธิบาย</label>
                 <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" rows={2} />
               </div>
+              <ProductImageField
+                savedPath={formData.productImagePath}
+                file={addImageFile}
+                onFileChange={setAddImageFile}
+                onClearSaved={() => setFormData({ ...formData, productImagePath: null })}
+              />
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">LR</label>
@@ -619,6 +684,12 @@ export default function ProductsPage() {
                 <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">คำอธิบาย</label>
                 <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white" rows={2} />
               </div>
+              <ProductImageField
+                savedPath={formData.productImagePath}
+                file={editImageFile}
+                onFileChange={setEditImageFile}
+                onClearSaved={() => setFormData({ ...formData, productImagePath: null })}
+              />
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">LR</label>
@@ -713,6 +784,21 @@ export default function ProductsPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {tablePreviewSrc && (
+        <div
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setTablePreviewSrc(null)}
+          role="presentation"
+        >
+          <img
+            src={tablePreviewSrc}
+            alt="รูปสินค้าขยาย"
+            className="max-h-[90vh] max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

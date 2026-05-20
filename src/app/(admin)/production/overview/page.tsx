@@ -47,6 +47,18 @@ const items = [
     icon: <FontAwesomeIcon icon={faListOl} />,
   },
   {
+    name: "กระบวนการผลิต (Master)",
+    path: "/master-data/production-processes",
+    description: "CRUD production_processes",
+    icon: <FontAwesomeIcon icon={faListOl} />,
+  },
+  {
+    name: "ขั้นตอนผลิตต่อสินค้า (Master CRUD)",
+    path: "/master-data/product-production-steps",
+    description: "จัดการ product_production_steps แบบตาราง",
+    icon: <FontAwesomeIcon icon={faListOl} />,
+  },
+  {
     name: "จัดงานล่วงหน้า (แผน)",
     path: "/pc/schedule",
     description: "แผนการผลิตและจองวัตถุดิบ",

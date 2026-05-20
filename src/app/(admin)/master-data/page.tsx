@@ -7,8 +7,9 @@ import {
   faBoxesStacked,
   faBox,
   faGear,
-  faLocationDot,
   faListCheck,
+  faListOl,
+  faLocationDot,
   faRuler,
   faTag,
   faTruck,
@@ -30,7 +31,24 @@ const productItems = [
   { name: "ประเภทสินค้า", path: "/master-data/product-types", icon: <FontAwesomeIcon icon={faTag} /> },
   { name: "สถานที่เก็บ (สินค้า)", path: "/master-data/product-locations", icon: <FontAwesomeIcon icon={faLocationDot} /> },
   { name: "ลูกค้า", path: "/master-data/customers", icon: <FontAwesomeIcon icon={faUser} /> },
-  { name: "ลำดับขั้นตอนผลิต", path: "/master-data/production-steps", icon: <FontAwesomeIcon icon={faListCheck} /> },
+  {
+    name: "กระบวนการผลิต",
+    path: "/master-data/production-processes",
+    description: "CRUD production_processes",
+    icon: <FontAwesomeIcon icon={faGear} />,
+  },
+  {
+    name: "ลำดับขั้นตอนผลิต (รายสินค้า)",
+    path: "/master-data/production-steps",
+    description: "เลือกสินค้าแล้วตั้งลำดับทั้งชุด",
+    icon: <FontAwesomeIcon icon={faListCheck} />,
+  },
+  {
+    name: "ขั้นตอนผลิตต่อสินค้า",
+    path: "/master-data/product-production-steps",
+    description: "CRUD product_production_steps",
+    icon: <FontAwesomeIcon icon={faListOl} />,
+  },
   { name: "ประเภทการส่ง (สินค้า)", path: "/master-data/product-delivery-types", icon: <FontAwesomeIcon icon={faTruck} /> },
   { name: "โมเดล (สินค้า)", path: "/master-data/product-models", icon: <FontAwesomeIcon icon={faGear} /> },
   { name: "หน่วย (สินค้า)", path: "/master-data/product-units", icon: <FontAwesomeIcon icon={faRuler} /> },
@@ -51,7 +69,7 @@ export default function MasterDataPage() {
         />
         <OverviewHubSection
           title="ผลิตภัณฑ์ / สินค้า"
-          sectionDescription="ข้อมูลพื้นฐานสำหรับสินค้าสำเร็จรูป (คนละชุดกับวัตถุดิบ) — เมนูย่อยภายใต้ Master Data (กลุ่มสินค้า)"
+          sectionDescription="ข้อมูลพื้นฐานสำหรับสินค้าสำเร็จรูป รวมกระบวนการและลำดับขั้นตอนผลิต — เมนูย่อยภายใต้ Master Data (กลุ่มสินค้า)"
           items={productItems}
           icon={<FontAwesomeIcon icon={faBox} />}
         />

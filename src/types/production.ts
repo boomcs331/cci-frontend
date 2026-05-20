@@ -1,10 +1,35 @@
-/** Master ขั้นตอนผลิต (production_processes) — GET /production-orders/processes/all คืน array ตรงๆ */
+/** Master ขั้นตอนผลิต (production_processes) */
 export interface ProductionProcess {
   id: number;
   processCode: string;
   processName: string;
   sequenceOrder: number;
   isActive: boolean;
+  allowedDepartmentCodes?: string[] | null;
+}
+
+export interface ProductionProcessesListResult {
+  data: ProductionProcess[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface CreateProductionProcessPayload {
+  processCode: string;
+  processName: string;
+  sequenceOrder: number;
+  isActive?: boolean;
+  allowedDepartmentCodes?: string[];
+}
+
+export interface UpdateProductionProcessPayload {
+  processCode?: string;
+  processName?: string;
+  sequenceOrder?: number;
+  isActive?: boolean;
+  allowedDepartmentCodes?: string[] | null;
 }
 
 /** แถวจาก GET /products/:id/production-steps */
@@ -25,6 +50,36 @@ export interface ProductionStepDraft {
 
 export interface SetProductionStepsPayload {
   steps: ProductionStepDraft[];
+}
+
+/** แถวจาก GET /masters/product-production-steps */
+export interface ProductProductionStepListRow extends ProductProductionStepRow {
+  product?: {
+    id: number;
+    productCode: string;
+    productName: string;
+  };
+  createBy?: string | null;
+  updateBy?: string | null;
+}
+
+export interface ProductProductionStepsListResult {
+  data: ProductProductionStepListRow[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface CreateProductProductionStepPayload {
+  productId: number;
+  stepOrder: number;
+  processId: number;
+}
+
+export interface UpdateProductProductionStepPayload {
+  stepOrder?: number;
+  processId?: number;
 }
 
 /** ล็อตคำสั่งผลิต (production_lots) — ค่า QR รูปแบบเดียวกับวัตถุดิบ */
@@ -70,6 +125,7 @@ export interface ProductionOrderDetail {
     id: number;
     productCode: string;
     productName: string;
+    productImagePath?: string | null;
     customerId?: number | null;
     /** master.customers — property names จาก entity: code, name */
     customer?: { id: number; code: string; name: string } | null;

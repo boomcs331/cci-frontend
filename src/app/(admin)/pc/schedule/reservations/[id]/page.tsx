@@ -1,110 +1,99 @@
 'use client';
-import { use, useCallback, useEffect, useMemo, useState } from 'react';
+import { use, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
 import TableEmptyRow from '@/components/common/TableEmptyRow';
-import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBatchPanel';
+import QRCodeGenerator from '@/components/common/QRCodeGenerator';
 import QRScannerModal from '@/components/qr/QRScannerModal';
-import { getProductProductionSteps } from '@/services/productProductionStepsService';
-import type { GenerateProductQrOrdersResponse } from '@/services/productionPlanQrService';
 import { apiFetch } from '@/utils/api';
 import {
-  generateProductQrOrdersAndSyncPlanItems,
-  syncPlanItemsFromProductionQrGeneration,
-  type PlanDetailForLots,
-} from '@/utils/ensureProductionLotsAfterReserve';
+  normalizePlanDetail,
+  reservationMaterialQr,
+  type Material,
+  type PlanDetail,
+} from '@/utils/productionPlanReservationDetail';
+import {
+  applyMaterialIssuerAfterConfirm,
+  formatMaterialIssuedByDisplay,
+} from '@/utils/resolveStoredUserLabel';
+import { getSession } from '@/utils/session';
 
-interface Material {
-  materialId: number;
-  materialCode: string;
-  materialName: string;
-  requiredQuantity: number;
-  availableQty: number;
-  unit: string;
-}
-
-interface Reservation {
-  materialId: number;
-  materialCode: string;
-  materialName: string;
-  reservedQuantity: number;
-  lotNumber?: string;
-  lotPdNo?: string;
-  qrCode?: string;
-  receiveDate?: string;
-  createDate: string;
-}
-
-interface PlanItem {
-  planItemId?: number;
-  /** รหัสแถวแผนใน DB (ใช้เรียก generate-product-qr-orders เมื่อไม่มี planItemId) */
-  id?: number;
-  productId: number;
-  productName: string;
-  quantity: number;
-  unit: string;
-  materials: Material[];
-  /** จาก API หลังจ่ายวัตถุดิบเฉพาะบรรทัด — ใช้ซ่อนปุ่มยืนยันซ้ำและเปิดแผงล็อตผลิต */
-  materialsIssued?: boolean;
-}
-
-interface PlanDetail {
-  id?: number;
-  planId?: number;
-  planCode: string;
-  planName: string;
-  planDate: string;
-  planTime?: string;
-  status: string;
-  remarks?: string;
-  items: PlanItem[];
-  reservations?: Reservation[];
-}
-
-function normalizePlanItem(input: unknown): PlanItem {
-  const raw = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
-  const materials = Array.isArray(raw.materials) ? (raw.materials as Material[]) : [];
-  return {
-    planItemId: raw.planItemId as number | undefined,
-    id: raw.id as number | undefined,
-    productId: Number(raw.productId),
-    productName: String(raw.productName ?? ''),
-    quantity: Number(raw.quantity),
-    unit: String(raw.unit ?? ''),
-    materials,
-    materialsIssued: raw.materialsIssued as boolean | undefined,
-  };
-}
-
-function normalizePlanDetail(raw: unknown): PlanDetail | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const o = raw as Record<string, unknown>;
-  if (typeof o.message === 'string' && typeof o.statusCode === 'number') {
-    return null;
-  }
-  if (o.planCode == null && o.planName == null) {
-    return null;
-  }
-  const itemsRaw = o.items;
-  const items = Array.isArray(itemsRaw)
-    ? itemsRaw.map((it) => normalizePlanItem(it))
-    : [];
-  const resRaw = o.reservations;
-  const reservations = Array.isArray(resRaw) ? (resRaw as Reservation[]) : [];
-  return {
-    id: o.id as number | undefined,
-    planId: o.planId as number | undefined,
-    planCode: String(o.planCode ?? ''),
-    planName: String(o.planName ?? ''),
-    planDate: String(o.planDate ?? ''),
-    planTime: o.planTime != null ? String(o.planTime) : undefined,
-    status: String(o.status ?? ''),
-    remarks: o.remarks != null ? String(o.remarks) : undefined,
-    items,
-    reservations,
-  };
-}
+/** สอดคล้อง schedule/[id] — สีแยกตามวัตถุดิบในกล่อง Lot ที่ยืนยัน */
+const MATERIAL_LOT_PALETTE = [
+  {
+    card: 'border-emerald-300/90 bg-emerald-50/40 dark:border-emerald-700 dark:bg-emerald-950/35',
+    header: 'border-emerald-200 bg-emerald-100/80 dark:border-emerald-800 dark:bg-emerald-900/45',
+    headerMuted: 'text-emerald-900 dark:text-emerald-100',
+    thead: 'bg-emerald-50/90 dark:bg-emerald-900/30',
+    th: 'text-emerald-900 dark:text-emerald-100',
+    tbodyDivide: 'divide-emerald-100 dark:divide-emerald-900/45',
+    rowHover: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/25',
+  },
+  {
+    card: 'border-sky-300/90 bg-sky-50/40 dark:border-sky-700 dark:bg-sky-950/35',
+    header: 'border-sky-200 bg-sky-100/80 dark:border-sky-800 dark:bg-sky-900/45',
+    headerMuted: 'text-sky-900 dark:text-sky-100',
+    thead: 'bg-sky-50/90 dark:bg-sky-900/30',
+    th: 'text-sky-900 dark:text-sky-100',
+    tbodyDivide: 'divide-sky-100 dark:divide-sky-900/45',
+    rowHover: 'hover:bg-sky-50 dark:hover:bg-sky-900/25',
+  },
+  {
+    card: 'border-amber-300/90 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/35',
+    header: 'border-amber-200 bg-amber-100/80 dark:border-amber-800 dark:bg-amber-900/45',
+    headerMuted: 'text-amber-900 dark:text-amber-100',
+    thead: 'bg-amber-50/90 dark:bg-amber-900/30',
+    th: 'text-amber-900 dark:text-amber-100',
+    tbodyDivide: 'divide-amber-100 dark:divide-amber-900/45',
+    rowHover: 'hover:bg-amber-50 dark:hover:bg-amber-900/25',
+  },
+  {
+    card: 'border-violet-300/90 bg-violet-50/40 dark:border-violet-700 dark:bg-violet-950/35',
+    header: 'border-violet-200 bg-violet-100/80 dark:border-violet-800 dark:bg-violet-900/45',
+    headerMuted: 'text-violet-900 dark:text-violet-100',
+    thead: 'bg-violet-50/90 dark:bg-violet-900/30',
+    th: 'text-violet-900 dark:text-violet-100',
+    tbodyDivide: 'divide-violet-100 dark:divide-violet-900/45',
+    rowHover: 'hover:bg-violet-50 dark:hover:bg-violet-900/25',
+  },
+  {
+    card: 'border-rose-300/90 bg-rose-50/40 dark:border-rose-700 dark:bg-rose-950/35',
+    header: 'border-rose-200 bg-rose-100/80 dark:border-rose-800 dark:bg-rose-900/45',
+    headerMuted: 'text-rose-900 dark:text-rose-100',
+    thead: 'bg-rose-50/90 dark:bg-rose-900/30',
+    th: 'text-rose-900 dark:text-rose-100',
+    tbodyDivide: 'divide-rose-100 dark:divide-rose-900/45',
+    rowHover: 'hover:bg-rose-50 dark:hover:bg-rose-900/25',
+  },
+  {
+    card: 'border-cyan-300/90 bg-cyan-50/40 dark:border-cyan-700 dark:bg-cyan-950/35',
+    header: 'border-cyan-200 bg-cyan-100/80 dark:border-cyan-800 dark:bg-cyan-900/45',
+    headerMuted: 'text-cyan-900 dark:text-cyan-100',
+    thead: 'bg-cyan-50/90 dark:bg-cyan-900/30',
+    th: 'text-cyan-900 dark:text-cyan-100',
+    tbodyDivide: 'divide-cyan-100 dark:divide-cyan-900/45',
+    rowHover: 'hover:bg-cyan-50 dark:hover:bg-cyan-900/25',
+  },
+  {
+    card: 'border-orange-300/90 bg-orange-50/40 dark:border-orange-700 dark:bg-orange-950/35',
+    header: 'border-orange-200 bg-orange-100/80 dark:border-orange-800 dark:bg-orange-900/45',
+    headerMuted: 'text-orange-900 dark:text-orange-100',
+    thead: 'bg-orange-50/90 dark:bg-orange-900/30',
+    th: 'text-orange-900 dark:text-orange-100',
+    tbodyDivide: 'divide-orange-100 dark:divide-orange-900/45',
+    rowHover: 'hover:bg-orange-50 dark:hover:bg-orange-900/25',
+  },
+  {
+    card: 'border-indigo-300/90 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/35',
+    header: 'border-indigo-200 bg-indigo-100/80 dark:border-indigo-800 dark:bg-indigo-900/45',
+    headerMuted: 'text-indigo-900 dark:text-indigo-100',
+    thead: 'bg-indigo-50/90 dark:bg-indigo-900/30',
+    th: 'text-indigo-900 dark:text-indigo-100',
+    tbodyDivide: 'divide-indigo-100 dark:divide-indigo-900/45',
+    rowHover: 'hover:bg-indigo-50 dark:hover:bg-indigo-900/25',
+  },
+] as const;
 
 export default function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -113,20 +102,8 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   const [loading, setLoading] = useState(false);
   const [errorAlert, setErrorAlert] = useState<{ show: boolean; materials: Material[] }>({ show: false, materials: [] });
   const [showScanner, setShowScanner] = useState(false);
-  const [stepsByProductId, setStepsByProductId] = useState<Record<number, string[]>>({});
-  const [stepsLoading, setStepsLoading] = useState(false);
   const [issuingItemIndex, setIssuingItemIndex] = useState<number | null>(null);
   const router = useRouter();
-
-  const productIdsToFetch = useMemo(() => {
-    if (!data?.items?.length) return [] as number[];
-    if (data.status === 'confirmed') {
-      return [...new Set(data.items.map((i) => i.productId))];
-    }
-    const issued = data.items.filter((i) => i.materialsIssued);
-    if (issued.length === 0) return [];
-    return [...new Set(issued.map((i) => i.productId))];
-  }, [data?.items, data?.status]);
 
   const fetchData = useCallback(async () => {
     setLoadError(null);
@@ -159,6 +136,52 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleReserve = async () => {
+    if (!confirm('ต้องการจองวัตถุดิบสำหรับแผนการผลิตนี้หรือไม่?')) return;
+
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/production-plans/${id}/reserve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error((error as { message?: string }).message || 'เกิดข้อผิดพลาด');
+      }
+
+      await fetchData();
+      alert('จองวัตถุดิบสำเร็จ');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการจองวัตถุดิบ';
+      alert(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm('ต้องการยกเลิกแผนการผลิตนี้หรือไม่? (จะคืนวัตถุดิบที่จองไว้)')) return;
+
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/production-plans/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error('เกิดข้อผิดพลาด');
+
+      await fetchData();
+      alert('ยกเลิกแผนการผลิตสำเร็จ');
+    } catch {
+      alert('เกิดข้อผิดพลาดในการยกเลิกแผนการผลิต');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /** จ่ายเฉพาะบรรทัดสินค้าในแผน (index ตามลำดับใน items[]) — ส่งไปที่ API เป็น itemIndexes */
   const handleConfirmAndIssueForItem = async (itemIndex: number) => {
@@ -198,10 +221,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         throw new Error((error as { message?: string }).message || 'เกิดข้อผิดพลาด');
       }
 
-      const confirmBody = (await res.json()) as {
-        productionQrGeneration?: GenerateProductQrOrdersResponse | null;
-        productionQrGenerationError?: string | null;
-      };
+      await res.json().catch(() => null);
 
       const dRes = await apiFetch(`/production-plans/${id}/details`);
       if (!dRes.ok) {
@@ -214,44 +234,9 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
           '\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e1c\u0e19\u0e2b\u0e25\u0e31\u0e07\u0e08\u0e48\u0e32\u0e22\u0e44\u0e21\u0e48\u0e2a\u0e21\u0e1a\u0e39\u0e23\u0e13\u0e4c',
         );
       }
-      setData(updated);
+      setData(applyMaterialIssuerAfterConfirm(updated));
 
-      const pid = Number(updated.id ?? updated.planId ?? id);
-      if (Number.isFinite(pid)) {
-        const lotPlan: PlanDetailForLots = {
-          id: updated.id,
-          planId: updated.planId,
-          planCode: updated.planCode,
-          status: updated.status,
-          items: updated.items.map((it) => ({
-            planItemId: it.planItemId,
-            id: it.id,
-            productId: it.productId,
-            productName: it.productName,
-            quantity: it.quantity,
-            unit: it.unit,
-          })),
-        };
-        try {
-          if (confirmBody.productionQrGeneration) {
-            await syncPlanItemsFromProductionQrGeneration(
-              lotPlan,
-              confirmBody.productionQrGeneration,
-            );
-          } else {
-            await generateProductQrOrdersAndSyncPlanItems(pid, lotPlan, [itemIndex]);
-          }
-          if (confirmBody.productionQrGenerationError) {
-            console.warn(confirmBody.productionQrGenerationError);
-          }
-        } catch (e) {
-          console.warn('sync production QR after confirm failed', e);
-        }
-      }
-
-      alert(
-        'ยืนยันและจ่ายออกวัตถุดิบสำเร็จ — ระบบสร้าง QR ล็อตผลิตใน DB แล้ว (ตามจำนวนบรรจุของสินค้า) ใช้สแกนติดตามขั้นตอนได้',
-      );
+      alert('ยืนยันและจ่ายออกวัตถุดิบสำเร็จ');
     } catch (err: any) {
       alert(err.message || 'เกิดข้อผิดพลาดในการยืนยันและจ่ายออก');
     } finally {
@@ -260,44 +245,10 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
     }
   };
 
-  useEffect(() => {
-    if (productIdsToFetch.length === 0) {
-      setStepsByProductId({});
-      setStepsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setStepsLoading(true);
-    (async () => {
-      try {
-        const next: Record<number, string[]> = {};
-        await Promise.all(
-          productIdsToFetch.map(async (productId) => {
-            try {
-              const rows = await getProductProductionSteps(productId);
-              if (cancelled) return;
-              next[productId] = [...rows]
-                .sort((a, b) => a.stepOrder - b.stepOrder)
-                .map((r) => r.process.processName);
-            } catch {
-              if (!cancelled) next[productId] = [];
-            }
-          })
-        );
-        if (!cancelled) setStepsByProductId(next);
-      } finally {
-        if (!cancelled) setStepsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [productIdsToFetch]);
-
   if (loadError) {
     return (
       <div className="p-6 space-y-4">
-        <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิตที่จองแล้ว" />
+        <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิต" />
         <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-800 dark:text-red-200">
           {loadError}
         </div>
@@ -314,18 +265,13 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
 
   if (!data) return <div className="p-6">Loading...</div>;
 
-  const effectivePlanId = Number(data.id ?? data.planId ?? id);
-  if (!Number.isFinite(effectivePlanId)) {
-    return (
-      <div className="p-6 text-red-600">
-        ข้อมูลแผนไม่มีรหัสแผน (id/planId) — รีเฟรชหรือติดต่อผู้ดูแลระบบ
-      </div>
-    );
-  }
+  const planItems = Array.isArray(data.items) ? data.items : [];
+  const sessionUser = getSession()?.user;
+  const materialIssuedByLabel = formatMaterialIssuedByDisplay(data, sessionUser);
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิตที่จองแล้ว" />
+      <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิต" />
       <div className="space-y-6">
         {errorAlert.show && errorAlert.materials.length > 0 && (
           <>
@@ -341,7 +287,7 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                     <h3 className="text-2xl font-bold text-red-600 dark:text-red-400">ไม่สามารถจ่ายออกได้</h3>
                   </div>
                   <p className="text-sm text-red-700 dark:text-red-300 mt-2">
-                    วัตถแุดิบต่อไปนี้มีจำนวนไม่เพียงพอ กรุณาเติม Stock ก่อนทำรายการใหม่
+                    วัตถุดิบต่อไปนี้มีจำนวนไม่เพียงพอ กรุณาเติม Stock ก่อนทำรายการใหม่
                   </p>
                 </div>
                 
@@ -402,6 +348,32 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
         </div>
 
         <ComponentCard title="รายละเอียดแผนการผลิต">
+          {data.status === 'confirmed' && (
+            <div className="mb-4 flex flex-wrap justify-end gap-2 print:hidden">
+              <a
+                href={`/pc/schedule/reservations/${id}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 min-h-[44px] min-w-[44px]"
+              >
+                <svg
+                  className="h-5 w-5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                  />
+                </svg>
+                ปริ้นแผนผลิต
+              </a>
+            </div>
+          )}
           <div className="mb-6 grid grid-cols-2 gap-4">
             <div>
               <span className="text-sm text-gray-600 dark:text-gray-400">วันที่และเวลา:</span>
@@ -418,14 +390,24 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             <div>
               <span className="text-sm text-gray-600 dark:text-gray-400">สถานะ:</span>
               <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
-                data.status === 'reserved' ? 'bg-orange-200 text-orange-800' :
+                data.status === 'draft' ? 'bg-gray-200 text-gray-800' :
+                data.status === 'reserved' ? 'bg-blue-200 text-blue-800' :
                 data.status === 'confirmed' ? 'bg-green-200 text-green-800' :
-                'bg-gray-200 text-gray-800'
+                'bg-red-200 text-red-800'
               }`}>
-                {data.status === 'reserved' ? 'จองแล้ว' :
-                 data.status === 'confirmed' ? 'ยืนยันแล้ว' : data.status}
+                {data.status === 'draft' ? 'ร่าง' :
+                 data.status === 'reserved' ? 'จองแล้ว' :
+                 data.status === 'confirmed' ? 'ยืนยันแล้ว' : 'ยกเลิก'}
               </span>
             </div>
+            {materialIssuedByLabel != null && (
+              <div className="col-span-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">จ่ายออกวัตถุดิบโดย:</span>
+                <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                  {materialIssuedByLabel}
+                </span>
+              </div>
+            )}
             {data.remarks && (
               <div className="col-span-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400">หมายเหตุ:</span>
@@ -434,53 +416,13 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
             )}
           </div>
 
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-                รายการจองวัตถุดิบ ({(data.reservations ?? []).length} รายการ)
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="bg-blue-100 dark:bg-blue-900/40">
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">รหัสวัตถุดิบ</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">ชื่อวัตถุดิบ</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">Lot Number</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">Lot PD No.</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">QR Code</th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-blue-900 dark:text-blue-100">จำนวนที่จอง</th>
-                      <th className="px-4 py-2 text-center text-sm font-medium text-blue-900 dark:text-blue-100">วันที่จอง</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-blue-200 dark:divide-blue-800">
-                    {(data.reservations ?? []).length === 0 ? (
-                      <TableEmptyRow colSpan={7} />
-                    ) : (
-                      (data.reservations ?? []).map((r, idx) => (
-                        <tr key={idx} className="hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialCode}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialName}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
-                          <td className="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
-                          <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
-                            {r.reservedQuantity.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-center text-gray-900 dark:text-white">
-                            {new Date(r.createDate).toLocaleDateString('th-TH')}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          {(data.items ?? []).map((item, itemIndex) => (
+          {planItems.map((item, itemIndex) => {
+            const materials = Array.isArray(item.materials) ? item.materials : [];
+            return (
             <div key={`${item.productId}-${itemIndex}`} className="mb-8 border-t pt-4">
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  บรรทัด {itemIndex + 1}: {item.productName} — จำนวน {item.quantity} {item.unit}
+                  {item.productName} - จำนวน {item.quantity} {item.unit}
                 </h3>
                 {item.materialsIssued && (
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">
@@ -488,44 +430,159 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   </span>
                 )}
               </div>
-              <div className="overflow-x-auto">
+
+              <div className="overflow-x-auto mb-4">
                 <table className="w-full table-auto">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material</th>
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material Code</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">Material Name</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">ต้องการ</th>
                       <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">คงเหลือ</th>
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {(item.materials ?? []).length === 0 ? (
+                    {materials.length === 0 ? (
                       <TableEmptyRow colSpan={5} />
                     ) : (
-                      (item.materials ?? []).map((m) => (
-                        <tr key={m.materialId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {m.requiredQuantity} {m.unit}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {m.availableQty} {m.unit}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {m.availableQty >= m.requiredQuantity ? (
-                              <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
-                            ) : (
-                              <span className="text-red-600 dark:text-red-400 text-xl">✗</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                      materials.map((m) => {
+                        const ratio = m.requiredQuantity > 0 ? m.availableQty / m.requiredQuantity : 0;
+                        const bgColor = ratio <= 1 ? 'bg-red-50 dark:bg-red-900/20' :
+                                        ratio <= 2 ? 'bg-orange-50 dark:bg-orange-900/20' :
+                                        ratio <= 3 ? 'bg-green-50 dark:bg-green-900/20' :
+                                        'bg-blue-50 dark:bg-blue-900/20';
+                        return (
+                          <tr key={m.materialId} className={`hover:opacity-80 ${bgColor}`}>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialCode}</td>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{m.materialName}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              {m.requiredQuantity} {m.unit}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                              {m.availableQty} {m.unit}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {m.availableQty >= m.requiredQuantity ? (
+                                <span className="text-green-600 dark:text-green-400 text-xl">✓</span>
+                              ) : (
+                                <span className="text-red-600 dark:text-red-400 text-xl">✗</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {(() => {
+                const reservations = data.reservations ?? [];
+                const byMaterial = materials
+                  .map((m) => {
+                    const rows = reservations.filter(
+                      (r) => Number(r.materialId) === Number(m.materialId),
+                    );
+                    return { material: m, rows };
+                  })
+                  .filter((x) => x.rows.length > 0);
+
+                if (byMaterial.length === 0) return null;
+
+                return (
+                  <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50/80 p-3 dark:border-gray-600 dark:bg-gray-900/40">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      Lot ที่ยืนยัน
+                    </h4>
+                    {byMaterial.map(({ material: m, rows }) => {
+                      const bomIdx = materials.findIndex(
+                        (mm) => Number(mm.materialId) === Number(m.materialId),
+                      );
+                      const pal =
+                        MATERIAL_LOT_PALETTE[
+                          (bomIdx >= 0 ? bomIdx : 0) %
+                            MATERIAL_LOT_PALETTE.length
+                        ];
+                      return (
+                      <div
+                        key={m.materialId}
+                        className={`overflow-hidden rounded-lg border bg-white/90 dark:bg-gray-950/50 ${pal.card}`}
+                      >
+                        <div className={`border-b px-3 py-2 ${pal.header}`}>
+                          <div className={`text-xs font-medium ${pal.headerMuted}`}>
+                            วัตถุดิบ
+                          </div>
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {m.materialCode}{' '}
+                            <span className="font-normal text-gray-600 dark:text-gray-300">
+                              — {m.materialName}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full table-auto text-xs">
+                            <thead>
+                              <tr className={pal.thead}>
+                                <th className={`px-3 py-2 text-left ${pal.th}`}>
+                                  Lot Number
+                                </th>
+                                <th className={`px-3 py-2 text-left ${pal.th}`}>
+                                  Lot PD No.
+                                </th>
+                                <th className={`px-3 py-2 text-center ${pal.th}`}>
+                                  QR Code
+                                </th>
+                                <th className={`px-3 py-2 text-right ${pal.th}`}>
+                                  จำนวน
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className={`divide-y ${pal.tbodyDivide}`}>
+                              {rows.map((r, idx) => {
+                                const qr = reservationMaterialQr(r);
+                                return (
+                                  <tr
+                                    key={`${m.materialId}-${idx}-${r.lotNumber ?? ''}`}
+                                    className={pal.rowHover}
+                                  >
+                                    <td className="px-3 py-2 text-gray-900 dark:text-white">
+                                      {r.lotNumber || '-'}
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-900 dark:text-white">
+                                      {r.lotPdNo || '-'}
+                                    </td>
+                                    <td className="px-3 py-2 align-middle">
+                                      {qr ? (
+                                        <div className="flex flex-col items-center gap-1 py-1">
+                                          <QRCodeGenerator
+                                            value={qr}
+                                            size={56}
+                                            className="mx-auto block rounded border border-gray-200 bg-white p-0.5 dark:border-gray-600"
+                                          />
+                                          <span className="max-w-[140px] truncate font-mono text-[10px] text-gray-600 dark:text-gray-400">
+                                            {qr}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                      {r.reservedQuantity.toLocaleString()}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {data.status === 'reserved' && !item.materialsIssued && (
                 <div className="mt-4">
@@ -544,40 +601,37 @@ export default function ReservationDetailPage({ params }: { params: Promise<{ id
                   </p>
                 </div>
               )}
+            </div>
+            );
+          })}
 
-              {(data.status === 'confirmed' || item.materialsIssued) && stepsLoading ? (
-                <div className="mt-6 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 px-4 py-3 text-sm text-indigo-800 dark:text-indigo-200">
-                  กำลังโหลดลำดับขั้นตอนผลิตของสินค้า…
-                </div>
-              ) : data.status === 'confirmed' || item.materialsIssued ? (
-                <ProductionLotBatchPanel
-                  planId={effectivePlanId}
-                  planCode={data.planCode}
-                  itemIndex={itemIndex}
-                  planItemId={item.planItemId ?? item.id}
-                  planStatus={data.status}
-                  productId={item.productId}
-                  productName={item.productName}
-                  totalQty={item.quantity}
-                  unit={item.unit}
-                  processStepLabels={
-                    stepsByProductId[item.productId]?.length
-                      ? stepsByProductId[item.productId]
-                      : undefined
-                  }
-                />
-              ) : (
-                <div className="mt-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-900/30 px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                  หลังยืนยันและจ่ายออกวัตถุดิบสำหรับบรรทัดนี้แล้ว ระบบจะแสดงการติดตามล็อตผลิตตามลำดับขั้นตอนของสินค้า
-                </div>
+          <div className="flex justify-between mt-6">
+            <div className="flex gap-2">
+              {data.status === 'draft' && (
+                <button
+                  type="button"
+                  onClick={handleReserve}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'กำลังดำเนินการ...' : 'จองวัตถุดิบ'}
+                </button>
+              )}
+
+              {(data.status === 'draft' || data.status === 'reserved') && (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={loading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {loading ? 'กำลังดำเนินการ...' : 'ยกเลิกแผน'}
+                </button>
               )}
             </div>
-          ))}
-
-          <div className="flex justify-end mt-6">
             <button
               type="button"
-              onClick={() => router.push('/pc/schedule/reservations')}
+              onClick={() => router.back()}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
             >
               ย้อนกลับ

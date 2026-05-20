@@ -1,54 +1,52 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import QRCode from "qrcode";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
-import QRCodeGenerator from "@/components/common/QRCodeGenerator";
+import ProductionOrderLotCard from "@/components/production/ProductionOrderLotCard";
+import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
 import { fetchProductionOrder } from "@/services/productionOrdersService";
 import { getProductProductionSteps } from "@/services/productProductionStepsService";
+import { printProductionOrderKanbanTags } from "@/utils/productionOrderKanbanPrint";
+import { resolveProductImagePath } from "@/utils/productImage";
 import type {
   ProductionOrderDetail,
   ProductionOrderLot,
   ProductProductionStepRow,
 } from "@/types/production";
 
-function lotHasCompletedProcess(lot: ProductionOrderLot, processCode: string): boolean {
-  const code = (processCode ?? "").trim();
-  if (!code) return false;
-  return (lot.tracking ?? []).some(
-    (t) =>
-      t.status === "COMPLETED" &&
-      (t.process?.processCode === code || t.processCode === code)
-  );
+function orderStatusLabel(status: string): string {
+  const s = status.toUpperCase();
+  if (s === "IN_PROGRESS") return "กำลังผลิต";
+  if (s === "COMPLETED") return "เสร็จสิ้น";
+  if (s === "DRAFT") return "ร่าง";
+  if (s === "CANCELLED") return "ยกเลิก";
+  return status;
 }
 
-function lotCurrentStepLabel(lot: ProductionOrderLot): string {
-  if (lot.status === "COMPLETED") return "เสร็จสิ้น";
-  if (lot.status === "REJECTED") return "ถูกปฏิเสธ";
-  if (lot.status === "PENDING") return "รอเริ่มงาน";
-  if (lot.currentProcess?.processName) {
-    const code = lot.currentProcess.processCode ? ` · ${lot.currentProcess.processCode}` : "";
-    return `${lot.currentProcess.processName}${code}`;
+function orderStatusClass(status: string): string {
+  const s = status.toUpperCase();
+  if (s === "COMPLETED") {
+    return "bg-emerald-100 text-emerald-800 ring-emerald-600/20 dark:bg-emerald-900/40 dark:text-emerald-200";
   }
-  if (lot.status === "IN_PROGRESS") {
-    return "กำลังผลิต (ยังไม่ระบุขั้น)";
+  if (s === "IN_PROGRESS") {
+    return "bg-blue-100 text-blue-800 ring-blue-600/20 dark:bg-blue-900/40 dark:text-blue-200";
   }
-  return lot.status;
+  if (s === "DRAFT") {
+    return "bg-gray-100 text-gray-700 ring-gray-500/20 dark:bg-gray-800 dark:text-gray-300";
+  }
+  return "bg-amber-100 text-amber-900 ring-amber-600/20 dark:bg-amber-900/40 dark:text-amber-200";
 }
 
 function orderCurrentStepSummary(lots: ProductionOrderLot[]): string {
   if (lots.length === 0) return "—";
-  if (lots.every((l) => l.status === "COMPLETED")) {
-    return "ทุกล็อตผลิตเสร็จสิ้นแล้ว";
-  }
+  if (lots.every((l) => l.status === "COMPLETED")) return "ทุกล็อตผลิตเสร็จสิ้นแล้ว";
   const inProgress = lots.filter((l) => l.status === "IN_PROGRESS");
   if (inProgress.length === 0) {
     if (lots.some((l) => l.status === "PENDING")) {
-      return "ยังไม่มีล็อตที่กำลังผลิต — ล็อตอยู่ในสถานะรอเริ่ม";
+      return "ยังไม่มีล็อตที่กำลังผลิต — รอเริ่มงาน";
     }
     return "—";
   }
@@ -56,22 +54,27 @@ function orderCurrentStepSummary(lots: ProductionOrderLot[]): string {
     .map((l) => l.currentProcess?.processName)
     .filter((n): n is string => Boolean(n));
   const unique = [...new Set(names)];
-  if (unique.length === 1) {
-    return `ล็อตที่กำลังผลิตอยู่ที่ขั้น: ${unique[0]}`;
-  }
-  if (unique.length > 1) {
-    return `ล็อตที่กำลังผลิตอยู่คนละขั้น (${unique.length} ขั้น) — ดูรายละเอียดในแต่ละแถว`;
-  }
-  return "กำลังผลิต (ยังไม่ระบุขั้นจากระบบ)";
+  if (unique.length === 1) return `ล็อตที่กำลังผลิตอยู่ที่: ${unique[0]}`;
+  if (unique.length > 1) return `ล็อตกำลังผลิตคนละขั้น (${unique.length} ขั้น)`;
+  return "กำลังผลิต (ยังไม่ระบุขั้น)";
 }
 
-export default function ProductionOrderQrPage() {
+function lotProgressStats(lots: ProductionOrderLot[]) {
+  const total = lots.length;
+  const completed = lots.filter((l) => l.status === "COMPLETED").length;
+  const inProgress = lots.filter((l) => l.status === "IN_PROGRESS").length;
+  const pending = lots.filter((l) => l.status === "PENDING").length;
+  return { total, completed, inProgress, pending };
+}
+
+export default function ProductionOrderDetailPage() {
   const params = useParams();
   const id = Number(params.id);
   const [order, setOrder] = useState<ProductionOrderDetail | null>(null);
   const [flowSteps, setFlowSteps] = useState<ProductProductionStepRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || Number.isNaN(id)) return;
@@ -82,9 +85,7 @@ export default function ProductionOrderQrPage() {
       setOrder(o);
       try {
         const steps = await getProductProductionSteps(o.productId);
-        setFlowSteps(
-          [...steps].sort((a, b) => a.stepOrder - b.stepOrder || a.id - b.id)
-        );
+        setFlowSteps([...steps].sort((a, b) => a.stepOrder - b.stepOrder || a.id - b.id));
       } catch {
         setFlowSteps([]);
       }
@@ -98,410 +99,211 @@ export default function ProductionOrderQrPage() {
   }, [id]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const handlePrintAll = async (
-    lots: ProductionOrderLot[],
-    o: ProductionOrderDetail,
-    steps: ProductProductionStepRow[]
-  ) => {
-    if (lots.length === 0) return;
-    const escapeHtml = (s: string) =>
-      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    const today = new Date();
-    const dateStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
-    const stdPack = o.lotSize || 100;
-    const partNo = o.product?.productCode ?? "";
-    const partName = o.product?.productName ?? "";
-    const customerBrand =
-      o.product?.customer?.name?.trim() ||
-      o.product?.customer?.code?.trim() ||
-      "";
-    const orderedSteps = [...steps].sort((a, b) => a.stepOrder - b.stepOrder || a.id - b.id);
+  const lots = useMemo(
+    () => [...(order?.lots ?? [])].sort((a, b) => a.sequenceNo - b.sequenceNo),
+    [order?.lots]
+  );
+  const stats = useMemo(() => lotProgressStats(lots), [lots]);
+  const productImagePath = order?.product ? resolveProductImagePath(order.product) : null;
 
-    const tags: string[] = [];
-    for (const lot of lots) {
-      const dataUrl = await QRCode.toDataURL(lot.qrCode, { width: 220, margin: 0 });
-      const kanbanNo = String(lot.sequenceNo).padStart(3, "0");
-      const fullQty = Math.floor(lot.quantity / stdPack);
-      const remainQty = lot.quantity % stdPack;
-      const lotMat = lot.lotPdNo || lot.lotNo || "";
-      const qrLabel = `${partNo}/${stdPack}/${lot.sequenceNo}`;
-
-      const flowHeaderCells =
-        orderedSteps.length > 0
-          ? orderedSteps
-              .map((s) => {
-                const p = s.process;
-                const label = p
-                  ? `${p.processCode}${p.processName ? ` · ${p.processName}` : ""}`
-                  : `#${s.processId}`;
-                return `<td class="lbl flow-step">${escapeHtml(label)}</td>`;
-              })
-              .join("")
-          : `<td class="lbl flow-step" colspan="1">${escapeHtml("ยังไม่กำหนดลำดับขั้น (product_production_steps)")}</td>`;
-
-      const flowStatusCells =
-        orderedSteps.length > 0
-          ? orderedSteps
-              .map((s) => {
-                const code = s.process?.processCode ?? "";
-                const done = lotHasCompletedProcess(lot, code);
-                return `<td class="check-cell">${done ? "&#10003;" : ""}</td>`;
-              })
-              .join("")
-          : `<td></td>`;
-
-      tags.push(`
-        <div class="kanban">
-          <div class="vert"><div class="vert-inner">CHIEW CHAN INDUSTRY (1989)CO.,LTD.(CCI)</div></div>
-          <div class="body">
-            <table class="top">
-              <colgroup>
-                <col style="width:13%" />
-                <col style="width:28%" />
-                <col style="width:11%" />
-                <col style="width:13%" />
-                <col style="width:10%" />
-                <col style="width:10%" />
-                <col style="width:15%" />
-              </colgroup>
-              <tr>
-                <td class="lbl">PART NO</td>
-                <td class="val big">${escapeHtml(partNo)}</td>
-                <td rowspan="5" class="customer-brand"><span>${escapeHtml(customerBrand || "—")}</span></td>
-                <td class="lbl">Number Kanban</td>
-                <td colspan="2" class="val big bold">${kanbanNo}</td>
-                <td rowspan="5" class="qr">
-                  <img src="${dataUrl}" alt="qr" />
-                  <div class="qr-label">${escapeHtml(qrLabel)}</div>
-                </td>
-              </tr>
-              <tr>
-                <td rowspan="2" class="lbl">PART NAME</td>
-                <td rowspan="2" class="val big">${escapeHtml(partName)}</td>
-                <td rowspan="2" class="lbl">QTY</td>
-                <td class="sublbl">จำนวนเต็ม</td>
-                <td class="sublbl">จำนวนเศษ</td>
-              </tr>
-              <tr>
-                <td class="val big">${fullQty}</td>
-                <td class="val big">${remainQty}</td>
-              </tr>
-              <tr>
-                <td class="lbl">วันเดือนปีผลิต</td>
-                <td class="val">${dateStr}</td>
-                <td rowspan="2" class="lbl">STD. PACKING</td>
-                <td class="val">BOX</td>
-                <td class="val">RACK <span class="check">&#10003;</span></td>
-              </tr>
-              <tr>
-                <td class="lbl">Lot No. mat</td>
-                <td class="val">${escapeHtml(lotMat)}</td>
-                <td colspan="2" class="val big center">${stdPack}</td>
-              </tr>
-            </table>
-            <table class="flow">
-              <tr>
-                <td class="lbl flow-lbl">Flow Process</td>
-                ${flowHeaderCells}
-              </tr>
-              <tr class="status-row">
-                <td class="lbl">สถานะ</td>
-                ${flowStatusCells}
-              </tr>
-            </table>
-          </div>
-        </div>
-      `);
+  const handlePrintAll = async () => {
+    if (!order || lots.length === 0) return;
+    setPrinting(true);
+    try {
+      await printProductionOrderKanbanTags(lots, order, flowSteps);
+    } finally {
+      setPrinting(false);
     }
-
-    const w = window.open("", "_blank");
-    if (!w) {
-      alert("กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์");
-      return;
-    }
-    w.document.write(`<!DOCTYPE html><html><head><title>Kanban Tag — ${escapeHtml(o.orderNo)}</title>
-      <meta charset="utf-8" />
-      <style>
-        @page { size: A4 portrait; margin: 8mm; }
-        * { box-sizing: border-box; }
-        html, body { background: #f0f0f0; }
-        body { font-family: "Segoe UI", "Sarabun", "Tahoma", sans-serif; padding: 0; margin: 0; color: #000; }
-        .toolbar {
-          position: sticky; top: 0; z-index: 10;
-          background: #fff; border-bottom: 1px solid #ddd;
-          padding: 8px 12px; display: flex; gap: 8px; justify-content: flex-end;
-        }
-        .toolbar button {
-          padding: 6px 14px; border: 1px solid #2563eb; background: #2563eb;
-          color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px;
-        }
-        .toolbar .secondary { background: #fff; color: #2563eb; }
-        .sheet {
-          width: 194mm;
-          margin: 0 auto;
-          padding: 4mm 0;
-        }
-        .kanban {
-          display: flex;
-          border: 1px solid #000;
-          width: 100%;
-          margin: 0 auto 1.2mm auto;
-          page-break-inside: avoid;
-          break-inside: avoid;
-          background: #fff;
-        }
-        .kanban:last-child { margin-bottom: 0; }
-        .vert {
-          width: 18px;
-          border-right: 1px solid #000;
-          position: relative;
-          overflow: hidden;
-          flex-shrink: 0;
-        }
-        .vert-inner {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%) rotate(180deg);
-          writing-mode: vertical-rl;
-          white-space: nowrap;
-          font-weight: 700;
-          font-size: 7px;
-          letter-spacing: 0.2px;
-        }
-        .body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-        .body > table:last-child { flex: 1; }
-        table.top, table.flow {
-          width: 100%;
-          border-collapse: collapse;
-          table-layout: fixed;
-        }
-        table.top td, table.flow td {
-          border: 1px solid #000;
-          padding: 1px 3px;
-          font-size: 8.5px;
-          line-height: 1.15;
-          vertical-align: middle;
-        }
-        .lbl { font-weight: 600; font-size: 8px; text-align: center; background: #fafafa; }
-        .sublbl { font-size: 7.5px; text-align: center; background: #fafafa; }
-        .val { text-align: center; }
-        .val.big { font-size: 10.5px; font-weight: 700; }
-        .val.center { text-align: center; }
-        .bold { font-weight: 700; }
-        .customer-brand {
-          text-align: center;
-          font-weight: 900;
-          font-style: italic;
-          font-size: 14px;
-          letter-spacing: 0.5px;
-          background: #fff;
-          padding: 0 !important;
-          word-break: break-word;
-          line-height: 1.05;
-        }
-        .customer-brand span {
-          display: inline-block;
-          transform: skewX(-10deg);
-        }
-        .qr {
-          text-align: center;
-          padding: 1px !important;
-          background: #fff;
-        }
-        .qr img { width: 60px; height: 60px; display: block; margin: 0 auto; }
-        .qr-label { font-size: 6.5px; font-family: monospace; margin-top: 1px; word-break: break-all; line-height: 1.1; }
-        .check { color: #000; font-weight: 700; }
-        .flow td { padding: 1px 2px; text-align: center; }
-        .flow-lbl { width: 10%; min-width: 52px; }
-        .flow-step { font-size: 7px; line-height: 1.1; word-break: break-word; }
-        .status-row td { font-size: 10px; font-weight: 700; }
-        .check-cell { font-size: 11px; font-weight: 700; }
-        @media print {
-          html, body { background: #fff; }
-          .toolbar { display: none; }
-          .sheet { width: auto; padding: 0; margin: 0; }
-          .kanban { margin: 0 0 1.2mm 0; }
-        }
-      </style></head><body>
-      <div class="toolbar">
-        <button class="secondary" onclick="window.close()">ปิด</button>
-        <button onclick="window.print()">พิมพ์</button>
-      </div>
-      <div class="sheet">${tags.join("")}</div>
-      <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 250); }</script>
-      </body></html>`);
-    w.document.close();
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">กำลังโหลด...</div>;
-  }
-  if (error || !order) {
     return (
-      <div className="p-6">
-        <p className="text-red-600">{error || "ไม่พบข้อมูล"}</p>
-        <Link href="/production/production-orders" className="text-blue-600 mt-4 inline-block">
-          ← กลับรายการ
-        </Link>
+      <div>
+        <PageBreadcrumb pageTitle="รายละเอียดคำสั่งผลิต" />
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-12 text-center text-gray-500">
+          กำลังโหลด...
+        </div>
       </div>
     );
   }
 
-  const lots = [...(order.lots ?? [])].sort((a, b) => a.sequenceNo - b.sequenceNo);
+  if (error || !order) {
+    return (
+      <div>
+        <PageBreadcrumb pageTitle="รายละเอียดคำสั่งผลิต" />
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30 p-6">
+          <p className="text-red-700 dark:text-red-300">{error || "ไม่พบข้อมูล"}</p>
+          <Link
+            href="/production/production-orders"
+            className="inline-block mt-4 text-sm text-blue-600 hover:underline dark:text-blue-400"
+          >
+            ← กลับรายการคำสั่งผลิต
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const stepSummary = orderCurrentStepSummary(lots);
+  const customerLabel = order.product?.customer
+    ? `${order.product.customer.name}${order.product.customer.code ? ` (${order.product.customer.code})` : ""}`
+    : "—";
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle={`QR ล็อต — ${order.orderNo}`} />
-      <div className="mb-4">
-        <Link
-          href="/production/production-orders"
-          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-        >
-          ← รายการคำสั่งผลิต
-        </Link>
-      </div>
-      <ComponentCard title={`${order.orderNo} · ${order.product?.productCode ?? ""} ${order.product?.productName ?? ""}`}>
-        <div className="text-sm text-gray-600 dark:text-gray-400 mb-4 space-y-1">
-          <p>
-            จำนวนสั่ง: <strong>{order.orderQuantity}</strong> · ต่อล็อต: <strong>{order.lotSize}</strong> · จำนวน QR:{" "}
-            <strong>{order.totalLots}</strong> · สถานะ: <strong>{order.status}</strong>
-          </p>
-          <p>
-            {"ขั้นตอนปัจจุบัน (สรุปจากล็อต):"}{" "}
-            <strong className="text-gray-900 dark:text-gray-100">{stepSummary}</strong>
-          </p>
-          <p>
-            ลูกค้า:{" "}
-            <strong className="text-gray-900 dark:text-gray-100">
-              {order.product?.customer
-                ? `${order.product.customer.name}${order.product.customer.code ? ` (${order.product.customer.code})` : ""}`
-                : "—"}
-            </strong>
-          </p>
-          <p className="text-xs">
-            เลขล็อตหลัก <span className="font-mono">PG…</span> คู่ <span className="font-mono">PD…</span> แบบรับเข้า
-            (วัตถุดิบใช้ <span className="font-mono">PC…</span>) — QR จากค่า PG เหมือน QR จาก PC
-          </p>
-          <p className="text-xs">
-            ข้อความใน QR = <span className="font-mono">qrCode</span> —{" "}
-            <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">GET /production-orders/lots/&lt;qr&gt;/status</code>
-          </p>
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
-              Flow Process <span className="font-normal text-gray-500">(product_production_steps)</span>
+    <div className="space-y-6">
+      <PageBreadcrumb pageTitle={`คำสั่งผลิต ${order.orderNo}`} />
+
+      {/* Hero */}
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-white via-brand-50/30 to-blue-50/40 dark:from-gray-900 dark:via-brand-950/20 dark:to-gray-900 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-gray-200/80 dark:border-gray-700 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex gap-4 min-w-0 flex-1">
+            <WorkpieceImage
+              path={productImagePath}
+              alt={order.product?.productName ?? "สินค้า"}
+              size="lg"
+              className="hidden sm:block shrink-0 !h-24 !w-24"
+            />
+            <div className="min-w-0">
+              <Link
+                href="/production/production-orders"
+                className="text-xs text-blue-600 hover:underline dark:text-blue-400 mb-2 inline-block"
+              >
+                ← รายการคำสั่งผลิต
+              </Link>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white font-mono">
+                  {order.orderNo}
+                </h1>
+                <span
+                  className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ${orderStatusClass(order.status)}`}
+                >
+                  {orderStatusLabel(order.status)}
+                </span>
+              </div>
+              <p className="text-base font-medium text-gray-800 dark:text-gray-100">
+                {order.product?.productCode}{" "}
+                <span className="text-gray-500 dark:text-gray-400 font-normal">
+                  — {order.product?.productName}
+                </span>
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                ลูกค้า: <span className="font-medium text-gray-800 dark:text-gray-200">{customerLabel}</span>
+              </p>
+              {order.remarks?.trim() && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">{order.remarks}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => void handlePrintAll()}
+              disabled={lots.length === 0 || printing}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-brand-600 hover:bg-brand-700 text-white disabled:opacity-50 shadow-sm"
+            >
+              {printing ? "กำลังเตรียมพิมพ์..." : "พิมพ์ Kanban ทั้งหมด"}
+            </button>
+            <Link
+              href="/production/dept-step-scan"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              ยิง QR ตามแผนก
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-200 dark:divide-gray-700">
+          {[
+            { label: "จำนวนสั่ง", value: order.orderQuantity },
+            { label: "ต่อล็อต / STD", value: order.lotSize },
+            { label: "จำนวน QR", value: order.totalLots },
+            { label: "ล็อตเสร็จ", value: `${stats.completed}/${stats.total}` },
+          ].map((item) => (
+            <div key={item.label} className="px-4 py-3 text-center sm:text-left">
+              <p className="text-xs text-gray-500 dark:text-gray-400">{item.label}</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white tabular-nums">{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Flow + summary */}
+        <div className="xl:col-span-1 space-y-6">
+          <ComponentCard title="สรุปความคืบหน้า">
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+              <span className="text-gray-500 dark:text-gray-400">ขั้นตอนปัจจุบัน: </span>
+              <strong>{stepSummary}</strong>
             </p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-1 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                เสร็จ {stats.completed}
+              </span>
+              <span className="px-2 py-1 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+                กำลังผลิต {stats.inProgress}
+              </span>
+              <span className="px-2 py-1 rounded-md bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+                รอ {stats.pending}
+              </span>
+            </div>
+            <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+              เลขล็อต <span className="font-mono">PG…</span> คู่ <span className="font-mono">PD…</span> — สแกน QR
+              ที่สถานีผลิตเพื่อเริ่ม/ปิดขั้น
+            </p>
+          </ComponentCard>
+
+          <ComponentCard title="Flow Process">
             {flowSteps.length === 0 ? (
-              <p className="text-xs text-gray-500">ยังไม่มีลำดับขั้นสำหรับสินค้านี้ หรือโหลดไม่สำเร็จ</p>
+              <p className="text-sm text-gray-500">ยังไม่กำหนดลำดับขั้นสำหรับสินค้านี้</p>
             ) : (
-              <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                {flowSteps.map((s) => (
-                  <li key={s.id}>
-                    <span className="font-mono text-xs">{s.process?.processCode ?? s.processId}</span>
-                    {s.process?.processName ? (
-                      <>
-                        {" "}
-                        <span className="text-gray-600 dark:text-gray-400">— {s.process.processName}</span>
-                      </>
-                    ) : null}
+              <ol className="relative border-l-2 border-brand-200 dark:border-brand-800 ml-2 space-y-4">
+                {flowSteps.map((s, idx) => (
+                  <li key={s.id} className="ml-4">
+                    <span className="absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
+                      {idx + 1}
+                    </span>
+                    <p className="font-mono text-xs font-semibold text-gray-900 dark:text-white">
+                      {s.process?.processCode ?? s.processId}
+                    </p>
+                    {s.process?.processName && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{s.process.processName}</p>
+                    )}
                   </li>
                 ))}
               </ol>
             )}
-          </div>
+            {order.productId && (
+              <Link
+                href={`/master-data/production-steps/${order.productId}`}
+                className="inline-block mt-4 text-xs text-blue-600 hover:underline dark:text-blue-400"
+              >
+                แก้ไขลำดับขั้นตอนสินค้า →
+              </Link>
+            )}
+          </ComponentCard>
         </div>
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={() => handlePrintAll(lots, order, flowSteps)}
-            disabled={lots.length === 0}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg disabled:opacity-50"
+
+        {/* Lots grid */}
+        <div className="xl:col-span-2">
+          <ComponentCard
+            title={`ล็อตผลิต / QR (${lots.length})`}
+            desc="คลิก QR เพื่อสแกนที่หน้ายิงตามแผนก — พิมพ์ Kanban จากปุ่มด้านบน"
           >
-            พิมพ์ QR ทั้งหมด
-          </button>
+            {lots.length === 0 ? (
+              <p className="text-center py-10 text-gray-500">ยังไม่มีล็อตในใบสั่งนี้</p>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {lots.map((lot) => (
+                  <ProductionOrderLotCard key={lot.id} lot={lot} flowSteps={flowSteps} />
+                ))}
+              </div>
+            )}
+          </ComponentCard>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800">
-                <th className="px-3 py-2 text-left">ลำดับ</th>
-                <th className="px-3 py-2 text-left">PG (หลัก)</th>
-                <th className="px-3 py-2 text-left">PD (คู่)</th>
-                <th className="px-3 py-2 text-left">อ้างอิงใบสั่ง</th>
-                <th className="px-3 py-2 text-center">QR</th>
-                <th className="px-3 py-2 text-right">จำนวน</th>
-                <th className="px-3 py-2 text-left">ขั้นตอนปัจจุบัน</th>
-                <th className="px-3 py-2 text-center">สถานะ</th>
-                <th className="px-3 py-2 text-left">ประวัติปิดงาน</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {lots.length === 0 ? (
-                <TableEmptyRow colSpan={9} />
-              ) : (
-                lots.map((lot) => {
-                  const completedSteps = (lot.tracking ?? [])
-                    .filter((t) => t.status === "COMPLETED" && (t.process?.processCode || t.processCode))
-                    .sort((a, b) => new Date(a.endTime ?? 0).getTime() - new Date(b.endTime ?? 0).getTime());
-                  return (
-                    <tr key={lot.id}>
-                      <td className="px-3 py-2">{lot.sequenceNo}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{lot.lotNo}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{lot.lotPdNo ?? "—"}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{lot.orderLotLabel ?? "—"}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col items-center gap-1">
-                          <QRCodeGenerator value={lot.qrCode} size={88} className="mx-auto" />
-                          <span className="font-mono text-[10px] text-gray-600 dark:text-gray-400 max-w-[200px] break-all text-center">
-                            {lot.qrCode}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right">{lot.quantity}</td>
-                      <td className="px-3 py-2 text-left max-w-[220px]">{lotCurrentStepLabel(lot)}</td>
-                      <td className="px-3 py-2 text-center">{lot.status}</td>
-                      <td className="px-3 py-2 min-w-[200px]">
-                        {completedSteps.length === 0 ? (
-                          <span className="text-xs text-gray-400">—</span>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {completedSteps.map((t, i) => (
-                              <div key={i} className="text-xs">
-                                <span className="font-medium text-gray-800 dark:text-gray-200">
-                                  {t.process?.processCode ?? t.processCode}
-                                </span>
-                                {" · "}
-                                <span className="text-gray-600 dark:text-gray-400">
-                                  {t.process?.processName ?? t.processName}
-                                </span>
-                                {t.endTime && (
-                                  <div className="text-gray-500 dark:text-gray-400 mt-0.5">
-                                    {new Date(t.endTime).toLocaleDateString("th-TH", {
-                                      year: "numeric", month: "short", day: "numeric",
-                                    })}
-                                    {" "}
-                                    {new Date(t.endTime).toLocaleTimeString("th-TH", {
-                                      hour: "2-digit", minute: "2-digit",
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </ComponentCard>
+      </div>
     </div>
   );
 }

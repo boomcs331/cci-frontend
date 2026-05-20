@@ -1,11 +1,19 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import TableEmptyRow from "@/components/common/TableEmptyRow";
 import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
+import { formatMaterialIssuedByDisplay } from "@/utils/resolveStoredUserLabel";
+import { getSession } from "@/utils/session";
 import {
   syncPlanItemsFromProductionQrGeneration,
   type PlanDetailForLots,
@@ -22,54 +30,106 @@ interface ProductionPlan {
   planDate: string;
   planTime?: string;
   status: "reserved" | "confirmed";
-  items?: { product?: { productName: string }; quantity: number; unit: string }[];
+  materialIssuedBy?: string[];
+  items?: {
+    product?: { productName: string };
+    quantity: number;
+    unit: string;
+  }[];
 }
 
-const statusConfig = {
-  reserved: { label: "จองแล้ว", color: "orange" },
-  confirmed: { label: "ยืนยันแล้ว", color: "green" },
-};
+function statusBadgeClass(status: ProductionPlan["status"]) {
+  if (status === "reserved") {
+    return "bg-blue-100 text-blue-800 ring-1 ring-inset ring-blue-600/15 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-400/25";
+  }
+  return "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-400/25";
+}
+
+function statusLabel(status: ProductionPlan["status"]) {
+  return status === "reserved" ? "จองแล้ว" : "ยืนยันแล้ว";
+}
 
 export default function ScheduleReservationsPage() {
   const router = useRouter();
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [filteredPlans, setFilteredPlans] = useState<ProductionPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [barcode, setBarcode] = useState("");
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
-  
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
-  const [filterDateTo, setFilterDateTo] = useState<string>('');
-  const [filterTimeFrom, setFilterTimeFrom] = useState<string>('');
-  const [filterTimeTo, setFilterTimeTo] = useState<string>('');
-  
+
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterDateFrom, setFilterDateFrom] = useState<string>("");
+  const [filterDateTo, setFilterDateTo] = useState<string>("");
+  const [filterTimeFrom, setFilterTimeFrom] = useState<string>("");
+  const [filterTimeTo, setFilterTimeTo] = useState<string>("");
+
   const dateFromPickerRef = useRef<HTMLInputElement>(null);
   const dateToPickerRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchPlans();
+  const sessionUser = useMemo(() => getSession()?.user, []);
+
+  const stats = useMemo(() => {
+    const reserved = plans.filter((p) => p.status === "reserved").length;
+    const confirmed = plans.filter((p) => p.status === "confirmed").length;
+    return { total: plans.length, reserved, confirmed };
+  }, [plans]);
+
+  const fetchPlans = useCallback(async (options?: { showInitialSpinner?: boolean }) => {
+    const showSpinner = options?.showInitialSpinner ?? true;
+    if (showSpinner) setLoading(true);
+    try {
+      const res = await apiFetch("/production-plans");
+      if (res.ok) {
+        const data = await res.json();
+        const allPlans = Array.isArray(data) ? data : data.data || [];
+        const reservedPlans = allPlans
+          .filter(
+            (plan: ProductionPlan) =>
+              plan.status === "reserved" || plan.status === "confirmed",
+          )
+          .map((plan: ProductionPlan & { material_issued_by?: string[] }) => ({
+            ...plan,
+            materialIssuedBy: Array.isArray(plan.materialIssuedBy)
+              ? plan.materialIssuedBy
+              : Array.isArray(plan.material_issued_by)
+                ? plan.material_issued_by
+                : [],
+          }));
+        setPlans(reservedPlans);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      if (showSpinner) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    // Initialize flatpickr after plans are loaded
+    void fetchPlans({ showInitialSpinner: true });
+  }, [fetchPlans]);
+
+  useEffect(() => {
     if (!loading && dateFromPickerRef.current) {
       const fp1 = flatpickr(dateFromPickerRef.current, {
         dateFormat: "Y-m-d",
-        onChange: (selectedDates, dateStr) => {
+        onChange: (_selectedDates, dateStr) => {
           setFilterDateFrom(dateStr);
-        }
+        },
       });
-      
+
       const fp2 = flatpickr(dateToPickerRef.current!, {
         dateFormat: "Y-m-d",
-        onChange: (selectedDates, dateStr) => {
+        onChange: (_selectedDates, dateStr) => {
           setFilterDateTo(dateStr);
-        }
+        },
       });
-      
+
       return () => {
         fp1.destroy();
         fp2.destroy();
@@ -79,57 +139,65 @@ export default function ScheduleReservationsPage() {
 
   const applyFilters = useCallback(() => {
     let filtered = [...plans];
-    
+
     if (searchTerm) {
-      filtered = filtered.filter((p: ProductionPlan) => 
-        p.planCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.planName?.toLowerCase().includes(searchTerm.toLowerCase())
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (p: ProductionPlan) =>
+          p.planCode?.toLowerCase().includes(q) ||
+          p.planName?.toLowerCase().includes(q),
       );
     }
     if (filterStatus) {
-      filtered = filtered.filter((p: ProductionPlan) => p.status.toLowerCase() === filterStatus.toLowerCase());
+      filtered = filtered.filter(
+        (p: ProductionPlan) =>
+          p.status.toLowerCase() === filterStatus.toLowerCase(),
+      );
     }
     if (filterDateFrom) {
-      filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) >= new Date(filterDateFrom));
+      filtered = filtered.filter(
+        (p: ProductionPlan) => new Date(p.planDate) >= new Date(filterDateFrom),
+      );
     }
     if (filterDateTo) {
-      filtered = filtered.filter((p: ProductionPlan) => new Date(p.planDate) <= new Date(filterDateTo));
+      filtered = filtered.filter(
+        (p: ProductionPlan) => new Date(p.planDate) <= new Date(filterDateTo),
+      );
     }
     if (filterTimeFrom) {
       filtered = filtered.filter((p: ProductionPlan) => {
-        const planTime = p.planTime ? p.planTime.substring(0, 5) : '00:00';
+        const planTime = p.planTime ? p.planTime.substring(0, 5) : "00:00";
         return planTime >= filterTimeFrom;
       });
     }
     if (filterTimeTo) {
       filtered = filtered.filter((p: ProductionPlan) => {
-        const planTime = p.planTime ? p.planTime.substring(0, 5) : '00:00';
+        const planTime = p.planTime ? p.planTime.substring(0, 5) : "00:00";
         return planTime <= filterTimeTo;
       });
     }
-    
+
     setFilteredPlans(filtered);
-  }, [plans, searchTerm, filterStatus, filterDateFrom, filterDateTo, filterTimeFrom, filterTimeTo]);
+  }, [
+    plans,
+    searchTerm,
+    filterStatus,
+    filterDateFrom,
+    filterDateTo,
+    filterTimeFrom,
+    filterTimeTo,
+  ]);
 
   useEffect(() => {
     applyFilters();
   }, [applyFilters]);
 
-  const fetchPlans = async () => {
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      const res = await apiFetch("/production-plans");
-      if (res.ok) {
-        const data = await res.json();
-        const allPlans = Array.isArray(data) ? data : data.data || [];
-        const reservedPlans = allPlans.filter((plan: ProductionPlan) => 
-          plan.status === "reserved" || plan.status === "confirmed"
-        );
-        setPlans(reservedPlans);
-      }
-    } catch (error) {
-      console.error("Error:", error);
+      await fetchPlans({ showInitialSpinner: false });
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -137,7 +205,7 @@ export default function ScheduleReservationsPage() {
     e.preventDefault();
     if (!barcode.trim()) return;
 
-    const plan = plans.find(p => p.planCode === barcode.trim());
+    const plan = plans.find((p) => p.planCode === barcode.trim());
     if (!plan) {
       setMessage({ type: "error", text: "ไม่พบรหัสแผนนี้" });
       setBarcode("");
@@ -153,7 +221,6 @@ export default function ScheduleReservationsPage() {
     }
 
     try {
-      // ยืนยันแผนและจ่ายออกวัตถุดิบ
       const res = await apiFetch(`/production-plans/${plan.id}/confirm-and-issue`, {
         method: "POST",
       });
@@ -205,28 +272,61 @@ export default function ScheduleReservationsPage() {
           text: `ยืนยันแผน ${plan.planCode} และจ่ายออกวัตถุดิบสำเร็จ — สร้าง QR ล็อตผลิตแล้ว`,
         });
         setBarcode("");
-        fetchPlans();
+        await fetchPlans({ showInitialSpinner: false });
         setTimeout(() => setMessage(null), 3000);
       } else {
-        const errorData = await res.json().catch(() => ({ message: "ไม่สามารถยืนยันแผนได้" }));
-        setMessage({ type: "error", text: errorData.message || "ไม่สามารถยืนยันแผนได้" });
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "ไม่สามารถยืนยันแผนได้" }));
+        setMessage({
+          type: "error",
+          text: errorData.message || "ไม่สามารถยืนยันแผนได้",
+        });
         setBarcode("");
         setTimeout(() => setMessage(null), 5000);
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: "error", text: "เกิดข้อผิดพลาดในการเชื่อมต่อ" });
       setBarcode("");
       setTimeout(() => setMessage(null), 5000);
     }
   };
 
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterStatus("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setFilterTimeFrom("");
+    setFilterTimeTo("");
+  };
+
   if (loading) {
     return (
-      <div>
+      <div className="min-h-[50vh]">
         <PageBreadcrumb pageTitle="แผนผลิตที่จองสำเร็จแล้ว" />
-        <ComponentCard title="แผนผลิตที่จองสำเร็จแล้ว">
-          <div className="text-center py-8">กำลังโหลด...</div>
-        </ComponentCard>
+        <div className="space-y-6 px-0">
+          <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-slate-50 to-emerald-50/40 p-8 dark:border-gray-700 dark:from-gray-900 dark:to-emerald-950/30 animate-pulse">
+            <div className="h-8 w-2/3 max-w-md rounded-lg bg-gray-200/80 dark:bg-gray-700" />
+            <div className="mt-3 h-4 w-full max-w-lg rounded bg-gray-200/60 dark:bg-gray-700/80" />
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              <div className="h-20 rounded-xl bg-white/60 dark:bg-gray-800/60" />
+              <div className="h-20 rounded-xl bg-white/60 dark:bg-gray-800/60" />
+              <div className="h-20 rounded-xl bg-white/60 dark:bg-gray-800/60" />
+            </div>
+          </div>
+          <div className="h-24 rounded-2xl bg-gray-100 dark:bg-gray-800/80 animate-pulse" />
+          <ComponentCard title="รายการแผน">
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="h-12 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse"
+                />
+              ))}
+            </div>
+          </ComponentCard>
+        </div>
       </div>
     );
   }
@@ -235,78 +335,277 @@ export default function ScheduleReservationsPage() {
     <div>
       <PageBreadcrumb pageTitle="แผนผลิตที่จองสำเร็จแล้ว" />
       <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">แผนผลิตที่จองสำเร็จแล้ว</h2>
+        {/* Hero */}
+        <section className="relative overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-white via-emerald-50/50 to-teal-50/60 p-6 shadow-sm dark:border-emerald-900/40 dark:from-gray-900 dark:via-emerald-950/20 dark:to-teal-950/25 sm:p-8">
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl dark:bg-emerald-500/10"
+            aria-hidden
+          />
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700/90 dark:text-emerald-400/90">
+                Production · Reserved
+              </p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">
+                แผนผลิตที่จองสำเร็จแล้ว
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                แสดงเฉพาะแผนที่<strong className="font-medium text-gray-800 dark:text-gray-200">
+                  จองวัตถุดิบแล้ว
+                </strong>
+                หรือ<strong className="font-medium text-gray-800 dark:text-gray-200">
+                  ยืนยันและจ่ายออกแล้ว
+                </strong>
+                — สแกนรหัสแผนเพื่อยืนยันรวดเร็ว หรือเปิดรายละเอียดเพื่อจ่ายทีละบรรทัด
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white/90 px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-white disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800/90 dark:text-gray-100 dark:hover:bg-gray-800"
+            >
+              <svg
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              {refreshing ? "กำลังรีเฟรช…" : "รีเฟรชข้อมูล"}
+            </button>
           </div>
-        </div>
 
-        {message && <Alert variant={message.type} title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"} message={message.text} />}
+          <div className="relative mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-gray-600/60 dark:bg-gray-900/50">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                แผนทั้งหมดในหน้านี้
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
+                {stats.total.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-xl border border-blue-200/70 bg-blue-50/60 p-4 shadow-sm dark:border-blue-800/50 dark:bg-blue-950/30">
+              <p className="text-xs font-medium text-blue-800 dark:text-blue-300">
+                รอจ่ายออก (จองแล้ว)
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-blue-900 dark:text-blue-200">
+                {stats.reserved.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 p-4 shadow-sm dark:border-emerald-800/50 dark:bg-emerald-950/30">
+              <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                ยืนยันแล้ว
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-emerald-900 dark:text-emerald-200">
+                {stats.confirmed.toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </section>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <form onSubmit={handleBarcodeSubmit} className="flex gap-3">
-            <div className="flex-1">
+        {message && (
+          <Alert
+            variant={message.type}
+            title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"}
+            message={message.text}
+          />
+        )}
+
+        {/* Quick scan */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25">
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                ยืนยันด้วยสแกนรหัสแผน
+              </h2>
+              <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                กรอกหรือสแกนค่าเท่ากับ <span className="font-mono font-medium text-gray-700 dark:text-gray-300">รหัสแผน</span>{" "}
+                แล้วกดยืนยัน — ระบบจะจ่ายออกวัตถุดิบทั้งแผน (เทียบเท่ายืนยันแบบรวม)
+              </p>
+            </div>
+          </div>
+          <form
+            onSubmit={handleBarcodeSubmit}
+            className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-stretch"
+          >
+            <div className="min-w-0 flex-1">
+              <label htmlFor="plan-barcode" className="sr-only">
+                รหัสแผนสำหรับสแกน
+              </label>
               <input
+                id="plan-barcode"
                 ref={barcodeInputRef}
                 type="text"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
-                placeholder="สแกนบาร์โค้ดรหัสแผนเพื่อยืนยันและจ่ายออกวัตถแดิบ"
-                className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="สแกนหรือพิมพ์รหัสแผน (Plan code) เพื่อยืนยันและจ่ายออกวัตถุดิบ"
+                className="h-12 w-full rounded-xl border border-gray-300 bg-gray-50/80 px-4 text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-gray-600 dark:bg-gray-900/60 dark:text-white dark:placeholder:text-gray-500"
                 autoFocus
               />
             </div>
             <button
               type="submit"
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               ยืนยันและจ่ายออก
             </button>
           </form>
         </div>
 
-        <ComponentCard title={`แผนผลิตที่จองสำเร็จแล้ว (${filteredPlans.length})`}>
-          <div className="mb-4 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Shortcuts */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              router.push("/pc/schedule/reservations/picking-slip")
+            }
+            className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-900 transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-900/50"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              />
+            </svg>
+            ใบจัดสินค้า (ตามออเดอร์)
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/pc/reservations")}
+            className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-900 transition hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:bg-violet-900/50"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+            รายการจอง Material
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/pc/schedule")}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            จัดงานล่วงหน้า
+          </button>
+        </div>
+
+        <ComponentCard
+          title={`รายการแผน (แสดง ${filteredPlans.length.toLocaleString()} รายการ)`}
+        >
+          <div className="mb-5 rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-700/80 dark:bg-gray-900/40">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              ตัวกรอง
+            </p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <input
                 type="text"
-                placeholder="ค้นหา (รหัส, ชื่อแผน)"
+                placeholder="ค้นหา รหัสแผน / ชื่อแผน"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               />
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               >
                 <option value="">ทุกสถานะ</option>
                 <option value="reserved">จองแล้ว</option>
                 <option value="confirmed">ยืนยันแล้ว</option>
               </select>
               <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setFilterStatus('');
-                  setFilterDateFrom('');
-                  setFilterDateTo('');
-                  setFilterTimeFrom('');
-                  setFilterTimeTo('');
-                }}
-                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 flex items-center justify-center gap-2"
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 ล้างตัวกรอง
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่เริ่มต้น</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  วันที่เริ่มต้น
+                </label>
                 <div className="relative">
                   <input
                     ref={dateFromPickerRef}
@@ -314,15 +613,27 @@ export default function ScheduleReservationsPage() {
                     readOnly
                     value={filterDateFrom}
                     placeholder="เลือกวันที่"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                    className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่สิ้นสุด</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  วันที่สิ้นสุด
+                </label>
                 <div className="relative">
                   <input
                     ref={dateToPickerRef}
@@ -330,15 +641,27 @@ export default function ScheduleReservationsPage() {
                     readOnly
                     value={filterDateTo}
                     placeholder="เลือกวันที่"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                    className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาเริ่มต้น</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  เวลาเริ่มต้น
+                </label>
                 <TimePicker
                   value={filterTimeFrom}
                   onChange={(time) => setFilterTimeFrom(time)}
@@ -346,7 +669,9 @@ export default function ScheduleReservationsPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาสิ้นสุด</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  เวลาสิ้นสุด
+                </label>
                 <TimePicker
                   value={filterTimeTo}
                   onChange={(time) => setFilterTimeTo(time)}
@@ -355,72 +680,139 @@ export default function ScheduleReservationsPage() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap justify-end gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => router.push("/pc/schedule/reservations/picking-slip")}
-              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              ใบจัดสินค้า (ตามออเดอร์)
-            </button>
-            <button onClick={() => router.push('/pc/reservations')} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              ดูรายการจอง Material
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full table-auto">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-800">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">รหัสแผน</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">ชื่อแผน</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">วันที่</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สถานะ</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">สินค้า</th>
-                  <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredPlans.length === 0 ? (
-                  <TableEmptyRow colSpan={6} message="ไม่มีแผนผลิตที่จองสำเร็จ" />
-                ) : (
-                  filteredPlans.map((plan) => (
-                    <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{plan.planCode}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{plan.planName}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                        {new Date(plan.planDate).toLocaleDateString("th-TH", {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                        <br />
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :
-                          "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
-                        }`}>{statusConfig[plan.status].label}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-white">{plan.items?.length || 0}</td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => router.push(`/pc/schedule/reservations/${plan.id}`)} className="px-3 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded">
-                          ดูรายละเอียด
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+
+          <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] table-auto text-left">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 dark:border-gray-700 dark:from-gray-800/90 dark:to-gray-800/60">
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      รหัสแผน
+                    </th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      ชื่อแผน
+                    </th>
+                    <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      วัน / เวลา
+                    </th>
+                    <th className="px-4 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      สถานะ
+                    </th>
+                    <th className="px-4 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      บรรทัดสินค้า
+                    </th>
+                    <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      จ่ายออกโดย
+                    </th>
+                    <th className="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
+                      การทำงาน
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white dark:divide-gray-800 dark:bg-gray-900/40">
+                  {filteredPlans.length === 0 ? (
+                    <TableEmptyRow
+                      colSpan={7}
+                      message="ไม่มีแผนที่ตรงกับตัวกรอง"
+                    />
+                  ) : (
+                    filteredPlans.map((plan) => {
+                      const issuedByLabel = formatMaterialIssuedByDisplay(
+                        {
+                          status: plan.status,
+                          materialIssuedBy: plan.materialIssuedBy ?? [],
+                        },
+                        sessionUser,
+                      );
+                      return (
+                      <tr
+                        key={plan.id}
+                        className="transition hover:bg-emerald-50/40 dark:hover:bg-emerald-950/15"
+                      >
+                        <td className="px-4 py-3.5">
+                          <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
+                            {plan.planCode}
+                          </span>
+                        </td>
+                        <td className="max-w-[220px] px-4 py-3.5">
+                          <span
+                            className="line-clamp-2 text-sm text-gray-800 dark:text-gray-200"
+                            title={plan.planName}
+                          >
+                            {plan.planName}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3.5 text-sm text-gray-700 dark:text-gray-300">
+                          <span className="font-medium">
+                            {new Date(plan.planDate).toLocaleDateString("th-TH", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+                            {plan.planTime
+                              ? `${plan.planTime.substring(0, 5)} น.`
+                              : "00:00 น."}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(plan.status)}`}
+                          >
+                            {statusLabel(plan.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-gray-100 px-2 py-1 text-sm font-medium tabular-nums text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                            {plan.items?.length ?? 0}
+                          </span>
+                        </td>
+                        <td className="max-w-[160px] px-4 py-3.5 text-sm text-gray-700 dark:text-gray-300">
+                          {issuedByLabel != null ? (
+                            <span
+                              className="line-clamp-2"
+                              title={issuedByLabel}
+                            >
+                              {issuedByLabel}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                `/pc/schedule/reservations/${plan.id}`,
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100 dark:hover:bg-emerald-900/40"
+                          >
+                            รายละเอียด
+                            <svg
+                              className="h-3.5 w-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </ComponentCard>
       </div>

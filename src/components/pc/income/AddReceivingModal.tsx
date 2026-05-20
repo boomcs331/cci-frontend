@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.min.css";
+import { getMfgDateErrorCode, getPcFieldErrorMessage } from "@/lib/pc";
+import PoNoInput, { validatePoNoField } from "@/components/pc/shared/PoNoInput";
 
 interface AddReceivingModalProps {
   show: boolean;
@@ -58,16 +60,28 @@ function AddReceivingModalInner({
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
   const [mfgDateError, setMfgDateError] = useState<string | null>(null);
   const [mfgDateTouched, setMfgDateTouched] = useState(false);
+  const [poShowErrors, setPoShowErrors] = useState(false);
+  const [poValid, setPoValid] = useState(false);
   const mfgDatePickerRef = useRef<HTMLInputElement>(null);
 
-  const validateMfgDate = (dateStr: string): string | null => {
-    if (!dateStr) return 'กรุณาระบุวันที่ผลิต';
-    const selected = new Date(dateStr);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    if (isNaN(selected.getTime())) return 'วันที่ไม่ถูกต้อง';
-    if (selected > today) return 'วันที่ผลิตต้องไม่เกินวันปัจจุบัน';
-    return null;
+  const resolveMfgDateError = (dateStr: string): string | null => {
+    const code = getMfgDateErrorCode(dateStr);
+    return code ? getPcFieldErrorMessage('mfgDate', code) : null;
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPoShowErrors(true);
+    setMfgDateTouched(true);
+    setMfgDateError(resolveMfgDateError(mfgDate ?? ""));
+
+    if (validatePoNoField(poNo)) {
+      return;
+    }
+    if (resolveMfgDateError(mfgDate ?? "")) {
+      return;
+    }
+    onSubmit(e);
   };
 
   useEffect(() => {
@@ -78,7 +92,7 @@ function AddReceivingModalInner({
       onChange: (_selectedDates, dateStr) => {
         setMfgDate?.(dateStr);
         setMfgDateTouched(true);
-        setMfgDateError(validateMfgDate(dateStr));
+        setMfgDateError(resolveMfgDateError(dateStr));
       },
       defaultDate: mfgDate || undefined,
     });
@@ -100,9 +114,10 @@ function AddReceivingModalInner({
 
   return (
     <div className="fixed inset-0 z-[99999] flex animate-cci-backdrop-in items-center justify-center bg-gray-900/70 p-3 backdrop-blur-sm sm:p-4">
-      <div className="animate-cci-modal-in max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-cci-popup dark:border-gray-700 dark:bg-gray-800 sm:max-h-[90vh]">
-        <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">รับวัตถุดิบเข้า</h3>
+      <div className="animate-cci-modal-in max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-cci-popup dark:border-gray-700 dark:bg-gray-800 sm:max-h-[90vh]">
+        <div className="h-1 bg-gradient-to-r from-success-500 to-emerald-400" aria-hidden />
+        <div className="sticky top-0 flex items-center justify-between border-b border-emerald-200/60 bg-gradient-to-r from-success-50 to-emerald-50 px-4 py-3 dark:border-emerald-900/40 dark:from-success-950/40 dark:to-emerald-950/30 sm:px-6 sm:py-4">
+          <h3 className="text-lg font-semibold text-emerald-950 dark:text-emerald-100 sm:text-xl">รับวัตถุดิบเข้า</h3>
           <button 
             onClick={onClose} 
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -114,7 +129,7 @@ function AddReceivingModalInner({
         </div>
 
         <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(92vh - 72px)" }}>
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form onSubmit={handleFormSubmit} className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วัตถุดิบ *</label>
@@ -217,11 +232,11 @@ function AddReceivingModalInner({
                     onChange={(e) => {
                       setMfgDate?.(e.target.value);
                       setMfgDateTouched(true);
-                      setMfgDateError(validateMfgDate(e.target.value));
+                      setMfgDateError(resolveMfgDateError(e.target.value));
                     }}
                     onBlur={() => {
                       setMfgDateTouched(true);
-                      setMfgDateError(validateMfgDate(mfgDate ?? ''));
+                      setMfgDateError(resolveMfgDateError(mfgDate ?? ''));
                     }}
                     className={`w-full h-11 rounded-lg border px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
                       mfgDateTouched && mfgDateError
@@ -238,15 +253,14 @@ function AddReceivingModalInner({
                   <p className="mt-1 text-xs text-red-600 dark:text-red-400">{mfgDateError}</p>
                 )}
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">เลขที่ PO</label>
-                <input 
-                  type="text" 
-                  value={poNo} 
-                  onChange={(e) => setPoNo(e.target.value)} 
-                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
-                />
-              </div>
+              <PoNoInput
+                className="md:col-span-2"
+                value={poNo}
+                onChange={setPoNo}
+                forceShowErrors={poShowErrors}
+                onValidityChange={setPoValid}
+                disabled={submitLoading}
+              />
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">หมายเหตุ</label>
                 <textarea 
@@ -268,12 +282,12 @@ function AddReceivingModalInner({
               </button>
               <button
                 type="submit"
-                disabled={submitLoading || !!validateMfgDate(mfgDate ?? "")}
+                disabled={
+                  submitLoading ||
+                  !!resolveMfgDateError(mfgDate ?? "") ||
+                  !poValid
+                }
                 className="h-11 flex-1 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-400"
-                onClick={() => {
-                  setMfgDateTouched(true);
-                  setMfgDateError(validateMfgDate(mfgDate ?? ""));
-                }}
               >
                 {submitLoading ? "กำลังบันทึก..." : "บันทึก"}
               </button>

@@ -142,9 +142,8 @@ export default function DeptStepScanPage() {
   const [quickSplitLoading, setQuickSplitLoading] = useState(false);
   const DEPT_PAGE_SIZE = 10;
   const getOperator = useCallback((): string => {
-    const session = getSession();
-    const uid = session?.user?.id;
-    return uid ? String(uid) : "scanner";
+    const username = getSession()?.user?.username?.trim();
+    return username || "scanner";
   }, []);
 
   useEffect(() => {
@@ -911,7 +910,9 @@ export default function DeptStepScanPage() {
                                                   </span>
 
                                                   {t.operator ? (
-                                                    <span className="text-gray-500 dark:text-gray-400">· {t.operator}</span>
+                                                    <span className="text-gray-700 dark:text-gray-300">
+                                                      · ผู้ทำ: <span className="font-mono font-medium">{t.operator}</span>
+                                                    </span>
                                                   ) : null}
                                                 </div>
 

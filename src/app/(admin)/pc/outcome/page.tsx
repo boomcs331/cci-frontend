@@ -1,23 +1,42 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSearchParams } from "next/navigation";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRightFromBracket,
+  faPlus,
+  faQrcode,
+} from "@fortawesome/free-solid-svg-icons";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
+import { apiFetch } from "@/utils/api";
+import OutcomeTable from "@/components/pc/outcome/OutcomeTable";
+import { PcTransactionPageHeader } from "@/components/pc/transactions/PcTransactionPageHeader";
+import { PcTransactionActionButton } from "@/components/pc/transactions/PcTransactionActionButton";
+import {
+  PcTransactionFilterCard,
+  PcFilterField,
+  PcFilterSearchInput,
+  INPUT_CLS,
+} from "@/components/pc/transactions/PcTransactionFilterCard";
+import { PcTransactionDataCard } from "@/components/pc/transactions/PcTransactionDataCard";
+import { PcTransactionLoading } from "@/components/pc/transactions/PcTransactionLoading";
 import QRScannerModal from "@/components/qr/QRScannerModal";
 import AlertComponent from "@/components/ui/alert/Alert";
 import ConfirmModal from "@/components/ui/modal/ConfirmModal";
 import AlertModal from "@/components/ui/modal/AlertModal";
 import FilePreviewModal from "@/components/common/FilePreviewModal";
+import { pcErrorFromApiBody } from "@/lib/pc";
 
 export default function PCOutcomePage() {
   const searchParams = useSearchParams();
   const [outcomes, setOutcomes] = useState<any[]>([]);
   const [pagination, setPagination] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [listFetching, setListFetching] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [materials, setMaterials] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -47,6 +66,13 @@ export default function PCOutcomePage() {
   const [showPreview, setShowPreview] = useState(false);
   const [materialPreview, setMaterialPreview] = useState<any>(null);
   const [checkingMaterials, setCheckingMaterials] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterMaterial, setFilterMaterial] = useState("");
+  const [filterIssueType, setFilterIssueType] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
+  const debouncedSearch = useDebouncedValue(searchTerm, 400);
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -56,48 +82,102 @@ export default function PCOutcomePage() {
     [searchParams.toString(), limit],
   );
 
+  const issuesUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", String(limit));
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+    if (filterMaterial) params.set("materialId", filterMaterial);
+    if (filterIssueType) params.set("issueType", filterIssueType);
+    if (filterDateFrom) params.set("startDate", filterDateFrom);
+    if (filterDateTo) params.set("endDate", filterDateTo);
+    return `/materials/transactions/issues?${params.toString()}`;
+  }, [page, limit, debouncedSearch, filterMaterial, filterIssueType, filterDateFrom, filterDateTo]);
+
+  const hasActiveFilters = Boolean(
+    searchTerm || filterMaterial || filterIssueType || filterDateFrom || filterDateTo,
+  );
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterMaterial("");
+    setFilterIssueType("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    let cancelled = false;
+    (async () => {
       try {
-        const [outRes, matsRes, prodsRes] = await Promise.all([
-          fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`),
-          fetch('http://localhost:3006/materials/all'),
-          fetch('http://localhost:3006/products?page=1&limit=100')
+        const [matsRes, prodsRes] = await Promise.all([
+          apiFetch("/materials/all"),
+          apiFetch("/products?page=1&limit=100"),
         ]);
-        const outData = await outRes.json();
+        if (cancelled) return;
         const matsData = await matsRes.json();
         const prodsData = await prodsRes.json();
-        if (outData.success) {
-          setOutcomes(outData.data || []);
-          setPagination(outData.pagination);
-        }
         setMaterials(matsData.data || []);
         setProducts(prodsData.data || []);
       } catch (err) {
         console.error(err);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchData();
+    })();
 
-    const session = localStorage.getItem('session');
+    const session = localStorage.getItem("session");
     if (session) {
       try {
         const parsed = JSON.parse(session);
-        setCurrentUser(parsed.user?.username || 'admin');
-      } catch (e) {}
+        setCurrentUser(parsed.user?.username || "admin");
+      } catch {
+        /* ignore */
+      }
     }
-  }, [page, limit]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchList = async () => {
+      if (!hasLoadedOnceRef.current) {
+        setInitialLoading(true);
+      } else {
+        setListFetching(true);
+      }
+      try {
+        const outRes = await apiFetch(issuesUrl);
+        if (cancelled) return;
+        const outData = await outRes.json();
+        if (outData.success) {
+          setOutcomes(outData.data || []);
+          setPagination(outData.pagination);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) {
+          setInitialLoading(false);
+          setListFetching(false);
+          hasLoadedOnceRef.current = true;
+        }
+      }
+    };
+    void fetchList();
+    return () => {
+      cancelled = true;
+    };
+  }, [issuesUrl]);
 
   const checkMaterialAvailability = async (productId: number, quantity: number) => {
     setCheckingMaterials(true);
     try {
-      const response = await fetch('http://localhost:3006/materials/transactions/issue-production/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId, productionQuantity: quantity })
+      const response = await apiFetch("/materials/transactions/issue-production/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, productionQuantity: quantity }),
       });
       const result = await response.json();
       if (result.success) setMaterialPreview(result.data);
@@ -127,6 +207,20 @@ export default function PCOutcomePage() {
     };
   }, [showAddModal]);
 
+  const refreshOutcomes = async () => {
+    setListFetching(true);
+    try {
+      const outRes = await apiFetch(issuesUrl);
+      const outData = await outRes.json();
+      if (outData.success) {
+        setOutcomes(outData.data || []);
+        setPagination(outData.pagination);
+      }
+    } finally {
+      setListFetching(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -154,9 +248,9 @@ export default function PCOutcomePage() {
             formData.append('files', file);
           });
           
-          const uploadRes = await fetch('http://localhost:3006/materials/upload/document', {
-            method: 'POST',
-            body: formData
+          const uploadRes = await apiFetch("/materials/upload/document", {
+            method: "POST",
+            body: formData,
           });
           
           const uploadResult = await uploadRes.json();
@@ -184,10 +278,10 @@ export default function PCOutcomePage() {
           }]
         };
 
-        const response = await fetch('http://localhost:3006/materials/transactions/issue-manual', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+        const response = await apiFetch("/materials/transactions/issue-manual", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         
         const result = await response.json();
@@ -198,14 +292,10 @@ export default function PCOutcomePage() {
             resetForm();
             setAlertMsg(null);
           }, 1500);
-          const outRes = await fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`);
-          const outData = await outRes.json();
-          if (outData.success) {
-            setOutcomes(outData.data || []);
-            setPagination(outData.pagination);
-          }
+          await refreshOutcomes();
         } else {
-          setAlertModal({isOpen: true, variant: "error", title: "เกิดข้อผิดพลาด", message: result.message || "ไม่สามารถจ่ายออกได้"});
+          const err = pcErrorFromApiBody(result);
+          setAlertModal({isOpen: true, variant: "error", title: err.title, message: err.message || "ไม่สามารถจ่ายออกได้"});
         }
       } catch (err) {
         setAlertModal({isOpen: true, variant: "error", title: "เกิดข้อผิดพลาด", message: "เกิดข้อผิดพลาดในการเชื่อมต่อ"});
@@ -247,10 +337,10 @@ export default function PCOutcomePage() {
           remarks: remark.trim() || undefined
         };
 
-        const response = await fetch('http://localhost:3006/materials/transactions/issue-from-bom', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+        const response = await apiFetch("/materials/transactions/issue-from-bom", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         
         const result = await response.json();
@@ -261,14 +351,10 @@ export default function PCOutcomePage() {
             resetForm();
             setAlertMsg(null);
           }, 1500);
-          const outRes = await fetch(`http://localhost:3006/materials/transactions/issues?page=${page}&limit=${limit}`);
-          const outData = await outRes.json();
-          if (outData.success) {
-            setOutcomes(outData.data || []);
-            setPagination(outData.pagination);
-          }
+          await refreshOutcomes();
         } else {
-          setAlertModal({isOpen: true, variant: "error", title: "เกิดข้อผิดพลาด", message: result.message || "ไม่สามารถจ่ายออกได้"});
+          const err = pcErrorFromApiBody(result);
+          setAlertModal({isOpen: true, variant: "error", title: err.title, message: err.message || "ไม่สามารถจ่ายออกได้"});
         }
       } catch (err) {
         setAlertModal({isOpen: true, variant: "error", title: "เกิดข้อผิดพลาด", message: "เกิดข้อผิดพลาดในการเชื่อมต่อ"});
@@ -301,191 +387,136 @@ export default function PCOutcomePage() {
     setIssuingTypeId(null);
   };
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-4 lg:px-6">
-        <PageBreadcrumb pageTitle="รายการจ่ายออก" />
-        <ComponentCard title="รายการจ่ายออก">
-          <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">กำลังโหลด...</div>
-        </ComponentCard>
-      </div>
-    );
+  if (initialLoading) {
+    return <PcTransactionLoading pageTitle="รายการจ่ายออก" variant="outcome" />;
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-4 lg:px-6">
-      <PageBreadcrumb pageTitle="รายการจ่ายออก" />
-      <div className="space-y-4 sm:space-y-6">
-        <div className="rounded-xl border border-gray-200/80 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm dark:border-gray-700 dark:from-gray-900 dark:to-gray-800/90 sm:p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">รายการจ่ายออกวัตถุดิบ</h2>
-          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
-            ติดตามใบจ่าย FIFO และเปิดตรวจ QR ล็อตวัตถุดิบได้จากปุ่มด้านล่าง
-          </p>
+    <div className="mx-auto max-w-[1600px] space-y-6 px-3 pb-8 sm:px-4 lg:px-6">
+      <PcTransactionPageHeader
+        variant="outcome"
+        pageTitle="รายการจ่ายออก"
+        description="จ่ายวัตถุดิบตาม FIFO — ตรวจสอบ QR ล็อตก่อนจ่าย หรือบันทึกจ่ายแบบ Manual / ตาม BOM"
+        icon={<FontAwesomeIcon icon={faArrowRightFromBracket} />}
+        stats={[
+          { label: "ใบจ่ายทั้งหมด", value: (pagination?.total ?? 0).toLocaleString() },
+          { label: "หน้านี้", value: outcomes.length },
+        ]}
+        actions={
+          <>
+            <PcTransactionActionButton variant="outcome" tone="secondary" onClick={() => setShowScanner(true)}>
+              <FontAwesomeIcon icon={faQrcode} className="h-4 w-4" />
+              ตรวจสอบ QR
+            </PcTransactionActionButton>
+            <PcTransactionActionButton variant="outcome" tone="primary" onClick={() => setShowAddModal(true)}>
+              <FontAwesomeIcon icon={faPlus} className="h-4 w-4" />
+              จ่ายออก (FIFO)
+            </PcTransactionActionButton>
+          </>
+        }
+      />
+
+      <PcTransactionFilterCard
+        variant="outcome"
+        hasActiveFilters={hasActiveFilters}
+        onReset={hasActiveFilters ? clearFilters : undefined}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <PcFilterField label="ค้นหา" className="sm:col-span-2 lg:col-span-1">
+            <PcFilterSearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="เลขที่ใบจ่าย, WO, รหัสวัตถุดิบ"
+            />
+          </PcFilterField>
+          <PcFilterField label="วัตถุดิบ">
+            <select
+              value={filterMaterial}
+              onChange={(e) => setFilterMaterial(e.target.value)}
+              className={INPUT_CLS}
+            >
+              <option value="">ทุกวัตถุดิบ</option>
+              {materials.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.matCode}
+                </option>
+              ))}
+            </select>
+          </PcFilterField>
+          <PcFilterField label="ประเภทใบจ่าย">
+            <select
+              value={filterIssueType}
+              onChange={(e) => setFilterIssueType(e.target.value)}
+              className={INPUT_CLS}
+            >
+              <option value="">ทุกประเภท</option>
+              <option value="MANUAL">จ่ายแบบ Manual</option>
+              <option value="PRODUCTION">จ่ายตาม BOM / ผลิต</option>
+            </select>
+          </PcFilterField>
+          <PcFilterField label="วันที่เริ่ม">
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className={INPUT_CLS}
+            />
+          </PcFilterField>
+          <PcFilterField label="วันที่สิ้นสุด">
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className={INPUT_CLS}
+            />
+          </PcFilterField>
         </div>
+      </PcTransactionFilterCard>
 
-        <ComponentCard title={`รายการจ่ายออก (${pagination?.total || 0})`}>
-          <p className="mb-4 text-xs leading-relaxed text-gray-600 dark:text-gray-400 sm:text-sm">
-            <span className="font-medium text-gray-800 dark:text-gray-200">ตรวจสอบ QR (วัตถุดิบ):</span>{" "}
-            ปุ่มสีเขียวเปิดช่องกรอกหรือวางค่า QR ล็อต (เช่น จากใบรับเข้า FIFO) แล้วแสดงคงเหลือและสถานะ
-          </p>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <PaginationSelector currentLimit={limit} />
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowScanner(true)}
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 sm:w-auto"
-              >
-                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                </svg>
-                ตรวจสอบ QR
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 sm:w-auto"
-              >
-                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="sm:inline">จ่ายออก</span>
-                <span className="hidden sm:inline"> (FIFO)</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="-mx-1 overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-700 sm:mx-0">
-            <table className="w-full min-w-[760px] table-auto text-left">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/90 dark:border-gray-700 dark:bg-gray-800/90">
-                  <th className="sticky left-0 z-[1] whitespace-nowrap bg-gray-50/95 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-800/95 dark:text-gray-300 sm:px-4 sm:text-sm">
-                    เลขที่ใบจ่าย
-                  </th>
-                  <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
-                    วันที่จ่าย
-                  </th>
-                  <th className="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
-                    วัตถุดิบ
-                  </th>
-                  <th className="hidden px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 md:table-cell sm:px-4 sm:text-sm">
-                    แผนก
-                  </th>
-                  <th className="hidden px-3 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 lg:table-cell sm:px-4 sm:text-sm">
-                    Work Order
-                  </th>
-                  <th className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
-                    จำนวน
-                  </th>
-                  <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 sm:px-4 sm:text-sm">
-                    เอกสาร
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {outcomes.length === 0 ? (
-                  <TableEmptyRow colSpan={7} />
-                ) : (
-                  outcomes.map((out) => (
-                    <tr key={out.id} className="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
-                      <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-gray-100 bg-white/95 px-3 py-3 text-sm font-medium text-gray-900 dark:border-gray-800 dark:bg-gray-900/95 dark:text-white sm:px-4">
-                        {out.issueNo}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-sm text-gray-900 dark:text-white sm:px-4">
-                        {new Date(out.issueDate).toLocaleDateString("th-TH")}
-                      </td>
-                      <td className="max-w-[200px] px-3 py-3 text-sm sm:max-w-xs sm:px-4">
-                        <div className="font-medium text-gray-900 dark:text-white">{out.items?.[0]?.material?.matCode}</div>
-                        <div className="truncate text-xs text-gray-500 dark:text-gray-400" title={out.items?.[0]?.material?.matName}>
-                          {out.items?.[0]?.material?.matName}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400 md:hidden">
-                          {out.department ? <span>แผนก: {out.department}</span> : null}
-                          {(out.productionOrderNo || out.workOrderNo) && (
-                            <span className="truncate" title={out.productionOrderNo || out.workOrderNo}>
-                              WO: {out.productionOrderNo || out.workOrderNo}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="hidden px-3 py-3 text-sm text-gray-900 dark:text-white md:table-cell sm:px-4">
-                        {out.department || "-"}
-                      </td>
-                      <td className="hidden max-w-[140px] truncate px-3 py-3 text-sm text-gray-900 dark:text-white lg:table-cell sm:px-4" title={out.productionOrderNo || out.workOrderNo || ""}>
-                        {out.productionOrderNo || out.workOrderNo || "-"}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-white sm:px-4">
-                        {parseFloat(out.items?.[0]?.issuedQuantity || 0).toLocaleString()} {out.items?.[0]?.unit}
-                      </td>
-                      <td className="px-2 py-3 text-center sm:px-4">
-                        {out.documents && out.documents.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPreviewFiles(out.documents);
-                              setPreviewIndex(0);
-                              setShowPreview(true);
-                            }}
-                            className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-lg bg-blue-100 px-2 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 sm:px-3"
-                          >
-                            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            ดูไฟล์ ({out.documents.length})
-                          </button>
-                        ) : out.documentFile && out.documentFile !== "/uploads/default.pdf" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const fileName = out.documentFile.split("/").pop() || "document";
-                              setPreviewFiles([
-                                {
-                                  id: out.id,
-                                  fileName: fileName,
-                                  filePath: out.documentFile,
-                                  fileSize: 0,
-                                },
-                              ]);
-                              setPreviewIndex(0);
-                              setShowPreview(true);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 sm:px-3"
-                          >
-                            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            ดูไฟล์
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {pagination && (
+      <PcTransactionDataCard
+        variant="outcome"
+        title={`รายการใบจ่าย (${pagination?.total ?? outcomes.length})`}
+        description="ตัดสต็อกตามลำดับ FIFO — แนบเอกสารได้เมื่อจ่ายแบบ Manual"
+        toolbar={<PaginationSelector currentLimit={limit} />}
+        footer={
+          pagination ? (
             <PaginationFooter
               page={page}
               limit={limit}
               total={pagination.total}
               totalPages={pagination.totalPages}
               hrefBuilder={paginationHref}
+              summaryLocale="th"
             />
-          )}
-        </ComponentCard>
-      </div>
+          ) : null
+        }
+      >
+        <div
+          className={
+            listFetching
+              ? "pointer-events-none opacity-60 transition-opacity duration-200"
+              : "transition-opacity duration-200"
+          }
+        >
+          <OutcomeTable
+            outcomes={outcomes}
+            onPreviewDocuments={(files) => {
+              if (files?.length) {
+                setPreviewFiles(files);
+                setPreviewIndex(0);
+                setShowPreview(true);
+              }
+            }}
+          />
+        </div>
+      </PcTransactionDataCard>
 
       {showAddModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/70 p-3 backdrop-blur-sm animate-cci-backdrop-in sm:p-4">
-          <div className="max-h-[min(92vh,880px)] w-full max-w-2xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-cci-popup animate-cci-modal-in dark:border-gray-700 dark:bg-gray-800">
-            <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6">
-              <h3 className="min-w-0 text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">จ่ายวัตถุดิบออก (FIFO)</h3>
+          <div className="max-h-[min(92vh,880px)] w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-cci-popup animate-cci-modal-in dark:border-gray-700 dark:bg-gray-800">
+            <div className="h-1 bg-gradient-to-r from-orange-500 to-amber-400" aria-hidden />
+            <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 border-b border-orange-200/60 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-4 dark:border-orange-900/40 dark:from-orange-950/40 dark:to-amber-950/30 sm:px-6">
+              <h3 className="min-w-0 text-lg font-semibold text-orange-950 dark:text-orange-100 sm:text-xl">จ่ายวัตถุดิบออก (FIFO)</h3>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}

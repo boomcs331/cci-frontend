@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import TableEmptyRow from "@/components/common/TableEmptyRow";
+import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { apiFetch } from "@/utils/api";
 
 interface StockItem {
@@ -20,7 +21,9 @@ interface LotItem {
   id: number;
   lotNo: string;
   lotPdNo?: string | null;
-  qrCode: string;
+  qrCode?: string;
+  /** บาง response ใช้ snake_case */
+  qr_code?: string;
   quantity: number;
   remainingQuantity: number;
   status: string;
@@ -151,6 +154,9 @@ export default function PCStockPage() {
     0,
   );
 
+  const lotQrCode = (lot: LotItem) =>
+    (lot.qrCode ?? lot.qr_code ?? "").trim();
+
   const getStockColor = (available: number, min: number) => {
     if (available <= min) {
       return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
@@ -228,7 +234,7 @@ export default function PCStockPage() {
                             <th className="px-3 py-2 text-right text-xs font-medium">รับเข้า</th>
                             <th className="px-3 py-2 text-right text-xs font-medium">คงเหลือ</th>
                             <th className="px-3 py-2 text-center text-xs font-medium">สถานะ</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium">QR</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium w-[100px]">QR</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -238,7 +244,9 @@ export default function PCStockPage() {
                               message="ไม่พบ lot/QR ที่ยังมีคงเหลือสำหรับวัตถุดิบนี้"
                             />
                           ) : (
-                            lotItems.map((lot) => (
+                            lotItems.map((lot) => {
+                              const qr = lotQrCode(lot);
+                              return (
                               <tr key={lot.id}>
                                 <td className="px-3 py-2 text-sm">
                                   <div className="font-medium">{lot.receiving?.receivingNo || "-"}</div>
@@ -267,17 +275,36 @@ export default function PCStockPage() {
                                     {lot.status}
                                   </span>
                                 </td>
-                                <td className="px-3 py-2 text-sm">
-                                  <button
-                                    type="button"
-                                    onClick={() => void openQrTransactions(lot.qrCode)}
-                                    className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs"
-                                  >
-                                    {lot.qrCode}
-                                  </button>
+                                <td className="px-3 py-2 text-sm align-middle">
+                                  {!qr ? (
+                                    <span className="text-gray-400 text-xs">-</span>
+                                  ) : (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => void openQrTransactions(qr)}
+                                        className="rounded-lg border border-gray-200 bg-white p-1 shadow-sm hover:border-blue-400 hover:ring-1 hover:ring-blue-300 dark:border-gray-600 dark:bg-gray-900 dark:hover:border-blue-500"
+                                        title="คลิกเพื่อดูรายการเคลื่อนไหวของ QR"
+                                      >
+                                        <QRCodeGenerator
+                                          value={qr}
+                                          size={64}
+                                          className="mx-auto block"
+                                        />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void openQrTransactions(qr)}
+                                        className="max-w-[120px] truncate text-center text-blue-600 dark:text-blue-400 hover:underline font-mono text-[10px] leading-tight"
+                                      >
+                                        {qr}
+                                      </button>
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
-                            ))
+                              );
+                            })
                           )}
                         </tbody>
                       </table>

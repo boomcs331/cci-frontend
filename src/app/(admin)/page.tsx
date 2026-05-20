@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowRightFromBracket,
+  faArrowRightToBracket,
   faArrowRotateRight,
   faBoxesStacked,
   faChartLine,
@@ -211,6 +213,8 @@ type DashboardStats = {
   salesReservedQty: number;
   upcomingPlans: number;
   lowStockMaterials: number;
+  receivingsTotal: number;
+  issuesTotal: number;
 };
 
 type MaterialStockRow = {
@@ -234,6 +238,8 @@ const EMPTY_STATS: DashboardStats = {
   salesReservedQty: 0,
   upcomingPlans: 0,
   lowStockMaterials: 0,
+  receivingsTotal: 0,
+  issuesTotal: 0,
 };
 
 const AUTO_REFRESH_MS = 60_000;
@@ -406,12 +412,15 @@ export default function DashboardPage() {
       else setRefreshing(true);
       setError(null);
       try {
-        const [plansRes, ordersRes, salesRes, materialReservationsRes, stockRes] = await Promise.all([
+        const [plansRes, ordersRes, salesRes, materialReservationsRes, stockRes, receivingsRes, issuesRes] =
+          await Promise.all([
           apiFetch("/production-plans"),
           apiFetch("/production-orders?page=1&limit=100"),
           apiFetch("/products/sales-reservations"),
           apiFetch("/production-plans/materials/reservations"),
           apiFetch("/materials/stock"),
+          apiFetch("/materials/transactions/receivings?page=1&limit=1"),
+          apiFetch("/materials/transactions/issues?page=1&limit=1"),
         ]);
 
         const plans = plansRes.ok ? normalizePlansPayload(await plansRes.json()) : [];
@@ -428,12 +437,23 @@ export default function DashboardPage() {
         const materialStocks: MaterialStockRow[] = Array.isArray(stockPayload?.data)
           ? (stockPayload!.data as MaterialStockRow[])
           : [];
+        const receivingsPayload = receivingsRes.ok
+          ? ((await receivingsRes.json()) as { pagination?: { total?: number } })
+          : null;
+        const issuesPayload = issuesRes.ok
+          ? ((await issuesRes.json()) as { pagination?: { total?: number } })
+          : null;
 
         setAllPlans(plans);
         setAllOrders(orderPayload.orders || []);
         setAllSalesGroups(salesGroups);
         setAllMaterialReservations(materialReservations);
         setAllMaterialStocks(materialStocks);
+        setStats((prev) => ({
+          ...prev,
+          receivingsTotal: Number(receivingsPayload?.pagination?.total ?? 0),
+          issuesTotal: Number(issuesPayload?.pagination?.total ?? 0),
+        }));
         setLastUpdated(new Date());
       } catch (e) {
         setError(e instanceof Error ? e.message : "โหลดข้อมูลแดชบอร์ดไม่สำเร็จ");
@@ -515,7 +535,7 @@ export default function DashboardPage() {
       .sort((a, b) => Number(a.availableStock || 0) - Number(b.availableStock || 0))
       .slice(0, 6);
 
-    setStats({
+    setStats((prev) => ({
       plansTotal: plansFiltered.length,
       plansReserved,
       plansConfirmed,
@@ -525,7 +545,9 @@ export default function DashboardPage() {
       salesReservedQty,
       upcomingPlans: upcoming.length,
       lowStockMaterials: lowStocks.length,
-    });
+      receivingsTotal: prev.receivingsTotal,
+      issuesTotal: prev.issuesTotal,
+    }));
     setUpcomingPlans(
       [...upcoming]
         .sort((a, b) => {
@@ -641,6 +663,8 @@ export default function DashboardPage() {
         ["ยอดจองขายรวม", stats.salesReservedQty.toLocaleString()],
         ["แผนใกล้ครบกำหนด (7 วัน)", String(stats.upcomingPlans)],
         ["วัตถุดิบใกล้หมด", String(stats.lowStockMaterials)],
+        ["รายการรับเข้า", String(stats.receivingsTotal)],
+        ["รายการจ่ายออก", String(stats.issuesTotal)],
       ],
       ...tableDefaults,
     });
@@ -792,7 +816,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4">
         <KpiLinkCard
           title="แผนการผลิต"
           value={stats.plansTotal}
@@ -834,6 +858,20 @@ export default function DashboardPage() {
           subtitle="available ≤ min stock"
           icon={<FontAwesomeIcon icon={faWarehouse} className="text-red-500" />}
           href="/pc/stock"
+        />
+        <KpiLinkCard
+          title="รายการรับเข้า"
+          value={stats.receivingsTotal}
+          subtitle="ใบรับวัตถุดิบทั้งหมด"
+          icon={<FontAwesomeIcon icon={faArrowRightToBracket} className="text-success-500" />}
+          href="/pc/income"
+        />
+        <KpiLinkCard
+          title="รายการจ่ายออก"
+          value={stats.issuesTotal}
+          subtitle="ใบจ่ายวัตถุดิบทั้งหมด"
+          icon={<FontAwesomeIcon icon={faArrowRightFromBracket} className="text-orange-500" />}
+          href="/pc/outcome"
         />
       </div>
 

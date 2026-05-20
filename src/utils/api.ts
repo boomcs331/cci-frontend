@@ -50,6 +50,11 @@ function applySessionAuthHeaders(headers: Headers): void {
     headers.set('x-user-id', String(session.user.id));
   }
 
+  const username = session.user.username?.trim();
+  if (username && !headers.has('x-username')) {
+    headers.set('x-username', username);
+  }
+
   if (!headers.has('x-department-id')) {
     const departmentId = session.user.departmentId ?? session.user.department?.id;
     if (departmentId) {

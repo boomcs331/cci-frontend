@@ -45,7 +45,7 @@ export interface CreateReceivingPayload {
   locationId: number;
   createBy: string;
   supplierId?: number;
-  poNo?: string;
+  poNo: string;
   remark?: string;
   expiryDate?: string;
 }

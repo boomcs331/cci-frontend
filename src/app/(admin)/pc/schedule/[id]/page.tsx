@@ -5,7 +5,7 @@ import { apiFetch } from '@/utils/api';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import ComponentCard from '@/components/common/ComponentCard';
 import TableEmptyRow from '@/components/common/TableEmptyRow';
-import ProductionLotBatchPanel from '@/components/pc/production/ProductionLotBatchPanel';
+import QRCodeGenerator from '@/components/common/QRCodeGenerator';
 import QRScannerModal from '@/components/qr/QRScannerModal';
 
 interface Material {
@@ -25,6 +25,7 @@ interface Reservation {
   lotNumber?: string;
   lotPdNo?: string;
   qrCode?: string;
+  qr_code?: string;
   receiveDate?: string;
   createDate: string;
 }
@@ -53,6 +54,82 @@ interface PlanDetail {
   items: PlanItem[];
   reservations?: Reservation[];
 }
+
+/** สีแยกตามวัตถุดิบในกล่อง Lot ที่ยืนยัน (หมุนเวียนตามลำดับ) */
+const MATERIAL_LOT_PALETTE = [
+  {
+    card: 'border-emerald-300/90 bg-emerald-50/40 dark:border-emerald-700 dark:bg-emerald-950/35',
+    header: 'border-emerald-200 bg-emerald-100/80 dark:border-emerald-800 dark:bg-emerald-900/45',
+    headerMuted: 'text-emerald-900 dark:text-emerald-100',
+    thead: 'bg-emerald-50/90 dark:bg-emerald-900/30',
+    th: 'text-emerald-900 dark:text-emerald-100',
+    tbodyDivide: 'divide-emerald-100 dark:divide-emerald-900/45',
+    rowHover: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/25',
+  },
+  {
+    card: 'border-sky-300/90 bg-sky-50/40 dark:border-sky-700 dark:bg-sky-950/35',
+    header: 'border-sky-200 bg-sky-100/80 dark:border-sky-800 dark:bg-sky-900/45',
+    headerMuted: 'text-sky-900 dark:text-sky-100',
+    thead: 'bg-sky-50/90 dark:bg-sky-900/30',
+    th: 'text-sky-900 dark:text-sky-100',
+    tbodyDivide: 'divide-sky-100 dark:divide-sky-900/45',
+    rowHover: 'hover:bg-sky-50 dark:hover:bg-sky-900/25',
+  },
+  {
+    card: 'border-amber-300/90 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/35',
+    header: 'border-amber-200 bg-amber-100/80 dark:border-amber-800 dark:bg-amber-900/45',
+    headerMuted: 'text-amber-900 dark:text-amber-100',
+    thead: 'bg-amber-50/90 dark:bg-amber-900/30',
+    th: 'text-amber-900 dark:text-amber-100',
+    tbodyDivide: 'divide-amber-100 dark:divide-amber-900/45',
+    rowHover: 'hover:bg-amber-50 dark:hover:bg-amber-900/25',
+  },
+  {
+    card: 'border-violet-300/90 bg-violet-50/40 dark:border-violet-700 dark:bg-violet-950/35',
+    header: 'border-violet-200 bg-violet-100/80 dark:border-violet-800 dark:bg-violet-900/45',
+    headerMuted: 'text-violet-900 dark:text-violet-100',
+    thead: 'bg-violet-50/90 dark:bg-violet-900/30',
+    th: 'text-violet-900 dark:text-violet-100',
+    tbodyDivide: 'divide-violet-100 dark:divide-violet-900/45',
+    rowHover: 'hover:bg-violet-50 dark:hover:bg-violet-900/25',
+  },
+  {
+    card: 'border-rose-300/90 bg-rose-50/40 dark:border-rose-700 dark:bg-rose-950/35',
+    header: 'border-rose-200 bg-rose-100/80 dark:border-rose-800 dark:bg-rose-900/45',
+    headerMuted: 'text-rose-900 dark:text-rose-100',
+    thead: 'bg-rose-50/90 dark:bg-rose-900/30',
+    th: 'text-rose-900 dark:text-rose-100',
+    tbodyDivide: 'divide-rose-100 dark:divide-rose-900/45',
+    rowHover: 'hover:bg-rose-50 dark:hover:bg-rose-900/25',
+  },
+  {
+    card: 'border-cyan-300/90 bg-cyan-50/40 dark:border-cyan-700 dark:bg-cyan-950/35',
+    header: 'border-cyan-200 bg-cyan-100/80 dark:border-cyan-800 dark:bg-cyan-900/45',
+    headerMuted: 'text-cyan-900 dark:text-cyan-100',
+    thead: 'bg-cyan-50/90 dark:bg-cyan-900/30',
+    th: 'text-cyan-900 dark:text-cyan-100',
+    tbodyDivide: 'divide-cyan-100 dark:divide-cyan-900/45',
+    rowHover: 'hover:bg-cyan-50 dark:hover:bg-cyan-900/25',
+  },
+  {
+    card: 'border-orange-300/90 bg-orange-50/40 dark:border-orange-700 dark:bg-orange-950/35',
+    header: 'border-orange-200 bg-orange-100/80 dark:border-orange-800 dark:bg-orange-900/45',
+    headerMuted: 'text-orange-900 dark:text-orange-100',
+    thead: 'bg-orange-50/90 dark:bg-orange-900/30',
+    th: 'text-orange-900 dark:text-orange-100',
+    tbodyDivide: 'divide-orange-100 dark:divide-orange-900/45',
+    rowHover: 'hover:bg-orange-50 dark:hover:bg-orange-900/25',
+  },
+  {
+    card: 'border-indigo-300/90 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/35',
+    header: 'border-indigo-200 bg-indigo-100/80 dark:border-indigo-800 dark:bg-indigo-900/45',
+    headerMuted: 'text-indigo-900 dark:text-indigo-100',
+    thead: 'bg-indigo-50/90 dark:bg-indigo-900/30',
+    th: 'text-indigo-900 dark:text-indigo-100',
+    tbodyDivide: 'divide-indigo-100 dark:divide-indigo-900/45',
+    rowHover: 'hover:bg-indigo-50 dark:hover:bg-indigo-900/25',
+  },
+] as const;
 
 export default function PlanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -135,6 +212,9 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
 
   const planItems = Array.isArray(data.items) ? data.items : [];
 
+  const reservationQr = (r: Reservation) =>
+    (r.qrCode ?? r.qr_code ?? '').trim();
+
   return (
     <div>
       <PageBreadcrumb pageTitle="รายละเอียดแผนการผลิต" />
@@ -186,48 +266,6 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
           </div>
-
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">
-                รายการจองวัตถุดิบ ({(data.reservations ?? []).length} รายการ)
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="bg-blue-100 dark:bg-blue-900/40">
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">รหัสวัตถุดิบ</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">ชื่อวัตถุดิบ</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">Lot Number</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">Lot PD No.</th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-blue-900 dark:text-blue-100">QR Code</th>
-                      <th className="px-4 py-2 text-right text-sm font-medium text-blue-900 dark:text-blue-100">จำนวนที่จอง</th>
-                      <th className="px-4 py-2 text-center text-sm font-medium text-blue-900 dark:text-blue-100">วันที่จอง</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-blue-200 dark:divide-blue-800">
-                    {(data.reservations ?? []).length === 0 ? (
-                      <TableEmptyRow colSpan={7} />
-                    ) : (
-                      (data.reservations ?? []).map((r, idx) => (
-                        <tr key={idx} className="hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialCode}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.materialName}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
-                          <td className="px-4 py-2 text-sm font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
-                          <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-white">
-                            {r.reservedQuantity.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-center text-gray-900 dark:text-white">
-                            {new Date(r.createDate).toLocaleDateString('th-TH')}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
 
           {planItems.map((item, itemIndex) => {
             const materials = Array.isArray(item.materials) ? item.materials : [];
@@ -284,62 +322,114 @@ export default function PlanDetailPage({ params }: { params: Promise<{ id: strin
                 </table>
               </div>
 
-              {/* ตารางแสดง Lot ที่ยืนยัน */}
-              {data.reservations &&
-              data.reservations.filter((r) =>
-                materials.some((m) => Number(m.materialId) === Number(r.materialId)),
-              ).length > 0 && (
-                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <h4 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
-                    Lot ที่ยืนยัน
-                  </h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full table-auto text-xs">
-                      <thead>
-                        <tr className="bg-green-100 dark:bg-green-900/40">
-                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">Material</th>
-                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">Lot Number</th>
-                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">Lot PD No.</th>
-                          <th className="px-3 py-2 text-left text-green-900 dark:text-green-100">QR Code</th>
-                          <th className="px-3 py-2 text-right text-green-900 dark:text-green-100">จำนวน</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-green-200 dark:divide-green-800">
-                        {data.reservations
-                          .filter((r) =>
-                            materials.some(
-                              (m) => Number(m.materialId) === Number(r.materialId),
-                            ),
-                          )
-                          .map((r, idx) => (
-                            <tr key={idx} className="hover:bg-green-100 dark:hover:bg-green-900/30">
-                              <td className="px-3 py-2 text-gray-900 dark:text-white">{r.materialCode}</td>
-                              <td className="px-3 py-2 text-gray-900 dark:text-white">{r.lotNumber || '-'}</td>
-                              <td className="px-3 py-2 text-gray-900 dark:text-white">{r.lotPdNo || '-'}</td>
-                              <td className="px-3 py-2 font-mono text-gray-900 dark:text-white">{r.qrCode || '-'}</td>
-                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                                {r.reservedQuantity.toLocaleString()}
-                              </td>
-                            </tr>
-                          ))
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+              {/* Lot ที่ยืนยัน — แยกตามวัตถุดิบ */}
+              {(() => {
+                const reservations = data.reservations ?? [];
+                const byMaterial = materials
+                  .map((m) => {
+                    const rows = reservations.filter(
+                      (r) => Number(r.materialId) === Number(m.materialId),
+                    );
+                    return { material: m, rows };
+                  })
+                  .filter((x) => x.rows.length > 0);
 
-              <ProductionLotBatchPanel
-                planId={effectivePlanId}
-                planCode={data.planCode}
-                itemIndex={itemIndex}
-                planItemId={item.planItemId ?? item.id}
-                planStatus={data.status}
-                productId={item.productId}
-                productName={item.productName}
-                totalQty={item.quantity}
-                unit={item.unit}
-              />
+                if (byMaterial.length === 0) return null;
+
+                return (
+                  <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50/80 p-3 dark:border-gray-600 dark:bg-gray-900/40">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      Lot ที่ยืนยัน
+                    </h4>
+                    {byMaterial.map(({ material: m, rows }) => {
+                      const bomIdx = materials.findIndex(
+                        (mm) => Number(mm.materialId) === Number(m.materialId),
+                      );
+                      const pal =
+                        MATERIAL_LOT_PALETTE[
+                          (bomIdx >= 0 ? bomIdx : 0) %
+                            MATERIAL_LOT_PALETTE.length
+                        ];
+                      return (
+                      <div
+                        key={m.materialId}
+                        className={`overflow-hidden rounded-lg border bg-white/90 dark:bg-gray-950/50 ${pal.card}`}
+                      >
+                        <div className={`border-b px-3 py-2 ${pal.header}`}>
+                          <div className={`text-xs font-medium ${pal.headerMuted}`}>
+                            วัตถุดิบ
+                          </div>
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {m.materialCode}{' '}
+                            <span className="font-normal text-gray-600 dark:text-gray-300">
+                              — {m.materialName}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full table-auto text-xs">
+                            <thead>
+                              <tr className={pal.thead}>
+                                <th className={`px-3 py-2 text-left ${pal.th}`}>
+                                  Lot Number
+                                </th>
+                                <th className={`px-3 py-2 text-left ${pal.th}`}>
+                                  Lot PD No.
+                                </th>
+                                <th className={`px-3 py-2 text-center ${pal.th}`}>
+                                  QR Code
+                                </th>
+                                <th className={`px-3 py-2 text-right ${pal.th}`}>
+                                  จำนวน
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className={`divide-y ${pal.tbodyDivide}`}>
+                              {rows.map((r, idx) => {
+                                const qr = reservationQr(r);
+                                return (
+                                  <tr
+                                    key={`${m.materialId}-${idx}-${r.lotNumber ?? ''}`}
+                                    className={pal.rowHover}
+                                  >
+                                    <td className="px-3 py-2 text-gray-900 dark:text-white">
+                                      {r.lotNumber || '-'}
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-900 dark:text-white">
+                                      {r.lotPdNo || '-'}
+                                    </td>
+                                    <td className="px-3 py-2 align-middle">
+                                      {qr ? (
+                                        <div className="flex flex-col items-center gap-1 py-1">
+                                          <QRCodeGenerator
+                                            value={qr}
+                                            size={56}
+                                            className="mx-auto block rounded border border-gray-200 bg-white p-0.5 dark:border-gray-600"
+                                          />
+                                          <span className="max-w-[140px] truncate font-mono text-[10px] text-gray-600 dark:text-gray-400">
+                                            {qr}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                      {r.reservedQuantity.toLocaleString()}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
             </div>
             );
           })}
