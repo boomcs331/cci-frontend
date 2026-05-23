@@ -112,6 +112,13 @@ export interface ProductionOrderLot {
   }[];
 }
 
+export interface ProductionOrderDeptBacklog {
+  departmentCode: string | null;
+  departmentName?: string | null;
+  filtered: boolean;
+  message?: string;
+}
+
 export interface ProductionOrderDetail {
   id: number;
   orderNo: string;
@@ -120,6 +127,10 @@ export interface ProductionOrderDetail {
   lotSize: number;
   totalLots: number;
   status: string;
+  /** จำนวนล็อตคงค้างในกระบวนการของแผนกผู้ใช้ (เมื่อกรองตามแผนก) */
+  deptBacklogLotCount?: number;
+  /** รหัสขั้นตอนที่แผนกต้องรับงาน */
+  deptBacklogProcessCodes?: string[];
   remarks?: string;
   product?: {
     id: number;
@@ -139,4 +150,5 @@ export interface ProductionOrdersListResult {
   page: number;
   limit: number;
   totalPages: number;
+  departmentScope?: ProductionOrderDeptBacklog | null;
 }

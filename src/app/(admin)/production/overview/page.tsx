@@ -1,8 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { OverviewHubSection } from "@/components/overview/OverviewHubSection";
+import { useClientHydrated } from "@/hooks/useClientHydrated";
+import { canAccessPolicy, getRouteAccessPolicy } from "@/utils/accessControl";
+import {
+  getSession,
+  getUserDepartmentCodes,
+  isAdmin,
+} from "@/utils/session";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBarcode,
@@ -79,6 +86,23 @@ const items = [
 ];
 
 export default function ProductionOverviewPage() {
+  const hydrated = useClientHydrated();
+  const visibleItems = useMemo(() => {
+    if (!hydrated) return [];
+    const session = getSession();
+    const context = {
+      isAdmin: isAdmin(),
+      permissions: session?.permissions ?? [],
+      departmentCode: session?.user?.department?.code ?? null,
+      departmentCodes: getUserDepartmentCodes(),
+    };
+    return items.filter((item) => {
+      const policy = getRouteAccessPolicy(item.path);
+      if (!policy) return true;
+      return canAccessPolicy(policy, context);
+    });
+  }, [hydrated]);
+
   return (
     <div>
       <PageBreadcrumb pageTitle="ภาพรวมสินค้า" />
@@ -87,7 +111,7 @@ export default function ProductionOverviewPage() {
           title="Production — สินค้าและงานผลิต"
           sectionDescription="สรุปเมนูย่อยภายใต้กลุ่ม Production ในระบบ (รูปแบบการ์ดเดียวกับ /master-data)"
           icon={<FontAwesomeIcon icon={faIndustry} />}
-          items={items}
+          items={visibleItems}
         />
       </div>
     </div>

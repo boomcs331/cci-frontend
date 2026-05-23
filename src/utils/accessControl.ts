@@ -1,4 +1,5 @@
 import { PERMISSIONS } from '@/constants/permissions';
+import { departmentMatchesAnyUserDepartments } from '@/utils/departmentAccess';
 
 export type PermissionMatchMode = 'all' | 'any';
 
@@ -13,6 +14,8 @@ export interface AccessContext {
   isAdmin: boolean;
   permissions: string[];
   departmentCode?: string | null;
+  /** ทุกแผนกของผู้ใช้ — ใช้ตรวจ route policy */
+  departmentCodes?: string[];
 }
 
 interface RoutePolicy extends AccessPolicy {
@@ -25,9 +28,9 @@ const ROUTE_POLICIES: RoutePolicy[] = [
     matcher: /^\/users(\/|$)/,
     adminOnly: true,
   },
+  /** ผู้ใช้ที่ล็อกอินแล้วดูข้อมูล session ของตัวเองได้ทุกคน */
   {
     matcher: /^\/session(\/|$)/,
-    adminOnly: true,
   },
   {
     matcher: /^\/master-data(\/|$)/,
@@ -47,7 +50,16 @@ const ROUTE_POLICIES: RoutePolicy[] = [
   {
     matcher: /^\/production\/production-orders(\/|$)/,
     requiredPermissions: [PERMISSIONS.PRODUCTION_ORDERS_READ],
-    allowedDepartments: ['WE'],
+    allowedDepartments: ['WE', 'WELDING', 'PRESS', 'PD'],
+  },
+  {
+    matcher: /^\/production\/dept-step-scan(\/|$)/,
+    requiredPermissions: [
+      PERMISSIONS.PRODUCTION_ORDERS_READ,
+      PERMISSIONS.PRODUCTION_ORDERS_UPDATE,
+    ],
+    permissionMatch: 'any',
+    allowedDepartments: ['WE', 'WELDING', 'PRESS', 'PD'],
   },
   // PC module pages.
   {
@@ -138,8 +150,15 @@ export function canAccessPolicy(policy: AccessPolicy, context: AccessContext): b
     return false;
   }
 
-  if (policy.allowedDepartments && policy.allowedDepartments.length > 0) {
-    if (!context.departmentCode || !policy.allowedDepartments.includes(context.departmentCode)) {
+  if (policy.allowedDepartments?.length) {
+    const codes = context.departmentCodes?.length
+      ? context.departmentCodes
+      : context.departmentCode
+        ? [context.departmentCode]
+        : [];
+    if (
+      !departmentMatchesAnyUserDepartments(codes, policy.allowedDepartments)
+    ) {
       return false;
     }
   }

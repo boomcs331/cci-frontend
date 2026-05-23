@@ -12,17 +12,18 @@ type ThemeContextType = {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function readInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  const saved = window.localStorage.getItem("theme");
-  return saved === "dark" ? "dark" : "light";
-}
-
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [theme, setTheme] = useState<Theme>(readInitialTheme);
+  const [theme, setTheme] = useState<Theme>("light");
   const isFirstRun = useRef(true);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("theme");
+    if (saved === "dark" || saved === "light") {
+      setTheme(saved);
+    }
+  }, []);
 
   useEffect(() => {
     if (isFirstRun.current) {

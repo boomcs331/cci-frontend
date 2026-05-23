@@ -1,96 +1,202 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useMemo, useState } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
-import { getSession } from "@/utils/session";
+import { ADMIN_ROLE_CODE } from "@/constants/permissions";
+import {
+  getSession,
+  isSessionValid,
+  type SessionData,
+} from "@/utils/session";
+import { sessionDisplayName } from "@/utils/resolveStoredUserLabel";
+
+type TabKey = "user" | "status";
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3 text-sm">
+      <span className="font-medium text-gray-600 dark:text-gray-400 sm:w-36 shrink-0">
+        {label}
+      </span>
+      <span className="text-gray-900 dark:text-white break-all">{value ?? "—"}</span>
+    </div>
+  );
+}
 
 export default function SessionPage() {
-  const [sessionData, setSessionData] = useState<any>(null);
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabKey>("user");
 
   useEffect(() => {
-    const getSessionData = () => {
-      try {
-        const session = getSession(); // ใช้ getSession ที่จะตรวจสอบ expiration
-        if (session) {
-          setSessionData(session);
-        }
-      } catch (error) {
-        console.error('Failed to parse session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSessionData();
+    setSessionData(getSession());
+    setLoading(false);
   }, []);
+
+  const user = sessionData?.user;
+  const displayName = useMemo(() => sessionDisplayName(user), [user]);
+  const allDepts = useMemo(() => {
+    if (user?.departments?.length) return user.departments;
+    if (user?.department) return [user.department];
+    return [];
+  }, [user]);
+  const deptCode = user?.department?.code ?? null;
+  const allDeptCodes = allDepts
+    .map((d) => d.code)
+    .filter((c): c is string => Boolean(c?.trim()));
+  const activeDeptId = sessionData?.activeDepartmentId ?? user?.departmentId ?? null;
+  const permissions = sessionData?.permissions ?? [];
+  const admin =
+    user?.roles?.some((r) => r.code === ADMIN_ROLE_CODE) ?? false;
+  const valid = sessionData ? isSessionValid() : false;
+
+  const tabClass = (key: TabKey) =>
+    key === tab
+      ? "shadow-theme-xs text-gray-900 dark:text-white bg-white dark:bg-gray-800"
+      : "text-gray-500 dark:text-gray-400";
 
   if (loading) {
     return (
       <div>
-        <PageBreadcrumb pageTitle="Session Information" />
-        <div className="text-center py-8 text-gray-500">Loading...</div>
+        <PageBreadcrumb pageTitle="ข้อมูล Session" />
+        <div className="text-center py-8 text-gray-500">กำลังโหลด...</div>
+      </div>
+    );
+  }
+
+  if (!sessionData) {
+    return (
+      <div>
+        <PageBreadcrumb pageTitle="ข้อมูล Session" />
+        <ComponentCard title="ไม่พบ Session">
+          <p className="text-center py-8 text-gray-500">กรุณาเข้าสู่ระบบใหม่</p>
+        </ComponentCard>
       </div>
     );
   }
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="Session Information" />
+      <PageBreadcrumb pageTitle="ข้อมูล Session" />
       <div className="space-y-6">
-        <ComponentCard title="Current Session Data">
-          {sessionData ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">User Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">ID:</span> {sessionData.user?.id || 'N/A'}</div>
-                    <div><span className="font-medium">Username:</span> {sessionData.user?.username || 'N/A'}</div>
-                    <div><span className="font-medium">Email:</span> {sessionData.user?.email || 'N/A'}</div>
-                    <div><span className="font-medium">First Name:</span> {sessionData.user?.firstName || 'N/A'}</div>
-                    <div><span className="font-medium">Last Name:</span> {sessionData.user?.lastName || 'N/A'}</div>
-                    <div><span className="font-medium">Active:</span> {sessionData.user?.isActive ? 'Yes' : 'No'}</div>
-                  </div>
-                </div>
+        <ComponentCard title="ข้อมูลจากการล็อกอิน">
+          <div className="mb-6 flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-900 w-full max-w-md">
+            <button
+              type="button"
+              onClick={() => setTab("user")}
+              className={`px-4 py-2 font-medium w-full rounded-md text-theme-sm hover:text-gray-900 dark:hover:text-white ${tabClass("user")}`}
+            >
+              ผู้ใช้
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("status")}
+              className={`px-4 py-2 font-medium w-full rounded-md text-theme-sm hover:text-gray-900 dark:hover:text-white ${tabClass("status")}`}
+            >
+              สถานะ
+            </button>
+          </div>
 
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Session Details</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Token:</span> {sessionData.token ? `${sessionData.token.substring(0, 20)}...` : 'N/A'}</div>
-                    <div><span className="font-medium">Expires At:</span> {sessionData.expiresAt ? new Date(sessionData.expiresAt).toLocaleString('th-TH') : 'N/A'}</div>
-                    <div><span className="font-medium">Created:</span> {sessionData.user?.createdAt ? new Date(sessionData.user.createdAt).toLocaleString() : 'N/A'}</div>
-                    <div><span className="font-medium">Updated:</span> {sessionData.user?.updatedAt ? new Date(sessionData.user.updatedAt).toLocaleString() : 'N/A'}</div>
-                    <div><span className="font-medium">Last Login:</span> {sessionData.user?.lastLoginAt ? new Date(sessionData.user.lastLoginAt).toLocaleString() : 'Never'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {sessionData.user?.roles && sessionData.user.roles.length > 0 && (
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">User Roles</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {sessionData.user.roles.map((role: any) => (
-                      <span key={role.id} className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full text-sm">
-                        {role.name} ({role.code})
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Raw Session Data</h3>
-                <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded overflow-auto max-h-64">
-                  {JSON.stringify(sessionData, null, 2)}
-                </pre>
-              </div>
+          {tab === "user" ? (
+            <div className="space-y-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+              <InfoRow label="ชื่อแสดง" value={displayName || user?.username} />
+              <InfoRow label="Username (login)" value={user?.username} />
+              <InfoRow label="อีเมล" value={user?.email} />
+              <InfoRow label="รหัสผู้ใช้" value={user?.id} />
+              <InfoRow
+                label="ชื่อ-นามสกุล"
+                value={
+                  [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "—"
+                }
+              />
+              <InfoRow
+                label="แผนกที่ใช้งาน"
+                value={
+                  user?.department?.code
+                    ? `${user.department.code}${user.department.name ? ` — ${user.department.name}` : ""}`
+                    : deptCode ?? "—"
+                }
+              />
+              <InfoRow
+                label="แผนกทั้งหมด"
+                value={
+                  allDepts.length
+                    ? allDepts
+                        .map((d) => {
+                          const primary =
+                            String(d.id) === String(activeDeptId) ? " (ใช้งาน)" : "";
+                          return `${d.code ?? d.id}${d.name ? ` — ${d.name}` : ""}${primary}`;
+                        })
+                        .join(", ")
+                    : allDeptCodes.join(", ") || "—"
+                }
+              />
+              <InfoRow
+                label="บทบาท (Roles)"
+                value={
+                  user?.roles?.length
+                    ? user.roles
+                        .map((r) => `${r.code ?? r.id}${r.name ? ` (${r.name})` : ""}`)
+                        .join(", ")
+                    : "—"
+                }
+              />
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              No session data found
+            <div className="space-y-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+              <InfoRow
+                label="สถานะ Session"
+                value={
+                  valid ? (
+                    <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                      ใช้งานได้
+                    </span>
+                  ) : (
+                    <span className="text-red-700 dark:text-red-300 font-medium">หมดอายุ</span>
+                  )
+                }
+              />
+              <InfoRow
+                label="บัญชีใช้งาน"
+                value={
+                  user?.isActive === false ? (
+                    <span className="text-amber-700 dark:text-amber-300">Inactive</span>
+                  ) : (
+                    <span className="text-emerald-700 dark:text-emerald-300">Active</span>
+                  )
+                }
+              />
+              <InfoRow label="สิทธิ์ Admin" value={admin ? "ใช่ (ADMIN_GLOBAL)" : "ไม่"} />
+              <InfoRow label="จำนวนสิทธิ์" value={String(permissions.length)} />
+              <InfoRow label="จำนวนเมนู" value={String(sessionData.menus?.length ?? 0)} />
+              <InfoRow
+                label="หมดอายุ Session"
+                value={
+                  sessionData.expiresAt
+                    ? new Date(sessionData.expiresAt).toLocaleString("th-TH")
+                    : "—"
+                }
+              />
+              <InfoRow
+                label="Token"
+                value={
+                  sessionData.token
+                    ? `${sessionData.token.substring(0, 24)}…`
+                    : "—"
+                }
+              />
             </div>
           )}
+
+          <details className="mt-6">
+            <summary className="cursor-pointer text-sm font-medium text-gray-600 dark:text-gray-400">
+              Raw JSON (debug)
+            </summary>
+            <pre className="mt-2 text-xs bg-gray-100 dark:bg-gray-800 p-3 rounded overflow-auto max-h-64">
+              {JSON.stringify(sessionData, null, 2)}
+            </pre>
+          </details>
         </ComponentCard>
       </div>
     </div>

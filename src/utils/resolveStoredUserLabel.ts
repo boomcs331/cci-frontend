@@ -14,6 +14,14 @@ export function sessionDisplayName(user: SessionUser | undefined | null): string
  * ถ้าค่าที่เก็บใน DB ตรงกับ username ผู้ล็อกอิน — แสดงชื่อจาก session
  * มิฉะนั้นแสดงค่าจากระบบ (เช่น username คนอื่น)
  */
+function storedMatchesSessionUser(stored: string, u: SessionUser): boolean {
+  const s = stored.trim();
+  const un = (u.username ?? '').trim().toLowerCase();
+  if (un && s.toLowerCase() === un) return true;
+  if (u.id != null && /^\d+$/.test(s) && String(u.id) === s) return true;
+  return false;
+}
+
 export function resolveStoredUserLabel(
   storedLabel: string | undefined | null,
   sessionUser?: SessionUser | null,
@@ -21,12 +29,22 @@ export function resolveStoredUserLabel(
   const s = (storedLabel ?? '').trim();
   if (!s) return '—';
   const u = sessionUser ?? getSession()?.user;
-  const un = (u?.username ?? '').trim().toLowerCase();
-  if (un && s.toLowerCase() === un) {
+  if (u && storedMatchesSessionUser(s, u)) {
     const dn = sessionDisplayName(u);
-    return dn || s;
+    return dn || (u.username ?? '').trim() || s;
   }
   return s;
+}
+
+/** ชื่อผู้ทำจาก tracking — แสดงชื่อจาก session เมื่อตรงผู้ล็อกอิน */
+export function resolveOperatorLabel(
+  operator: string | undefined | null,
+  sessionUser?: SessionUser | null,
+): string {
+  const op = (operator ?? '').trim();
+  if (!op) return '';
+  const resolved = resolveStoredUserLabel(op, sessionUser);
+  return resolved === '—' ? op : resolved;
 }
 
 export function resolveStoredUserLabels(

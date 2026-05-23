@@ -1,6 +1,11 @@
 // API utility functions
 import { clearSession, getSession } from '@/utils/session';
 import { publishToast } from '@/context/ToastContext';
+import {
+  extractApiErrorMessage,
+  notifyForbiddenApiError,
+  translateApiErrorMessage,
+} from '@/utils/apiErrorMessages';
 
 /** Default request timeout in milliseconds. */
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -56,7 +61,10 @@ function applySessionAuthHeaders(headers: Headers): void {
   }
 
   if (!headers.has('x-department-id')) {
-    const departmentId = session.user.departmentId ?? session.user.department?.id;
+    const departmentId =
+      session.activeDepartmentId ??
+      session.user.departmentId ??
+      session.user.department?.id;
     if (departmentId) {
       headers.set('x-department-id', String(departmentId));
     }
@@ -130,6 +138,22 @@ export async function apiFetch(
       redirectToSignIn('expired');
     }
 
+    if (!shouldBypassAuth && response.status === 403) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          const body = await response.clone().json();
+          notifyForbiddenApiError(body);
+        } catch {
+          notifyForbiddenApiError(null);
+        }
+      } else {
+        notifyForbiddenApiError({
+          message: 'ไม่มีสิทธิ์ดำเนินการนี้',
+        });
+      }
+    }
+
     return response;
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError' && timeoutId) {
@@ -171,11 +195,9 @@ export async function apiFetchJson<T = unknown>(
     : await response.text().catch(() => null);
 
   if (!response.ok) {
-    const message =
-      (body && typeof body === 'object' && 'message' in body && typeof (body as { message?: unknown }).message === 'string'
-        ? String((body as { message?: unknown }).message)
-        : null) ?? `Request failed (${response.status})`;
-    throw new ApiError(message, response.status, body);
+    const raw =
+      extractApiErrorMessage(body) ?? `Request failed (${response.status})`;
+    throw new ApiError(translateApiErrorMessage(raw), response.status, body);
   }
 
   return body as T;

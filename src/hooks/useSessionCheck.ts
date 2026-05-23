@@ -1,7 +1,16 @@
 "use client";
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getSession, getUserDepartmentCode, getUserPermissions, isAdmin, isSessionValid, setSession } from '@/utils/session';
+import {
+  getSession,
+  getUserDepartmentCode,
+  getUserDepartmentCodes,
+  getUserPermissions,
+  isAdmin,
+  isSessionValid,
+  needsDepartmentSelection,
+  setSession,
+} from '@/utils/session';
 import { canAccessPolicy, getRouteAccessPolicy } from '@/utils/accessControl';
 import { apiFetch } from '@/utils/api';
 import type { MenuItem } from '@/types/user';
@@ -16,7 +25,7 @@ export function useSessionCheck() {
 
   useEffect(() => {
     // ข้ามการตรวจสอบสำหรับหน้า public
-    const publicPaths = ['/signin', '/signup', '/reset-password'];
+    const publicPaths = ['/signin', '/signup', '/reset-password', '/select-department'];
     if (publicPaths.includes(pathname)) {
       return;
     }
@@ -27,12 +36,18 @@ export function useSessionCheck() {
       return;
     }
 
+    if (needsDepartmentSelection()) {
+      router.replace('/select-department');
+      return;
+    }
+
     const routePolicy = getRouteAccessPolicy(pathname);
     if (routePolicy) {
       const isAllowed = canAccessPolicy(routePolicy, {
         isAdmin: isAdmin(),
         permissions: getUserPermissions(),
         departmentCode: getUserDepartmentCode(),
+        departmentCodes: getUserDepartmentCodes(),
       });
 
       if (!isAllowed) {
@@ -41,7 +56,7 @@ export function useSessionCheck() {
       }
     }
 
-    if ((!session.menus || session.menus.length === 0) && session.user?.id) {
+    if (session.user?.id) {
       const departmentId = session.user.departmentId ?? session.user.department?.id;
       const headers: HeadersInit = {
         'x-user-id': session.user.id,
@@ -56,7 +71,7 @@ export function useSessionCheck() {
             return;
           }
           const data = (await response.json()) as { menus?: MenuItem[] };
-          if (Array.isArray(data.menus) && data.menus.length > 0) {
+          if (Array.isArray(data.menus)) {
             setSession({
               ...session,
               menus: data.menus,

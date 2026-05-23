@@ -8,7 +8,7 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { setSession } from "@/utils/session";
+import { getPostLoginPath, setSession } from "@/utils/session";
 
 type AlertState = {
   variant: "success" | "error" | "warning" | "info";
@@ -59,9 +59,17 @@ export default function SignInForm() {
       
       if (response.ok) {
         const data = await response.json();
-        setSession(data); // ใช้ setSession แทน localStorage.setItem
-        setAlert({variant: "success", title: "เข้าสู่ระบบสำเร็จ", message: "กำลังนำคุณไปยังหน้าแรก..."});
-        setTimeout(() => router.push('/'), 1500);
+        setSession(data);
+        const nextPath = getPostLoginPath();
+        setAlert({
+          variant: "success",
+          title: "เข้าสู่ระบบสำเร็จ",
+          message:
+            nextPath === "/select-department"
+              ? "กรุณาเลือกแผนกที่ต้องการใช้งาน..."
+              : "กำลังนำคุณไปยังหน้าแรก...",
+        });
+        setTimeout(() => router.push(nextPath), 1200);
       } else {
         setAlert({variant: "error", title: "เข้าสู่ระบบไม่สำเร็จ", message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"});
       }

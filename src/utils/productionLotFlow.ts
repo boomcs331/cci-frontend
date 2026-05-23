@@ -1,4 +1,6 @@
 import type { ProductionOrderLot } from "@/types/production";
+import { resolveOperatorLabel } from "@/utils/resolveStoredUserLabel";
+import type { SessionUser } from "@/utils/session";
 
 export function matchTrackingByProcessCode(
   lot: ProductionOrderLot,
@@ -22,10 +24,14 @@ export function lotHasCompletedProcess(lot: ProductionOrderLot, processCode: str
   return matchTrackingByProcessCode(lot, processCode)?.status === "COMPLETED";
 }
 
-export function lotOperatorForProcess(lot: ProductionOrderLot, processCode: string): string {
+export function lotOperatorForProcess(
+  lot: ProductionOrderLot,
+  processCode: string,
+  sessionUser?: SessionUser | null,
+): string {
   const row = matchTrackingByProcessCode(lot, processCode);
   const op = row?.operator?.trim();
-  if (op) return op;
+  if (op) return resolveOperatorLabel(op, sessionUser);
   if (row?.status === "IN_PROGRESS") return "(กำลังทำ)";
   return "";
 }

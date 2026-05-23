@@ -4,8 +4,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
-import { getSession, getUserDepartmentCode, getUserMenus, getUserPermissions, isAdmin } from "@/utils/session";
-import { AccessPolicy, canAccessPolicy } from "@/utils/accessControl";
+import {
+  getSession,
+  getUserDepartmentCode,
+  getUserDepartmentCodes,
+  getUserMenus,
+  getUserPermissions,
+  isAdmin,
+  setSession,
+} from "@/utils/session";
+import { apiFetch } from "@/utils/api";
+import { AccessPolicy, canAccessPolicy, getRouteAccessPolicy } from "@/utils/accessControl";
 import type { MenuItem } from "@/types/user";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -131,20 +140,44 @@ const AppSidebar: React.FC = () => {
     () => true,
     () => false,
   );
+  const [menuTick, setMenuTick] = useState(0);
   const userPermissions = isHydrated ? getUserPermissions() : [];
   const userDepartmentCode = isHydrated ? getUserDepartmentCode() : null;
   const isAdminUser = isHydrated ? isAdmin() : false;
-  const navItems = isHydrated
-    ? sortNavItemsByDisplayOrder(mapMenuToNavItems(getUserMenus()))
-    : [];
+  const navItems = React.useMemo(
+    () =>
+      isHydrated
+        ? sortNavItemsByDisplayOrder(mapMenuToNavItems(getUserMenus()))
+        : [],
+    [isHydrated, menuTick],
+  );
 
   useEffect(() => {
     if (!isHydrated) return;
 
-    const session = getSession(); // ใช้ getSession ที่จะตรวจสอบ expiration
+    const session = getSession();
     if (!session) {
       router.push('/signin');
+      return;
     }
+
+    const departmentId = session.user?.departmentId ?? session.user?.department?.id;
+    const headers: HeadersInit = { 'x-user-id': session.user!.id };
+    if (departmentId) {
+      headers['x-department-id'] = String(departmentId);
+    }
+
+    void apiFetch('/auth/menu', { headers })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { menus?: MenuItem[] };
+        if (!Array.isArray(data.menus)) return;
+        const current = getSession();
+        if (!current) return;
+        setSession({ ...current, menus: data.menus });
+        setMenuTick((t) => t + 1);
+      })
+      .catch(() => undefined);
   }, [router, isHydrated, pathname]);
 
   // ตรวจสอบว่า submenu ใดมี active path
@@ -158,21 +191,36 @@ const AppSidebar: React.FC = () => {
     });
   };
 
-  const canAccess = (item: AccessConfig): boolean => {
-    return canAccessPolicy(item, {
-      isAdmin: isAdminUser,
-      permissions: userPermissions,
-      departmentCode: userDepartmentCode,
-    });
+  const userDepartmentCodes = isHydrated ? getUserDepartmentCodes() : [];
+
+  const accessContext = {
+    isAdmin: isAdminUser,
+    permissions: userPermissions,
+    departmentCode: userDepartmentCode,
+    departmentCodes: userDepartmentCodes,
+  };
+
+  const resolvePolicy = (path?: string, extra?: AccessConfig): AccessPolicy => {
+    if (path) {
+      const routePolicy = getRouteAccessPolicy(path);
+      if (routePolicy) return routePolicy;
+    }
+    return extra ?? {};
+  };
+
+  const canAccess = (path?: string, extra?: AccessConfig): boolean => {
+    return canAccessPolicy(resolvePolicy(path, extra), accessContext);
   };
 
   const filterSubItem = (subItem: SubMenuItem): SubMenuItem | null => {
-    if (!canAccess(subItem)) {
+    if (!canAccess(subItem.path, subItem)) {
       return null;
     }
 
     if (subItem.isCollapsible && subItem.items) {
-      const allowedNestedItems = subItem.items.filter((nestedItem) => canAccess(nestedItem));
+      const allowedNestedItems = subItem.items.filter((nestedItem) =>
+        canAccess(nestedItem.path, nestedItem),
+      );
       if (allowedNestedItems.length === 0) {
         return null;
       }
@@ -189,7 +237,7 @@ const AppSidebar: React.FC = () => {
   const filterMenuByPermissions = (items: NavItem[]): NavItem[] => {
     return items
       .map((item) => {
-        if (!canAccess(item)) {
+        if (!canAccess(item.path, item)) {
           return null;
         }
 

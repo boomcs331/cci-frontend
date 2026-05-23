@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import TableEmptyRow from "@/components/common/TableEmptyRow";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { apiFetch } from "@/utils/api";
-import { getSession, getUserDepartmentCode, isAdmin } from "@/utils/session";
+import {
+  getSession,
+  getUserDepartmentCode,
+  isAdmin,
+  type SessionUser,
+} from "@/utils/session";
+import { resolveOperatorLabel } from "@/utils/resolveStoredUserLabel";
 
 type StationProcess = {
   processId: number;
@@ -128,8 +134,8 @@ export default function DeptStepScanPage() {
   const [trackingMap, setTrackingMap] = useState<Record<string, TrackingRow[]>>({});
   const [trackingLoadingQr, setTrackingLoadingQr] = useState<string | null>(null);
   const [lineageMap, setLineageMap] = useState<Record<string, LotLineagePayload>>({});
+  const [splitOpen, setSplitOpen] = useState(false);
   const [splitQuantity, setSplitQuantity] = useState<string>("");
-  const [splitMoveReleased, setSplitMoveReleased] = useState(true);
   const [splitReason, setSplitReason] = useState("");
   const [splitLoading, setSplitLoading] = useState(false);
   const [splitResult, setSplitResult] = useState<SplitResultPayload | null>(null);
@@ -138,15 +144,17 @@ export default function DeptStepScanPage() {
   const [quickSplitQr, setQuickSplitQr] = useState<string | null>(null);
   const [quickSplitQty, setQuickSplitQty] = useState<string>("");
   const [quickSplitReason, setQuickSplitReason] = useState("");
-  const [quickSplitMoveReleased, setQuickSplitMoveReleased] = useState(true);
   const [quickSplitLoading, setQuickSplitLoading] = useState(false);
   const DEPT_PAGE_SIZE = 10;
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+
   const getOperator = useCallback((): string => {
     const username = getSession()?.user?.username?.trim();
     return username || "scanner";
   }, []);
 
   useEffect(() => {
+    setSessionUser(getSession()?.user ?? null);
     setSessionDept(getUserDepartmentCode());
     setSessionAdmin(isAdmin());
   }, []);
@@ -155,7 +163,12 @@ export default function DeptStepScanPage() {
     setDeptLotsLoading(true);
     try {
       const res = await apiFetch("/production-orders/in-progress/my-dept");
-      if (res.ok) setMyDeptLots((await res.json()) as InProgressLot[]);
+      if (res.ok) {
+        setMyDeptLots((await res.json()) as InProgressLot[]);
+      } else if (res.status === 403) {
+        setMyDeptLots([]);
+        setError("ไม่มีสิทธิ์ดูรายการล็อตของแผนก (ต้องมี production_orders.read หรือ update)");
+      }
     } finally {
       setDeptLotsLoading(false);
     }
@@ -230,8 +243,9 @@ export default function DeptStepScanPage() {
       }
       const data = (await res.json()) as LotStationPayload;
       setStation(data);
-      setSplitQuantity(String(Number(data.quantity) || ""));
+      setSplitQuantity("");
       setSplitReason("");
+      setSplitOpen(false);
       setQrInput("");
       return data;
     } catch {
@@ -398,10 +412,9 @@ export default function DeptStepScanPage() {
     async (params: {
       qrCode: string;
       quantity: number;
-      moveReleasedToNextStep: boolean;
-      reason?: string;
+      reason: string;
     }): Promise<SplitResultPayload | null> => {
-      const { qrCode, quantity, moveReleasedToNextStep, reason } = params;
+      const { qrCode, quantity, reason } = params;
       const res = await apiFetch(
         `/production-orders/lots/${encodeURIComponent(qrCode)}/split`,
         {
@@ -409,9 +422,9 @@ export default function DeptStepScanPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             releasedQuantity: quantity,
-            moveReleasedToNextStep,
+            moveReleasedToNextStep: true,
             operator: getOperator(),
-            reason: reason?.trim() || undefined,
+            reason: reason?.trim(),
           }),
         },
       );
@@ -440,17 +453,22 @@ export default function DeptStepScanPage() {
       setError("Split quantity must be less than source lot quantity.");
       return;
     }
+    const reason = splitReason.trim();
+    if (!reason) {
+      setError("กรุณากรอกหมายเหตุ (บังคับ)");
+      return;
+    }
     setSplitLoading(true);
     setError(null);
     try {
       const data = await submitSplitLot({
         qrCode: station.qrCode,
         quantity: qty,
-        moveReleasedToNextStep: splitMoveReleased,
-        reason: splitReason,
+        reason,
       });
       if (!data) return;
       setSplitResult(data);
+      setSplitOpen(false);
       setStation(null);
       setLineage(null);
       setQuickSplitQr(null);
@@ -474,14 +492,18 @@ export default function DeptStepScanPage() {
       setError("Split quantity must be less than source lot quantity.");
       return;
     }
+    const reason = quickSplitReason.trim();
+    if (!reason) {
+      setError("กรุณากรอกหมายเหตุ (บังคับ)");
+      return;
+    }
     setQuickSplitLoading(true);
     setError(null);
     try {
       const data = await submitSplitLot({
         qrCode: lot.qrCode,
         quantity: qty,
-        moveReleasedToNextStep: quickSplitMoveReleased,
-        reason: quickSplitReason,
+        reason,
       });
       if (!data) return;
       setSplitResult(data);
@@ -713,7 +735,7 @@ export default function DeptStepScanPage() {
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                สินค้าในกระบวนการ (ทั้งหมด)
+                ล็อตคงค้างที่แผนก (รอเริ่ม / กำลังทำ)
                 {myDeptLots.length > 0 && (
                   <span className="ml-2 normal-case font-normal text-gray-400">
                     ({myDeptLots.length} รายการ)
@@ -751,7 +773,10 @@ export default function DeptStepScanPage() {
                       </thead>
                       <tbody>
                         {pageRows.length === 0 ? (
-                          <TableEmptyRow colSpan={8} message="ไม่มีสินค้าในกระบวนการ" />
+                          <TableEmptyRow
+                            colSpan={8}
+                            message="ไม่มีล็อตรอเริ่มหรือกำลังทำที่ขั้นตอนของแผนกนี้ (ล็อตต้องอยู่ขั้นปัจจุบันที่แผนก WELDING/WE รับงานได้)"
+                          />
                         ) : (
                           pageRows.map((lot, i) => (
                           <React.Fragment key={`${lot.qrCode}-${lot.lotNo}-${lot.orderNo}-${lot.status ?? 'NA'}-${i}`}>
@@ -803,9 +828,8 @@ export default function DeptStepScanPage() {
                                       return;
                                     }
                                     setQuickSplitQr(lot.qrCode);
-                                    setQuickSplitQty(String(Number(lot.quantity) || ""));
+                                    setQuickSplitQty("");
                                     setQuickSplitReason("");
-                                    setQuickSplitMoveReleased(true);
                                   }}
                                   className="rounded-md border border-violet-300 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-50 disabled:opacity-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-900/20"
                                 >
@@ -819,7 +843,7 @@ export default function DeptStepScanPage() {
                                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
                                     <div>
                                       <label className="mb-1 block text-xs text-gray-600 dark:text-gray-300">
-                                        จำนวนที่ปล่อยล็อตใหม่
+                                        จำนวนที่ปล่อยไปขั้นถัดไป <span className="text-red-500">*</span>
                                       </label>
                                       <input
                                         type="number"
@@ -834,13 +858,13 @@ export default function DeptStepScanPage() {
                                     </div>
                                     <div className="sm:col-span-2">
                                       <label className="mb-1 block text-xs text-gray-600 dark:text-gray-300">
-                                        เหตุผล
+                                        หมายเหตุ <span className="text-red-500">*</span>
                                       </label>
                                       <input
                                         type="text"
                                         value={quickSplitReason}
                                         onChange={(e) => setQuickSplitReason(e.target.value)}
-                                        placeholder="เช่น ปล่อยบางส่วนไป Press"
+                                        placeholder="ระบุเหตุผลการ split (บังคับ)"
                                         className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
                                         disabled={quickSplitLoading}
                                       />
@@ -856,15 +880,11 @@ export default function DeptStepScanPage() {
                                       </button>
                                     </div>
                                   </div>
-                                  <label className="mt-2 flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                                    <input
-                                      type="checkbox"
-                                      checked={quickSplitMoveReleased}
-                                      onChange={(e) => setQuickSplitMoveReleased(e.target.checked)}
-                                      disabled={quickSplitLoading}
-                                    />
-                                    ล็อตที่ปล่อย ให้ย้ายไปขั้นถัดไปทันที
-                                  </label>
+                                  <p className="mt-2 text-[11px] text-violet-800/90 dark:text-violet-200/90">
+                                    {lot.status === "PENDING"
+                                      ? "รอเริ่ม: จำนวนที่กรอกใช้ QR เดิม — กำลังผลิตที่ขั้นถัดไป · ส่วนที่เหลือได้ QR ใหม่"
+                                      : "จำนวนที่กรอกจะปล่อยไปขั้นถัดไปทันที — ส่วนที่เหลือได้ QR ใหม่"}
+                                  </p>
                                 </td>
                               </tr>
                             ) : null}
@@ -911,7 +931,10 @@ export default function DeptStepScanPage() {
 
                                                   {t.operator ? (
                                                     <span className="text-gray-700 dark:text-gray-300">
-                                                      · ผู้ทำ: <span className="font-mono font-medium">{t.operator}</span>
+                                                      · ผู้ทำ:{" "}
+                                                      <span className="font-mono font-medium">
+                                                        {resolveOperatorLabel(t.operator, sessionUser)}
+                                                      </span>
                                                     </span>
                                                   ) : null}
                                                 </div>
@@ -1067,15 +1090,39 @@ export default function DeptStepScanPage() {
 
               {station.status !== "COMPLETED" ? (
                 <div className="rounded-lg border border-violet-200 bg-violet-50/70 p-3 dark:border-violet-800 dark:bg-violet-950/20">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
-                    Split lot (QR ใหม่ 2 ใบทันที)
-                  </p>
-                  <p className="mt-1 text-xs text-violet-800/90 dark:text-violet-200/90">
-                    นโยบาย: QR เดิมจะถูก retired และใช้งานต่อไม่ได้หลัง split
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                      Split lot
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (splitOpen) {
+                          setSplitOpen(false);
+                          setSplitReason("");
+                        } else {
+                          setSplitQuantity("");
+                          setSplitReason("");
+                          setSplitOpen(true);
+                        }
+                      }}
+                      className="rounded-md border border-violet-400 px-2.5 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100 dark:border-violet-600 dark:text-violet-300 dark:hover:bg-violet-900/30"
+                    >
+                      {splitOpen ? "ปิด Split" : "Split"}
+                    </button>
+                  </div>
+                  {splitOpen ? (
+                    <>
+                  <p className="mt-2 text-xs text-violet-800/90 dark:text-violet-200/90">
+                    {station.status === "PENDING"
+                      ? "รอเริ่ม: จำนวนที่กรอกใช้ QR เดิม — กำลังผลิตที่ขั้นถัดไป · ส่วนที่เหลือได้ QR ใหม่"
+                      : "กำลังผลิต: QR เดิมจะ retired — จำนวนที่ปล่อยไปขั้นถัดไปทันที (QR ใหม่)"}
                   </p>
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div>
-                      <label className="mb-1 block text-xs text-gray-600 dark:text-gray-300">จำนวนที่ปล่อยไปล็อตใหม่</label>
+                      <label className="mb-1 block text-xs text-gray-600 dark:text-gray-300">
+                        จำนวนที่ปล่อยไปขั้นถัดไป <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="number"
                         min={0}
@@ -1088,26 +1135,19 @@ export default function DeptStepScanPage() {
                       />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="mb-1 block text-xs text-gray-600 dark:text-gray-300">เหตุผล</label>
+                      <label className="mb-1 block text-xs text-gray-600 dark:text-gray-300">
+                        หมายเหตุ <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         value={splitReason}
                         onChange={(e) => setSplitReason(e.target.value)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-                        placeholder="เช่น ปล่อยบางส่วนไป Press"
+                        placeholder="ระบุเหตุผลการ split (บังคับ)"
                         disabled={splitLoading || actionLoading}
                       />
                     </div>
                   </div>
-                  <label className="mt-2 flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                    <input
-                      type="checkbox"
-                      checked={splitMoveReleased}
-                      onChange={(e) => setSplitMoveReleased(e.target.checked)}
-                      disabled={splitLoading || actionLoading}
-                    />
-                    ล็อตที่ปล่อย ให้ย้ายไปขั้นถัดไปทันที
-                  </label>
                   <div className="mt-3">
                     <button
                       type="button"
@@ -1115,9 +1155,11 @@ export default function DeptStepScanPage() {
                       disabled={splitLoading || actionLoading}
                       className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
                     >
-                      {splitLoading ? "กำลัง split..." : "Split Lot"}
+                      {splitLoading ? "กำลัง split..." : "ยืนยัน Split"}
                     </button>
                   </div>
+                    </>
+                  ) : null}
                 </div>
               ) : null}
 

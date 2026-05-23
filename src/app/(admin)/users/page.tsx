@@ -37,6 +37,7 @@ type User = {
   firstName?: string | null;
   lastName?: string | null;
   departmentId?: string | null;
+  departments?: Department[];
   isActive: boolean;
   roles: Role[];
   roleAssignments?: UserRoleAssignment[];
@@ -51,6 +52,7 @@ type UserForm = {
   firstName: string;
   lastName: string;
   departmentId: string;
+  departmentIds: string[];
   roleIds: string[];
   scopedDepartmentByRole: Record<string, string>;
 };
@@ -65,6 +67,7 @@ const defaultForm: UserForm = {
   firstName: "",
   lastName: "",
   departmentId: "",
+  departmentIds: [],
   roleIds: [],
   scopedDepartmentByRole: {},
 };
@@ -186,13 +189,18 @@ export default function UsersPage() {
       }
 
       setEditingUser(detail);
+      const deptIds =
+        detail.departments?.map((d) => d.id) ??
+        (detail.departmentId ? [detail.departmentId] : []);
+
       setForm({
         username: detail.username,
         email: detail.email,
         password: "",
         firstName: detail.firstName ?? "",
         lastName: detail.lastName ?? "",
-        departmentId: detail.departmentId ?? "",
+        departmentId: detail.departmentId ?? deptIds[0] ?? "",
+        departmentIds: deptIds,
         roleIds: [
           ...new Set([
             ...detail.roles.map((role) => role.id),
@@ -292,6 +300,11 @@ export default function UsersPage() {
             firstName: form.firstName.trim() || null,
             lastName: form.lastName.trim() || null,
             departmentId: form.departmentId || null,
+            departmentIds: form.departmentIds.length
+              ? form.departmentIds
+              : form.departmentId
+                ? [form.departmentId]
+                : [],
             roleIds: globalRoleIds,
           }),
         });
@@ -322,6 +335,11 @@ export default function UsersPage() {
             firstName: form.firstName.trim() || undefined,
             lastName: form.lastName.trim() || undefined,
             departmentId: form.departmentId || undefined,
+            departmentIds: form.departmentIds.length
+              ? form.departmentIds
+              : form.departmentId
+                ? [form.departmentId]
+                : undefined,
             roleIds: globalRoleIds,
           }),
         });
@@ -620,16 +638,73 @@ export default function UsersPage() {
                 />
                 <select
                   value={form.departmentId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, departmentId: event.target.value }))}
+                  onChange={(event) => {
+                    const id = event.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      departmentId: id,
+                      departmentIds: id
+                        ? [
+                            id,
+                            ...prev.departmentIds.filter((d) => d !== id),
+                          ]
+                        : prev.departmentIds,
+                    }));
+                  }}
                   className="px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-900"
                 >
-                  <option value="">No Department</option>
+                  <option value="">แผนกหลัก (ไม่ระบุ)</option>
                   {departments.map((department) => (
                     <option key={department.id} value={department.id}>
                       {department.code} - {department.name}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  แผนกที่สังกัด (เลือกได้หลายแผนก)
+                </p>
+                <div className="max-h-36 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg p-3 space-y-2">
+                  {departments.map((department) => (
+                    <label
+                      key={department.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.departmentIds.includes(department.id)}
+                        onChange={() => {
+                          setForm((prev) => {
+                            const checked = prev.departmentIds.includes(
+                              department.id,
+                            );
+                            const nextIds = checked
+                              ? prev.departmentIds.filter(
+                                  (id) => id !== department.id,
+                                )
+                              : [...prev.departmentIds, department.id];
+                            const primaryStillValid =
+                              prev.departmentId &&
+                              nextIds.includes(prev.departmentId);
+                            return {
+                              ...prev,
+                              departmentIds: nextIds,
+                              departmentId: primaryStillValid
+                                ? prev.departmentId
+                                : nextIds[0] ?? "",
+                            };
+                          });
+                        }}
+                      />
+                      <span>
+                        {department.code} - {department.name}
+                        {form.departmentId === department.id ? " (หลัก)" : ""}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>

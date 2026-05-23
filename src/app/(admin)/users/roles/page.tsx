@@ -277,8 +277,15 @@ export default function RolesPage() {
       <PageBreadcrumb pageTitle="Roles Management" />
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-3">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">ตารางแสดงข้อมูล Roles ในระบบ</h2>
+            <div className="flex flex-wrap gap-2">
+            <Link
+              href="/users/role-permissions"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+            >
+              กำหนดสิทธิ์ Role
+            </Link>
             <button
               onClick={() => {
                 setShowAddModal(true);
@@ -290,6 +297,7 @@ export default function RolesPage() {
             >
               เพิ่ม Role
             </button>
+            </div>
           </div>
         </div>
         
@@ -395,16 +403,16 @@ export default function RolesPage() {
                           {openDropdown === role.id && (
                             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                               <div className="py-1">
-                                <button
-                                  onClick={() => handleViewPermissions(role)}
+                                <Link
+                                  href={`/users/role-permissions?roleId=${encodeURIComponent(role.id)}`}
+                                  onClick={() => setOpenDropdown(null)}
                                   className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                 >
                                   <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 0 1 6 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                   </svg>
-                                  ดู Permissions
-                                </button>
+                                  กำหนดสิทธิ์
+                                </Link>
                                 <button
                                   onClick={() => handleEditRole(role)}
                                   className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"

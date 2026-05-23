@@ -9,7 +9,14 @@ import TableEmptyRow from "@/components/common/TableEmptyRow";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { fetchProductionOrders } from "@/services/productionOrdersService";
-import type { ProductionOrderDetail } from "@/types/production";
+import { useClientHydrated } from "@/hooks/useClientHydrated";
+import {
+  getActiveDepartmentId,
+  getUserDepartmentCode,
+  isAdmin,
+  SESSION_UPDATED_EVENT,
+} from "@/utils/session";
+import type { ProductionOrderDetail, ProductionOrderDeptBacklog } from "@/types/production";
 import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
 
 function statusBadgeClass(status: string): string {
@@ -38,11 +45,24 @@ function ProductionOrdersPageContent() {
     page: number;
     limit: number;
     totalPages: number;
+    departmentScope?: ProductionOrderDeptBacklog | null;
   } | null>(null);
+  const hydrated = useClientHydrated();
+  const userDeptCode = hydrated ? getUserDepartmentCode() : null;
+  const activeDeptId = hydrated ? getActiveDepartmentId() : null;
+  const showAdminAll = hydrated ? isAdmin() : false;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [listTick, setListTick] = useState(0);
 
   useEffect(() => {
+    const onSessionUpdate = () => setListTick((t) => t + 1);
+    window.addEventListener(SESSION_UPDATED_EVENT, onSessionUpdate);
+    return () => window.removeEventListener(SESSION_UPDATED_EVENT, onSessionUpdate);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -50,14 +70,13 @@ function ProductionOrdersPageContent() {
       try {
         const r = await fetchProductionOrders(page, limit);
         if (!cancelled) {
-          // backend คืน { orders, total, page, limit, totalPages }
-          // ถ้า key ไม่ตรงให้ fallback เป็น array ว่าง
           const normalized: typeof r = {
             orders: Array.isArray(r.orders) ? r.orders : Array.isArray((r as any).data) ? (r as any).data : [],
             total: r.total ?? 0,
             page: r.page ?? page,
             limit: r.limit ?? limit,
             totalPages: r.totalPages ?? 1,
+            departmentScope: r.departmentScope ?? null,
           };
           setData(normalized);
         }
@@ -70,7 +89,7 @@ function ProductionOrdersPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [page, limit]);
+  }, [page, limit, hydrated, activeDeptId, listTick]);
 
   const filteredOrders = useMemo<ProductionOrderDetail[]>(() => {
     const orders = data?.orders ?? [];
@@ -88,6 +107,14 @@ function ProductionOrdersPageContent() {
       },
       { header: "จำนวน", accessor: (o) => o.orderQuantity },
       { header: "ล็อต/QR", accessor: (o) => o.totalLots },
+      {
+        header: "ล็อตค้าง (แผนก)",
+        accessor: (o) => o.deptBacklogLotCount ?? "",
+      },
+      {
+        header: "กระบวนการ",
+        accessor: (o) => (o.deptBacklogProcessCodes ?? []).join(", "),
+      },
       { header: "สถานะ", accessor: (o) => o.status },
     ],
     [],
@@ -125,6 +152,24 @@ function ProductionOrdersPageContent() {
       <PageBreadcrumb pageTitle="คำสั่งผลิต / QR ล็อต" />
       <div className="space-y-6">
         <ComponentCard title={`รายการคำสั่งผลิต (${data?.total ?? 0})`}>
+          {data?.departmentScope?.filtered ? (
+            <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-100">
+              <p className="font-medium">
+                {data.departmentScope.message ??
+                  `แสดงเฉพาะงานคงค้างของแผนก ${data.departmentScope.departmentCode ?? userDeptCode ?? "—"}`}
+              </p>
+              <p className="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
+                แสดงเฉพาะแผนกที่เลือกใช้งานตอน login
+                {userDeptCode ? ` (${userDeptCode})` : ""}
+                — ล็อตคงค้างในขั้นที่แผนกนี้รับผิดชอบ
+              </p>
+            </div>
+          ) : showAdminAll ? (
+            <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+              ผู้ดูแลระบบ: แสดงคำสั่งผลิตทั้งหมด
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
             <PaginationSelector currentLimit={limit} />
             <div className="flex flex-wrap items-center gap-2">
@@ -185,6 +230,16 @@ function ProductionOrdersPageContent() {
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
                         ล็อต/QR
                       </th>
+                      {data.departmentScope?.filtered ? (
+                        <>
+                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                            ล็อตค้าง
+                          </th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                            กระบวนการ
+                          </th>
+                        </>
+                      ) : null}
                       <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
                         สถานะ
                       </th>
@@ -195,7 +250,7 @@ function ProductionOrdersPageContent() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredOrders.length === 0 ? (
-                      <TableEmptyRow colSpan={6} />
+                      <TableEmptyRow colSpan={data.departmentScope?.filtered ? 8 : 6} />
                     ) : (
                       filteredOrders.map((o) => (
                       <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -215,6 +270,16 @@ function ProductionOrdersPageContent() {
                         <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white whitespace-nowrap">
                           {o.totalLots}
                         </td>
+                        {data.departmentScope?.filtered ? (
+                          <>
+                            <td className="px-4 py-3 text-sm text-center font-semibold text-indigo-700 dark:text-indigo-300 whitespace-nowrap">
+                              {o.deptBacklogLotCount ?? 0}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                              {(o.deptBacklogProcessCodes ?? []).join(", ") || "—"}
+                            </td>
+                          </>
+                        ) : null}
                         <td className="px-4 py-3 text-center whitespace-nowrap">
                           <span
                             className={`inline-block px-2 py-1 text-xs rounded-full ${statusBadgeClass(o.status)}`}
