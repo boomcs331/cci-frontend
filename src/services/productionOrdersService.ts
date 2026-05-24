@@ -2,6 +2,10 @@ import { apiFetch } from "@/utils/api";
 import { parseApiErrorResponse } from "@/utils/apiErrorMessages";
 import type { ProductionOrderDetail, ProductionOrdersListResult } from "@/types/production";
 import type { LotStationPayload } from "@/types/productionLotStation";
+import type {
+  LotStepQuantitiesPayload,
+  LotStepTraceReportResult,
+} from "@/types/productionLotStepQuantities";
 import type { SplitLotResult } from "@/types/productionLotSplit";
 
 export async function fetchProductionOrders(page = 1, limit = 20): Promise<ProductionOrdersListResult> {
@@ -34,6 +38,57 @@ export async function fetchLotStation(qrCode: string): Promise<LotStationPayload
   );
   if (!res.ok) {
     throw new Error(await parseApiError(res, `โหลดสถานีล็อตไม่สำเร็จ (${res.status})`));
+  }
+  return res.json();
+}
+
+export type LotStepTraceReportFilters = {
+  startDate?: string;
+  endDate?: string;
+  orderNo?: string;
+  lotSearch?: string;
+  productId?: string;
+  status?: string;
+  includeSplitRetired?: boolean;
+  page?: number;
+  limit?: number;
+};
+
+export async function fetchLotStepTraceReport(
+  filters: LotStepTraceReportFilters = {},
+): Promise<LotStepTraceReportResult> {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.orderNo?.trim()) params.set("orderNo", filters.orderNo.trim());
+  if (filters.lotSearch?.trim()) params.set("lotSearch", filters.lotSearch.trim());
+  if (filters.productId) params.set("productId", filters.productId);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.includeSplitRetired) params.set("includeSplitRetired", "true");
+  params.set("page", String(filters.page ?? 1));
+  params.set("limit", String(filters.limit ?? 30));
+
+  const res = await apiFetch(
+    `/production-orders/reports/lot-step-trace?${params.toString()}`,
+  );
+  if (!res.ok) {
+    throw new Error(
+      await parseApiError(res, `โหลดรายงานสอบกลับล็อตไม่สำเร็จ (${res.status})`),
+    );
+  }
+  return res.json();
+}
+
+export async function fetchLotStepQuantities(
+  qrCode: string,
+): Promise<LotStepQuantitiesPayload> {
+  const res = await apiFetch(
+    `/production-orders/lots/${encodeURIComponent(qrCode)}/step-quantities`,
+  );
+  if (!res.ok) {
+    throw new Error(
+      await parseApiError(res, `โหลดยอดรับเข้า/จ่ายออกต่อขั้นไม่สำเร็จ (${res.status})`),
+    );
   }
   return res.json();
 }

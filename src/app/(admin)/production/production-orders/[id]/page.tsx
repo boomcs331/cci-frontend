@@ -203,6 +203,10 @@ export default function ProductionOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  /** ล็อตที่อยู่ใน Set = หุบอยู่ — default ว่าง = เปิดทั้งหมด */
+  const [collapsedLotIds, setCollapsedLotIds] = useState<Set<number>>(
+    () => new Set(),
+  );
 
   const load = useCallback(async () => {
     if (!id || Number.isNaN(id)) return;
@@ -251,8 +255,37 @@ export default function ProductionOrderDetailPage() {
     [allLots, allFlowSteps, userDeptCode, isAdminUser],
   );
 
+  useEffect(() => {
+    const validIds = new Set(lots.map((l) => l.id));
+    setCollapsedLotIds((prev) => {
+      const next = new Set([...prev].filter((id) => validIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [lots]);
+
   const stats = useMemo(() => lotProgressStats(lots), [lots]);
   const productImagePath = order?.product ? resolveProductImagePath(order.product) : null;
+
+  const allLotsCollapsed =
+    lots.length > 0 && collapsedLotIds.size >= lots.length;
+  const allLotsExpanded = collapsedLotIds.size === 0;
+
+  const collapseAllLots = () => {
+    setCollapsedLotIds(new Set(lots.map((l) => l.id)));
+  };
+
+  const expandAllLots = () => {
+    setCollapsedLotIds(new Set());
+  };
+
+  const toggleLotCollapsed = (lotId: number) => {
+    setCollapsedLotIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lotId)) next.delete(lotId);
+      else next.add(lotId);
+      return next;
+    });
+  };
 
   const handlePrintAll = async () => {
     if (!order || lots.length === 0) return;
@@ -499,20 +532,42 @@ export default function ProductionOrderDetailPage() {
             {lots.length === 0 ? (
               <p className="text-center py-10 text-gray-500">ยังไม่มีล็อตในใบสั่งนี้</p>
             ) : (
-              <div className="grid grid-cols-1 gap-4 w-full">
-                {lots.map((lot) => (
-                  <ProductionOrderLotCard
-                    key={lot.id}
-                    lot={lot}
-                    order={order}
-                    flowSteps={flowSteps}
-                    allFlowSteps={allFlowSteps}
-                    userDepartmentCode={userDeptCode}
-                    isAdmin={isAdminUser}
-                    onLotUpdated={() => void load()}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={expandAllLots}
+                    disabled={allLotsExpanded}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    ขยายทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={collapseAllLots}
+                    disabled={allLotsCollapsed}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    หุบทั้งหมด
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-4 w-full">
+                  {lots.map((lot) => (
+                    <ProductionOrderLotCard
+                      key={lot.id}
+                      lot={lot}
+                      order={order}
+                      flowSteps={flowSteps}
+                      allFlowSteps={allFlowSteps}
+                      userDepartmentCode={userDeptCode}
+                      isAdmin={isAdminUser}
+                      onLotUpdated={() => void load()}
+                      expanded={!collapsedLotIds.has(lot.id)}
+                      onToggleExpanded={() => toggleLotCollapsed(lot.id)}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </ComponentCard>
         </div>

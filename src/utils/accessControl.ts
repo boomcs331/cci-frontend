@@ -164,6 +164,14 @@ const ROUTE_POLICIES: RoutePolicy[] = [
     requiredPermissions: [PERMISSIONS.PRODUCTION_STEP_READ],
   },
   {
+    matcher: /^\/production\/lot-trace-report(\/|$)/,
+    requiredPermissions: [PERMISSIONS.PRODUCTION_ORDER_READ],
+  },
+  {
+    matcher: /^\/production\/fg-lot-trace-report(\/|$)/,
+    requiredPermissions: [PERMISSIONS.PRODUCT_STOCK_READ],
+  },
+  {
     matcher: /^\/production(\/|$)/,
     requiredPermissions: [
       PERMISSIONS.PRODUCTION_ORDER_READ,

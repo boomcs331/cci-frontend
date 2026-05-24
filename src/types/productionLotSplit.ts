@@ -6,11 +6,26 @@ export type SplitLotChildResult = {
   quantity: number;
   status: string;
   currentProcessId: number | null;
+  parentLotId?: number;
   keptOriginalQr?: boolean;
 };
 
+export type SplitLotTrace = {
+  splitMode?: "FIRST_PROCESS" | "GENERAL";
+  parentLotId: number;
+  parentLotNo: string;
+  parentQrCode: string;
+  parentStatus: string;
+  parentRetired?: boolean;
+  reason: string;
+  operator: string;
+  releasedQuantity: number;
+  remainingQuantity: number;
+  splitAt: string;
+};
+
 export type SplitLotResult = {
-  sourceLot: {
+  splitTrace?: SplitLotTrace;
     id: number;
     lotNo: string;
     orderNoRef?: string | null;
