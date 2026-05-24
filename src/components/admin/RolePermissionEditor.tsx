@@ -11,9 +11,24 @@ type Props = {
   disabled?: boolean;
 };
 
+const MODULE_ORDER = [
+  "pc",
+  "production",
+  "stock",
+  "production_plans",
+  "production_orders",
+  "products",
+  "system",
+];
+
 function groupByModule(permissions: AuthPermission[]): Map<string, AuthPermission[]> {
   const map = new Map<string, AuthPermission[]>();
   const sorted = [...permissions].sort((a, b) => {
+    const ai = MODULE_ORDER.indexOf(a.module);
+    const bi = MODULE_ORDER.indexOf(b.module);
+    const aRank = ai === -1 ? 99 : ai;
+    const bRank = bi === -1 ? 99 : bi;
+    if (aRank !== bRank) return aRank - bRank;
     const mod = a.module.localeCompare(b.module);
     if (mod !== 0) return mod;
     return a.code.localeCompare(b.code);

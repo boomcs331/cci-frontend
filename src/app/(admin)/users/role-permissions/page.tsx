@@ -164,6 +164,10 @@ export default function RolePermissionsPage() {
       ) : null}
 
       <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+        <Link href="/users/departments" className="text-blue-600 hover:underline dark:text-blue-400">
+          จัดการแผนก
+        </Link>
+        <span className="text-gray-300 dark:text-gray-600">|</span>
         <Link
           href="/users/roles"
           className="text-blue-600 hover:underline dark:text-blue-400"

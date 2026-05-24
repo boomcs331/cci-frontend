@@ -209,7 +209,7 @@ const AppSidebar: React.FC = () => {
   };
 
   const canAccess = (path?: string, extra?: AccessConfig): boolean => {
-    return canAccessPolicy(resolvePolicy(path, extra), accessContext);
+    return canAccessPolicy(resolvePolicy(path, extra), accessContext, path);
   };
 
   const filterSubItem = (subItem: SubMenuItem): SubMenuItem | null => {

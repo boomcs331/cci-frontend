@@ -77,3 +77,67 @@ export async function assignRolePermissions(
     throw new Error(await parseApiErrorResponse(res, "บันทึกสิทธิ์ไม่สำเร็จ"));
   }
 }
+
+export type AuthDepartment = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type DepartmentForm = {
+  code: string;
+  name: string;
+  description: string;
+};
+
+export async function fetchAuthDepartments(): Promise<AuthDepartment[]> {
+  const res = await apiFetch("/auth/departments");
+  if (!res.ok) {
+    throw new Error(await parseApiErrorResponse(res, "โหลดรายการแผนกไม่สำเร็จ"));
+  }
+  const data = await res.json();
+  return unwrapCollection<AuthDepartment>(data, ["departments"]);
+}
+
+export async function createAuthDepartment(form: DepartmentForm): Promise<void> {
+  const res = await apiFetch("/auth/departments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: form.code.trim().toUpperCase(),
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseApiErrorResponse(res, "เพิ่มแผนกไม่สำเร็จ"));
+  }
+}
+
+export async function updateAuthDepartment(
+  id: string,
+  form: DepartmentForm,
+): Promise<void> {
+  const res = await apiFetch(`/auth/departments/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: form.code.trim().toUpperCase(),
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseApiErrorResponse(res, "แก้ไขแผนกไม่สำเร็จ"));
+  }
+}
+
+export async function deleteAuthDepartment(id: string): Promise<void> {
+  const res = await apiFetch(`/auth/departments/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(await parseApiErrorResponse(res, "ลบแผนกไม่สำเร็จ"));
+  }
+}

@@ -21,8 +21,9 @@ import {
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import { OverviewHubSection, type OverviewHubItem } from "@/components/overview/OverviewHubSection";
-import { apiFetch } from "@/utils/api";
+import { dashboardFetch } from "@/utils/dashboardFetch";
 import { getUserMenus } from "@/utils/session";
+import { PERMISSIONS } from "@/constants/permissions";
 import type { MenuItem } from "@/types/user";
 import { StatusDonutChart, TopBarChart, TrendLineChart } from "@/components/dashboard/DashboardCharts";
 import jsPDF from "jspdf";
@@ -414,13 +415,33 @@ export default function DashboardPage() {
       try {
         const [plansRes, ordersRes, salesRes, materialReservationsRes, stockRes, receivingsRes, issuesRes] =
           await Promise.all([
-          apiFetch("/production-plans"),
-          apiFetch("/production-orders?page=1&limit=100"),
-          apiFetch("/products/sales-reservations"),
-          apiFetch("/production-plans/materials/reservations"),
-          apiFetch("/materials/stock"),
-          apiFetch("/materials/transactions/receivings?page=1&limit=1"),
-          apiFetch("/materials/transactions/issues?page=1&limit=1"),
+          dashboardFetch("/production-plans", PERMISSIONS.PRODUCTION_PLANS_READ, []),
+          dashboardFetch(
+            "/production-orders?page=1&limit=100",
+            PERMISSIONS.PRODUCTION_ORDERS_READ,
+            { orders: [], total: 0 },
+          ),
+          dashboardFetch(
+            "/products/sales-reservations",
+            PERMISSIONS.PRODUCTS_SALES_RESERVE,
+            [],
+          ),
+          dashboardFetch(
+            "/production-plans/materials/reservations",
+            PERMISSIONS.PRODUCTION_PLANS_READ,
+            [],
+          ),
+          dashboardFetch("/materials/stock", PERMISSIONS.MATERIAL_READ, { data: [] }),
+          dashboardFetch(
+            "/materials/transactions/receivings?page=1&limit=1",
+            PERMISSIONS.INBOUND_READ,
+            { pagination: { total: 0 } },
+          ),
+          dashboardFetch(
+            "/materials/transactions/issues?page=1&limit=1",
+            PERMISSIONS.OUTBOUND_READ,
+            { pagination: { total: 0 } },
+          ),
         ]);
 
         const plans = plansRes.ok ? normalizePlansPayload(await plansRes.json()) : [];

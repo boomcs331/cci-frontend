@@ -43,12 +43,16 @@ export function useSessionCheck() {
 
     const routePolicy = getRouteAccessPolicy(pathname);
     if (routePolicy) {
-      const isAllowed = canAccessPolicy(routePolicy, {
-        isAdmin: isAdmin(),
-        permissions: getUserPermissions(),
-        departmentCode: getUserDepartmentCode(),
-        departmentCodes: getUserDepartmentCodes(),
-      });
+      const isAllowed = canAccessPolicy(
+        routePolicy,
+        {
+          isAdmin: isAdmin(),
+          permissions: getUserPermissions(),
+          departmentCode: getUserDepartmentCode(),
+          departmentCodes: getUserDepartmentCodes(),
+        },
+        pathname,
+      );
 
       if (!isAllowed) {
         router.replace('/');

@@ -101,6 +101,8 @@ export interface ApiFetchOptions extends RequestInit {
   timeoutMs?: number;
   /** Skip auto-logout on 401/403 for this call. */
   skipAuthRedirect?: boolean;
+  /** ไม่แสดง toast เมื่อ 403 (ใช้กับ widget / prefetch ที่จัดการเอง) */
+  skipForbiddenToast?: boolean;
 }
 
 /**
@@ -113,7 +115,12 @@ export async function apiFetch(
   endpoint: string,
   options?: ApiFetchOptions,
 ): Promise<Response> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, skipAuthRedirect, ...init } = options ?? {};
+  const {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    skipAuthRedirect,
+    skipForbiddenToast,
+    ...init
+  } = options ?? {};
   const url = getApiUrl(endpoint);
   const headers = new Headers(init.headers);
   applySessionAuthHeaders(headers);
@@ -138,7 +145,7 @@ export async function apiFetch(
       redirectToSignIn('expired');
     }
 
-    if (!shouldBypassAuth && response.status === 403) {
+    if (!shouldBypassAuth && !skipForbiddenToast && response.status === 403) {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         try {
