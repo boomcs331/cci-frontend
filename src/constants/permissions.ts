@@ -98,6 +98,27 @@ export const PERMISSIONS = {
   SALES_RESERVATION_MANAGE: 'sales_reservation.manage',
   STOCK_OVERVIEW_READ: 'stock_overview.read',
   STOCK_ALERT_READ: 'stock_alert.read',
+
+  /** Sales / Order management — resource.action */
+  SALES_ORDER_CREATE: 'sales_order.create',
+  SALES_ORDER_READ: 'sales_order.read',
+  SALES_ORDER_UPDATE: 'sales_order.update',
+  SALES_ORDER_DELETE: 'sales_order.delete',
+  SALES_ORDER_MANAGE: 'sales_order.manage',
+  SALES_ORDER_APPROVE: 'sales_order.approve',
+  SALES_ORDER_IMPORT: 'sales_order.import',
+  SALES_ORDER_EXPORT: 'sales_order.export',
+  SALES_CUSTOMER_CREATE: 'sales_customer.create',
+  SALES_CUSTOMER_READ: 'sales_customer.read',
+  SALES_CUSTOMER_UPDATE: 'sales_customer.update',
+  SALES_CUSTOMER_DELETE: 'sales_customer.delete',
+  SALES_PRODUCT_CREATE: 'sales_product.create',
+  SALES_PRODUCT_READ: 'sales_product.read',
+  SALES_PRODUCT_UPDATE: 'sales_product.update',
+  SALES_PRODUCT_DELETE: 'sales_product.delete',
+  INVENTORY_READ: 'inventory.read',
+  INVENTORY_UPDATE: 'inventory.update',
+  INVENTORY_MANAGE: 'inventory.manage',
 } as const;
 
 export const PRODUCTION_PERMISSION_LIST = [

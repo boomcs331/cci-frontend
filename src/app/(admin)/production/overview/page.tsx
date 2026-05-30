@@ -67,7 +67,7 @@ const items = [
   },
   {
     name: "จัดงานล่วงหน้า (แผน)",
-    path: "/pc/schedule",
+    path: "/production/schedule",
     description: "แผนการผลิตและจองวัตถุดิบ",
     icon: <FontAwesomeIcon icon={faCalendarDays} />,
   },

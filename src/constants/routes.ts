@@ -14,7 +14,16 @@ export const ROUTES = {
   PC_INCOME: '/pc/income',
   PC_OUTCOME: '/pc/outcome',
   PC_SCHEDULE: '/pc/schedule',
+  /** จัดงานล่วงหน้า (alias → /pc/schedule) */
+  PRODUCTION_SCHEDULE: '/production/schedule',
   PC_REPORT: '/pc/report',
+
+  // Sales Module
+  SALES: '/sales',
+  SALES_ORDERS: '/sales/orders',
+  SALES_ORDER_NEW: '/sales/orders/new',
+  SALES_ORDER_DETAIL: (id: string | number) => `/sales/orders/${id}`,
+  SALES_APPROVALS: '/sales/approvals',
 
   // Users
   USERS: '/users',

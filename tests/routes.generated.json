@@ -252,6 +252,11 @@
       "requiresAuth": true
     },
     {
+      "path": "/production/schedule",
+      "sourceFile": "src/app/(admin)/production/schedule/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/production/production-orders",
       "sourceFile": "src/app/(admin)/production/production-orders/page.tsx",
       "requiresAuth": true
@@ -279,6 +284,26 @@
     {
       "path": "/profile",
       "sourceFile": "src/app/(admin)/(others-pages)/profile/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/orders",
+      "sourceFile": "src/app/(admin)/sales/orders/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/orders/new",
+      "sourceFile": "src/app/(admin)/sales/orders/new/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/orders/1",
+      "sourceFile": "src/app/(admin)/sales/orders/[id]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/approvals",
+      "sourceFile": "src/app/(admin)/sales/approvals/page.tsx",
       "requiresAuth": true
     },
     {

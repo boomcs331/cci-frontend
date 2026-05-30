@@ -19,6 +19,7 @@ import type { MenuItem } from "@/types/user";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBoxesStacked,
+  faCartShopping,
   faDatabase,
   faGauge,
   faIndustry,
@@ -57,6 +58,7 @@ const ICON_MAP = {
   industry: faIndustry,
   database: faDatabase,
   warehouse: faWarehouse,
+  cart: faCartShopping,
 } as const;
 
 const toIconNode = (iconKey?: string | null): React.ReactNode => {

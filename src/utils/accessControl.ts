@@ -57,6 +57,16 @@ const ROUTE_POLICIES: RoutePolicy[] = [
     allowedDepartments: ['WE', 'PC', 'PD'],
   },
   {
+    matcher: /^\/production\/schedule(\/|$)/,
+    requiredPermissions: [
+      PERMISSIONS.PRODUCTION_PLAN_READ,
+      PERMISSIONS.PRODUCTION_PLAN_CREATE,
+      PERMISSIONS.PRODUCTION_PLAN_UPDATE,
+    ],
+    permissionMatch: 'any',
+    allowedDepartments: ['WE', 'PC', 'PD'],
+  },
+  {
     matcher: /^\/production\/production-orders(\/|$)/,
     requiredPermissions: [PERMISSIONS.PRODUCTION_ORDER_READ],
     allowedDepartments: ['WE', 'WELDING', 'PRESS', 'PD', 'PC'],
@@ -141,6 +151,29 @@ const ROUTE_POLICIES: RoutePolicy[] = [
     ],
     permissionMatch: 'any',
     allowedDepartments: ['WE', 'PC', 'PD'],
+  },
+  // Sales module pages.
+  {
+    matcher: /^\/sales\/orders(\/|$)/,
+    requiredPermissions: [
+      PERMISSIONS.SALES_ORDER_READ,
+      PERMISSIONS.SALES_ORDER_CREATE,
+    ],
+    permissionMatch: 'any',
+  },
+  {
+    matcher: /^\/sales\/approvals(\/|$)/,
+    requiredPermissions: [PERMISSIONS.SALES_ORDER_APPROVE],
+  },
+  {
+    matcher: /^\/sales(\/|$)/,
+    requiredPermissions: [
+      PERMISSIONS.SALES_ORDER_READ,
+      PERMISSIONS.SALES_CUSTOMER_READ,
+      PERMISSIONS.SALES_PRODUCT_READ,
+      PERMISSIONS.INVENTORY_READ,
+    ],
+    permissionMatch: 'any',
   },
   // Production module pages.
   {
