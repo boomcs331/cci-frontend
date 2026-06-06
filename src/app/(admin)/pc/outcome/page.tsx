@@ -24,9 +24,7 @@ import {
 import { PcTransactionDataCard } from "@/components/pc/transactions/PcTransactionDataCard";
 import { PcTransactionLoading } from "@/components/pc/transactions/PcTransactionLoading";
 import QRScannerModal from "@/components/qr/QRScannerModal";
-import AlertComponent from "@/components/ui/alert/Alert";
-import ConfirmModal from "@/components/ui/modal/ConfirmModal";
-import AlertModal from "@/components/ui/modal/AlertModal";
+import { BaseModal, ActionButton } from "@/components/shared";
 import FilePreviewModal from "@/components/common/FilePreviewModal";
 import { pcErrorFromApiBody } from "@/lib/pc";
 
@@ -530,8 +528,17 @@ export default function PCOutcomePage() {
 
             <div className="overflow-y-auto p-4 sm:p-6" style={{ maxHeight: "calc(90vh - 80px)" }}>
               {alertMsg && (
-                <div className="mb-4">
-                  <AlertComponent variant={alertMsg.variant} title={alertMsg.title} message={alertMsg.message} />
+                <div className={`mb-4 rounded-lg px-4 py-3 ${
+                  alertMsg.variant === "success"
+                    ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                    : alertMsg.variant === "error"
+                    ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+                    : alertMsg.variant === "warning"
+                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400"
+                    : "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                }`}>
+                  <div className="font-medium">{alertMsg.title}</div>
+                  {alertMsg.message && <div className="text-sm mt-1">{alertMsg.message}</div>}
                 </div>
               )}
               <div className="mb-6 grid grid-cols-2 gap-0 border-b border-gray-200 dark:border-gray-700 sm:flex sm:gap-2">
@@ -804,23 +811,47 @@ export default function PCOutcomePage() {
         contextHint="โฟกัสวัตถุดิบ: กรอก QR ล็อตจากใบรับเข้า (FIFO) เพื่อดูคงเหลือและสถานะ — เส้นทางตัวอย่างหลักคือหน้านี้ (/pc/outcome) ปุ่ม «ตรวจสอบ QR»"
       />
       {confirmModal && (
-        <ConfirmModal
+        <BaseModal
           isOpen={confirmModal.isOpen}
           onClose={() => setConfirmModal(null)}
-          onConfirm={confirmModal.onConfirm}
           title={confirmModal.title}
-          message={confirmModal.message}
-          variant="warning"
-        />
+          size="sm"
+        >
+          <div className="mb-6 text-gray-700 dark:text-gray-300">
+            {confirmModal.message}
+          </div>
+          <div className="flex gap-3">
+            <ActionButton
+              variant="danger"
+              onClick={() => {
+                confirmModal.onConfirm();
+                setConfirmModal(null);
+              }}
+              className="flex-1"
+            >
+              ยืนยัน
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              onClick={() => setConfirmModal(null)}
+              className="flex-1"
+            >
+              ยกเลิก
+            </ActionButton>
+          </div>
+        </BaseModal>
       )}
       {alertModal && (
-        <AlertModal
+        <BaseModal
           isOpen={alertModal.isOpen}
           onClose={() => setAlertModal(null)}
           title={alertModal.title}
-          message={alertModal.message}
-          variant={alertModal.variant}
-        />
+          size="sm"
+        >
+          <div className="text-gray-700 dark:text-gray-300">
+            {alertModal.message}
+          </div>
+        </BaseModal>
       )}
       {showPreview && previewFiles.length > 0 && (
         <FilePreviewModal

@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, BaseModal, ActionButton, LoadingState } from "@/components/shared";
 import {
   downloadImportTemplate,
   uploadImportFile,
@@ -154,54 +152,49 @@ export default function SalesImportPage() {
 
   if (viewingRows && selectedBatch) {
     return (
-      <div>
-        <PageBreadcrumb pageTitle="รายละเอียด Import" />
-
-        <ComponentCard
+      <PageContainer>
+        <PageHeader
           title={`Batch: ${selectedBatch.batchCode}`}
-          desc={`ไฟล์: ${selectedBatch.fileName}`}
-        >
-          <div className="mb-4 flex items-center gap-4">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-            >
+          description={`ไฟล์: ${selectedBatch.fileName}`}
+          actions={
+            <ActionButton variant="secondary" onClick={handleBack}>
               ← กลับ
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                สถานะ:
-              </span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadge(selectedBatch.status).className}`}
-              >
-                {statusBadge(selectedBatch.status).label}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-              <span>ทั้งหมด: {selectedBatch.totalRows}</span>
-              <span className="text-green-600 dark:text-green-400">
-                ถูกต้อง: {selectedBatch.validRows}
-              </span>
-              <span className="text-rose-600 dark:text-rose-400">
-                ผิดพลาด: {selectedBatch.errorRows}
-              </span>
-              <span className="text-blue-600 dark:text-blue-400">
-                นำเข้าแล้ว: {selectedBatch.committedRows}
-              </span>
-            </div>
-            {selectedBatch.status === "VALIDATED" && selectedBatch.validRows > 0 && (
-              <button
-                type="button"
-                onClick={handleCommit}
-                disabled={committing}
-                className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
-              >
-                {committing ? "กำลังนำเข้า..." : "นำเข้าข้อมูล"}
-              </button>
-            )}
+            </ActionButton>
+          }
+        />
+
+        <ContentCard>
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              สถานะ:
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadge(selectedBatch.status).className}`}
+            >
+              {statusBadge(selectedBatch.status).label}
+            </span>
           </div>
+          <div className="mb-4 flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+            <span>ทั้งหมด: {selectedBatch.totalRows}</span>
+            <span className="text-green-600 dark:text-green-400">
+              ถูกต้อง: {selectedBatch.validRows}
+            </span>
+            <span className="text-rose-600 dark:text-rose-400">
+              ผิดพลาด: {selectedBatch.errorRows}
+            </span>
+            <span className="text-blue-600 dark:text-blue-400">
+              นำเข้าแล้ว: {selectedBatch.committedRows}
+            </span>
+          </div>
+          {selectedBatch.status === "VALIDATED" && selectedBatch.validRows > 0 && (
+            <ActionButton
+              variant="primary"
+              onClick={handleCommit}
+              disabled={committing}
+            >
+              {committing ? "กำลังนำเข้า..." : "นำเข้าข้อมูล"}
+            </ActionButton>
+          )}
 
           {error && (
             <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
@@ -225,10 +218,12 @@ export default function SalesImportPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {loading ? (
-                  <TableEmptyRow colSpan={9} message="กำลังโหลด..." />
-                ) : !selectedBatch.rows || selectedBatch.rows.length === 0 ? (
-                  <TableEmptyRow colSpan={9} message="ไม่พบรายการ" />
+                {!selectedBatch.rows || selectedBatch.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                      ไม่พบรายการ
+                    </td>
+                  </tr>
                 ) : (
                   selectedBatch.rows.map((row) => {
                     const badge = rowStatusBadge(row.status);
@@ -261,19 +256,21 @@ export default function SalesImportPage() {
               </tbody>
             </table>
           </div>
-        </ComponentCard>
-      </div>
+        </ContentCard>
+      </PageContainer>
     );
   }
 
-  return (
-    <div>
-      <PageBreadcrumb pageTitle="นำเข้าออเดอร์ (Excel)" />
+  if (loading) return <LoadingState message="กำลังโหลด..." />;
 
-      <ComponentCard
-        title="นำเข้าออเดอร์จาก Excel"
-        desc="อัปโหลดไฟล์ Excel เพื่อนำเข้าออเดอร์ขายแบบรวดเร็ว"
-      >
+  return (
+    <PageContainer>
+      <PageHeader
+        title="นำเข้าออเดอร์ (Excel)"
+        description="อัปโหลดไฟล์ Excel เพื่อนำเข้าออเดอร์ขายแบบรวดเร็ว"
+      />
+
+      <ContentCard>
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -386,7 +383,7 @@ export default function SalesImportPage() {
               </table>
             </div>
         </div>
-      </ComponentCard>
-    </div>
+      </ContentCard>
+    </PageContainer>
   );
 }

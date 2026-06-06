@@ -1,5 +1,4 @@
-import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader, ContentCard } from "@/components/shared";
 import Alert from "@/components/ui/alert/Alert";
 import { Metadata } from "next";
 import React from "react";
@@ -13,10 +12,13 @@ export const metadata: Metadata = {
 
 export default function Alerts() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Alerts" />
+    <PageContainer>
+      <PageHeader
+        title="Alerts"
+        description="Alert component examples for different message types"
+      />
       <div className="space-y-5 sm:space-y-6">
-        <ComponentCard title="Success Alert">
+        <ContentCard title="Success Alert">
           <Alert
             variant="success"
             title="Success Message"
@@ -31,8 +33,8 @@ export default function Alerts() {
             message="Be cautious when performing this action."
             showLink={false}
           />
-        </ComponentCard>
-        <ComponentCard title="Warning Alert">
+        </ContentCard>
+        <ContentCard title="Warning Alert">
           <Alert
             variant="warning"
             title="Warning Message"
@@ -47,8 +49,8 @@ export default function Alerts() {
             message="Be cautious when performing this action."
             showLink={false}
           />
-        </ComponentCard>{" "}
-        <ComponentCard title="Error Alert">
+        </ContentCard>
+        <ContentCard title="Error Alert">
           <Alert
             variant="error"
             title="Error Message"
@@ -63,8 +65,8 @@ export default function Alerts() {
             message="Be cautious when performing this action."
             showLink={false}
           />
-        </ComponentCard>{" "}
-        <ComponentCard title="Info Alert">
+        </ContentCard>
+        <ContentCard title="Info Alert">
           <Alert
             variant="info"
             title="Info Message"
@@ -79,8 +81,8 @@ export default function Alerts() {
             message="Be cautious when performing this action."
             showLink={false}
           />
-        </ComponentCard>
+        </ContentCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

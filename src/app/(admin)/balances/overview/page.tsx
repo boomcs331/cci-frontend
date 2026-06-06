@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader } from "@/components/shared";
 import { OverviewHubSection } from "@/components/overview/OverviewHubSection";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBoxesStacked, faIndustry } from "@fortawesome/free-solid-svg-icons";
@@ -23,8 +23,11 @@ const items = [
 
 export default function BalancesOverviewPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ภาพรวม Stock" />
+    <PageContainer>
+      <PageHeader
+        title="ภาพรวม Stock"
+        description="เมนูย่อยภายใต้กลุ่ม Stock — วัตถุดิบและสินค้าขาย"
+      />
       <div className="space-y-8">
         <OverviewHubSection
           title="Stock"
@@ -33,6 +36,6 @@ export default function BalancesOverviewPage() {
           items={items}
         />
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -2,9 +2,18 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import {
+  PageContainer,
+  PageHeader,
+  ContentCard,
+  SearchCard,
+  FormField,
+  DataTable,
+  ActionButton,
+  LoadingState,
+  ErrorState,
+  type Column,
+} from "@/components/shared";
 import {
   fetchSalesOrders,
   exportOrdersToExcel,
@@ -22,9 +31,6 @@ import {
 } from "@/app/(admin)/sales/_components/salesOrderUi";
 
 type SortKey = "orderNo" | "orderDate" | "deliveryDate" | "grandTotal" | "status" | "createDate";
-
-const inputClass =
-  "h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
 
 export default function SalesOrdersPage() {
   const [items, setItems] = useState<SalesOrderListItem[]>([]);
@@ -109,6 +115,45 @@ export default function SalesOrdersPage() {
     setDateTo("");
   };
 
+  const columns: Column<SalesOrderListItem>[] = [
+    {
+      key: 'orderNo',
+      title: `เลขออเดอร์${sortIndicator('orderNo')}`,
+      render: (value, row) => (
+        <Link href={`/sales/orders/${row.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+          {value}
+        </Link>
+      ),
+    },
+    {
+      key: 'orderDate',
+      title: `วันที่ออเดอร์${sortIndicator('orderDate')}`,
+      render: (value) => formatDate(value),
+    },
+    {
+      key: 'customerName',
+      title: 'ลูกค้า',
+    },
+    {
+      key: 'deliveryDate',
+      title: `วันที่ส่ง${sortIndicator('deliveryDate')}`,
+      render: (value) => value ? formatDate(value) : '-',
+    },
+    {
+      key: 'grandTotal',
+      title: `ยอดรวม${sortIndicator('grandTotal')}`,
+      render: (value) => baht.format(Number(value) || 0),
+    },
+    {
+      key: 'status',
+      title: `สถานะ${sortIndicator('status')}`,
+      render: (value) => {
+        const badge = statusBadge(value);
+        return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>{badge.label}</span>;
+      },
+    },
+  ];
+
   const handleExportExcel = async () => {
     try {
       const blob = await exportOrdersToExcel(query);
@@ -141,220 +186,103 @@ export default function SalesOrdersPage() {
     }
   };
 
+  if (loading) return <LoadingState message="กำลังโหลด..." />;
+
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ออเดอร์ขาย" />
-
-      <ComponentCard
+    <PageContainer>
+      <PageHeader
         title="รายการออเดอร์ขาย"
-        desc="ค้นหา กรอง และติดตามสถานะออเดอร์ทั้งหมด"
-      >
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/5"
-          >
-            📥 Export Excel
-          </button>
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/5"
-          >
-            📄 Export PDF
-          </button>
-          <Link
-            href="/sales/orders/new"
-            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
-          >
-            + สร้างออเดอร์
-          </Link>
-        </div>
-        {/* Filters */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="lg:col-span-2">
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              ค้นหา (เลขออเดอร์ / ลูกค้า)
-            </label>
-            <input
-              className={inputClass}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="เช่น SO-202605-0001"
-            />
+        description="ค้นหา กรอง และติดตามสถานะออเดอร์ทั้งหมด"
+        actions={
+          <div className="flex gap-2">
+            <ActionButton variant="secondary" onClick={handleExportExcel}>
+              📥 Export Excel
+            </ActionButton>
+            <ActionButton variant="secondary" onClick={handleExportPDF}>
+              📄 Export PDF
+            </ActionButton>
+            <Link href="/sales/orders/new">
+              <ActionButton variant="primary">
+                + สร้างออเดอร์
+              </ActionButton>
+            </Link>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              สถานะ
-            </label>
-            <select
-              className={inputClass}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as SalesOrderStatus | "")}
-            >
-              <option value="">ทั้งหมด</option>
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              วันที่ตั้งแต่
-            </label>
-            <input
-              type="date"
-              className={inputClass}
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              ถึงวันที่
-            </label>
-            <input
-              type="date"
-              className={inputClass}
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
-          </div>
-        </div>
+        }
+      />
 
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            พบ {pagination.total.toLocaleString("th-TH")} รายการ
-          </p>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-          >
-            ล้างตัวกรอง
-          </button>
+      <SearchCard onReset={clearFilters}>
+        <FormField
+          label="ค้นหา (เลขออเดอร์ / ลูกค้า)"
+          name="search"
+          value={search}
+          onChange={(value: string | number) => setSearch(String(value))}
+          placeholder="เช่น SO-202605-0001"
+        />
+        <FormField
+          label="สถานะ"
+          name="status"
+          type="select"
+          value={status}
+          onChange={(value: string | number) => setStatus(value as SalesOrderStatus | "")}
+          options={STATUS_OPTIONS}
+        />
+        <FormField
+          label="วันที่ตั้งแต่"
+          name="dateFrom"
+          type="date"
+          value={dateFrom}
+          onChange={(value: string | number) => setDateFrom(String(value))}
+        />
+        <FormField
+          label="ถึงวันที่"
+          name="dateTo"
+          type="date"
+          value={dateTo}
+          onChange={(value: string | number) => setDateTo(String(value))}
+        />
+      </SearchCard>
+
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
-            {error}
-          </div>
-        )}
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-gray-100 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-              <tr>
-                <th
-                  className="cursor-pointer px-4 py-3 font-medium"
-                  onClick={() => toggleSort("orderNo")}
-                >
-                  เลขออเดอร์{sortIndicator("orderNo")}
-                </th>
-                <th
-                  className="cursor-pointer px-4 py-3 font-medium"
-                  onClick={() => toggleSort("orderDate")}
-                >
-                  วันที่สร้าง{sortIndicator("orderDate")}
-                </th>
-                <th className="px-4 py-3 font-medium">ลูกค้า</th>
-                <th
-                  className="cursor-pointer px-4 py-3 text-right font-medium"
-                  onClick={() => toggleSort("grandTotal")}
-                >
-                  ยอดรวม{sortIndicator("grandTotal")}
-                </th>
-                <th
-                  className="cursor-pointer px-4 py-3 font-medium"
-                  onClick={() => toggleSort("deliveryDate")}
-                >
-                  วันจัดส่ง{sortIndicator("deliveryDate")}
-                </th>
-                <th
-                  className="cursor-pointer px-4 py-3 font-medium"
-                  onClick={() => toggleSort("status")}
-                >
-                  สถานะ{sortIndicator("status")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {loading ? (
-                <TableEmptyRow colSpan={6} message="กำลังโหลด..." />
-              ) : items.length === 0 ? (
-                <TableEmptyRow colSpan={6} message="ไม่พบออเดอร์ตามเงื่อนไข" />
-              ) : (
-                items.map((order) => {
-                  const badge = statusBadge(order.status);
-                  return (
-                    <tr
-                      key={order.id}
-                      className="text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-                    >
-                      <td className="px-4 py-3 font-medium">
-                        <Link
-                          href={`/sales/orders/${order.id}`}
-                          className="text-brand-500 hover:underline dark:text-brand-400"
-                        >
-                          {order.orderNo}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">{formatDate(order.orderDate)}</td>
-                      <td className="px-4 py-3">
-                        {order.customer?.name ?? `#${order.customerId}`}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {baht.format(Number(order.grandTotal) || 0)}
-                      </td>
-                      <td className="px-4 py-3">{formatDate(order.deliveryDate)}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
-                        >
-                          {badge.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
+      <ContentCard>
+        <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+          พบ {pagination.total.toLocaleString("th-TH")} รายการ
+        </p>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          emptyMessage="ไม่พบออเดอร์ตามเงื่อนไข"
+          rowKey="id"
+        />
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">
               หน้า {pagination.page} / {pagination.totalPages}
             </p>
             <div className="flex gap-2">
-              <button
-                type="button"
+              <ActionButton
+                variant="secondary"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
               >
                 ก่อนหน้า
-              </button>
-              <button
-                type="button"
+              </ActionButton>
+              <ActionButton
+                variant="secondary"
                 disabled={page >= pagination.totalPages}
-                onClick={() =>
-                  setPage((p) => Math.min(pagination.totalPages, p + 1))
-                }
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
               >
                 ถัดไป
-              </button>
+              </ActionButton>
             </div>
           </div>
         )}
-      </ComponentCard>
-    </div>
+      </ContentCard>
+    </PageContainer>
   );
 }

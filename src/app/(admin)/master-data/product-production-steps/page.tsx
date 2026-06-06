@@ -2,12 +2,9 @@
 
 import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, BaseModal, ActionButton, LoadingState } from "@/components/shared";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
-import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
 import {
   createProductProductionStep,
@@ -55,6 +52,7 @@ function PageContent() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
@@ -162,9 +160,13 @@ function PageContent() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("ยืนยันการลบขั้นตอนผลิตนี้?")) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await deleteProductProductionStep(id);
+      await deleteProductProductionStep(deleteId);
       setMessage({ type: "success", text: "ลบสำเร็จ" });
       void fetchRows();
       setTimeout(() => setMessage(null), 3000);
@@ -173,27 +175,41 @@ function PageContent() {
         type: "error",
         text: err instanceof Error ? err.message : "ลบไม่สำเร็จ",
       });
+    } finally {
+      setDeleteId(null);
     }
   };
 
   if (loading && rows.length === 0) {
-    return <div className="text-center py-8">กำลังโหลด...</div>;
+    return <LoadingState message="กำลังโหลด..." />;
   }
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ขั้นตอนผลิตต่อสินค้า (Master)" />
-      <div className="space-y-4">
-        {message && (
-          <Alert
-            variant={message.type}
-            title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"}
-            message={message.text}
-          />
-        )}
-        <ComponentCard
-          title={`ขั้นตอนผลิตต่อสินค้า — product_production_steps (${pagination?.total ?? 0})`}
-        >
+    <PageContainer>
+      <PageHeader
+        title="ขั้นตอนผลิตต่อสินค้า (Master)"
+        description={`ทั้งหมด ${pagination?.total ?? 0} รายการ`}
+        actions={
+          <ActionButton
+            variant="primary"
+            onClick={openCreate}
+          >
+            เพิ่มขั้นตอน
+          </ActionButton>
+        }
+      />
+
+      {message && (
+        <div className={`mb-4 rounded-lg px-4 py-3 ${
+          message.type === "success"
+            ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+            : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      <ContentCard>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
             จัดการลำดับขั้นตอนผลิตของแต่ละสินค้า (ต้องมี BOM ก่อนเพิ่มขั้นตอน) — หรือใช้{" "}
             <a href="/master-data/production-steps" className="text-blue-600 hover:underline">
@@ -237,13 +253,6 @@ function PageContent() {
                 ) : null}
               </form>
             </div>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              เพิ่มขั้นตอน
-            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-max w-full table-auto">
@@ -271,7 +280,11 @@ function PageContent() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {rows.length === 0 ? (
-                  <TableEmptyRow colSpan={6} />
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      ไม่มีข้อมูล
+                    </td>
+                  </tr>
                 ) : (
                   rows.map((row) => (
                     <tr
@@ -296,20 +309,22 @@ function PageContent() {
                         {row.updateBy || row.createBy || "—"}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded mr-1"
-                        >
-                          แก้ไข
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(row.id)}
-                          className="px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded"
-                        >
-                          ลบ
-                        </button>
+                        <div className="flex gap-2 justify-center">
+                          <ActionButton
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => openEdit(row)}
+                          >
+                            แก้ไข
+                          </ActionButton>
+                          <ActionButton
+                            variant="danger"
+                            size="sm"
+                            onClick={() => void handleDelete(row.id)}
+                          >
+                            ลบ
+                          </ActionButton>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -326,95 +341,110 @@ function PageContent() {
               totalPages={pagination.totalPages}
             />
           )}
-        </ComponentCard>
-      </div>
+        </ContentCard>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {editing ? "แก้ไขขั้นตอนผลิต" : "เพิ่มขั้นตอนผลิต"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  สินค้า *
-                </label>
-                <select
-                  value={form.productId}
-                  onChange={(e) => setForm({ ...form, productId: e.target.value })}
-                  disabled={!!editing}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white disabled:opacity-60"
-                  required
-                >
-                  <option value="">— เลือกสินค้า —</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.productCode} — {p.productName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ลำดับขั้นตอน *
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.stepOrder}
-                  onChange={(e) => setForm({ ...form, stepOrder: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  กระบวนการผลิต *
-                </label>
-                <select
-                  value={form.processId}
-                  onChange={(e) => setForm({ ...form, processId: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white"
-                  required
-                >
-                  <option value="">— เลือกกระบวนการ —</option>
-                  {processes.map((proc) => (
-                    <option key={proc.id} value={proc.id}>
-                      {proc.processCode} — {proc.processName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-2 pt-3">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-1.5 rounded-lg"
-                >
-                  บันทึก
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium py-1.5 rounded-lg"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </form>
+      <BaseModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={editing ? "แก้ไขขั้นตอนผลิต" : "เพิ่มขั้นตอนผลิต"}
+        size="sm"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              สินค้า *
+            </label>
+            <select
+              value={form.productId}
+              onChange={(e) => setForm({ ...form, productId: e.target.value })}
+              disabled={!!editing}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white disabled:opacity-60"
+              required
+            >
+              <option value="">— เลือกสินค้า —</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.productCode} — {p.productName}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              ลำดับขั้นตอน *
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={form.stepOrder}
+              onChange={(e) => setForm({ ...form, stepOrder: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              กระบวนการผลิต *
+            </label>
+            <select
+              value={form.processId}
+              onChange={(e) => setForm({ ...form, processId: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white"
+              required
+            >
+              <option value="">— เลือกกระบวนการ —</option>
+              {processes.map((proc) => (
+                <option key={proc.id} value={proc.id}>
+                  {proc.processCode} — {proc.processName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 pt-3">
+            <ActionButton type="submit" className="flex-1">
+              บันทึก
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="flex-1"
+            >
+              ยกเลิก
+            </ActionButton>
+          </div>
+        </form>
+      </BaseModal>
+
+      {deleteId !== null && (
+        <BaseModal
+          isOpen={deleteId !== null}
+          onClose={() => setDeleteId(null)}
+          title="ยืนยันการลบ"
+          size="sm"
+        >
+          <div className="mb-6 text-gray-700 dark:text-gray-300">
+            คุณต้องการลบขั้นตอนผลิตรายการนี้หรือไม่?
+          </div>
+          <div className="flex gap-3">
+            <ActionButton
+              variant="danger"
+              onClick={confirmDelete}
+              className="flex-1"
+            >
+              ลบ
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              onClick={() => setDeleteId(null)}
+              className="flex-1"
+            >
+              ยกเลิก
+            </ActionButton>
+          </div>
+        </BaseModal>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

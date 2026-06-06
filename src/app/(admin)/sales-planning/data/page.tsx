@@ -1,12 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
-
-const inputClass =
-  "h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
+import { PageContainer, PageHeader, ContentCard, LoadingState } from "@/components/shared";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faRotateRight } from "@fortawesome/free-solid-svg-icons";
 
 interface PlanningRow {
   id: number;
@@ -105,40 +102,34 @@ export default function SalesPlanningDataPage() {
     return acc;
   }, {} as Record<string, PlanningRow[]>);
 
-  return (
-    <div>
-      <PageBreadcrumb pageTitle="ข้อมูลแผนการขาย" />
+  if (loading) {
+    return <LoadingState message="กำลังโหลด..." />;
+  }
 
-      <ComponentCard
-        title="ข้อมูลแผนการขายรายวัน"
-        desc="ดูและจัดการข้อมูลแผนการขายสินค้า"
-      >
-        {/* Filters */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-5">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              ปี
-            </label>
+  return (
+    <PageContainer>
+      <PageHeader
+        title="ข้อมูลแผนการขาย"
+        description={`ทั้งหมด ${filteredRows.length} รายการ`}
+      />
+      <ContentCard>
+        <div className="mb-5 space-y-4 rounded-2xl border border-indigo-100/70 bg-gradient-to-br from-white via-slate-50/40 to-indigo-50/20 p-4 shadow-sm dark:border-gray-700/90 dark:from-gray-900 dark:via-gray-900/80 dark:to-indigo-950/20 sm:p-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className={inputClass}
+              className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               {years.map((year) => (
                 <option key={year} value={year}>
-                  {year + 543} (ค.ศ. {year})
+                  ปี {year + 543}
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              เดือน
-            </label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className={inputClass}
+              className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               {months.map((month) => (
                 <option key={month.value} value={month.value}>
@@ -146,42 +137,41 @@ export default function SalesPlanningDataPage() {
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              ลูกค้า
-            </label>
             <input
               type="text"
               placeholder="รหัสลูกค้า"
               value={customerFilter}
               onChange={(e) => setCustomerFilter(e.target.value)}
-              className={inputClass}
+              className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              สินค้า
-            </label>
             <input
               type="text"
               placeholder="รหัสสินค้า"
               value={productFilter}
               onChange={(e) => setProductFilter(e.target.value)}
-              className={inputClass}
+              className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              ค้นหา
-            </label>
             <input
               type="text"
               placeholder="ค้นหา..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={inputClass}
+              className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             />
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedYear(new Date().getFullYear());
+                setSelectedMonth(new Date().getMonth() + 1);
+                setCustomerFilter("");
+                setProductFilter("");
+                setSearchTerm("");
+              }}
+              className="h-11 w-full rounded-xl border border-slate-600 bg-gradient-to-b from-slate-600 to-slate-700 px-4 text-sm font-medium text-white shadow-sm hover:from-slate-500 hover:to-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+            >
+              <FontAwesomeIcon icon={faRotateRight} className="mr-2 h-4 w-4" />
+              ล้างตัวกรอง
+            </button>
           </div>
         </div>
 
@@ -194,7 +184,7 @@ export default function SalesPlanningDataPage() {
             <button
               type="button"
               onClick={handleExport}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             >
               📥 Export Excel
             </button>
@@ -220,10 +210,12 @@ export default function SalesPlanningDataPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {loading ? (
-                <TableEmptyRow colSpan={5} message="กำลังโหลด..." />
-              ) : paginatedRows.length === 0 ? (
-                <TableEmptyRow colSpan={5} message="ไม่พบข้อมูล" />
+              {paginatedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    ไม่พบข้อมูล
+                  </td>
+                </tr>
               ) : (
                 paginatedRows.map((row) => (
                   <tr
@@ -287,7 +279,7 @@ export default function SalesPlanningDataPage() {
             </div>
           </div>
         )}
-      </ComponentCard>
-    </div>
+      </ContentCard>
+    </PageContainer>
   );
 }

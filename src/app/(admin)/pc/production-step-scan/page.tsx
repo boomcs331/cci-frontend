@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
+import { PageContainer, PageHeader, ContentCard } from "@/components/shared";
 import { apiFetch } from "@/utils/api";
 import { getSession, getUserDepartmentCode, isAdmin } from "@/utils/session";
 
@@ -301,10 +300,13 @@ export default function ProductionStepScanPage() {
     codes?.length ? codes.join(", ") : "ทุกแผนก";
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ติดตาม/อัปเดตขั้นตอนผลิต (ลงฐานข้อมูล)" />
+    <PageContainer>
+      <PageHeader
+        title="ติดตาม/อัปเดตขั้นตอนผลิต (ลงฐานข้อมูล)"
+        description="สแกน QR ล็อตผลิตเพื่ออัปเดตขั้นตอน (บันทึก DB)"
+      />
       <div className="space-y-6">
-        <ComponentCard title="สแกน QR ล็อตผลิตเพื่ออัปเดตขั้นตอน (บันทึก DB)">
+        <ContentCard>
           <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mb-4">
             <p>
               แผนกจาก session:{" "}
@@ -526,8 +528,8 @@ export default function ProductionStepScanPage() {
               </button>
             </div>
           ) : null}
-        </ComponentCard>
+        </ContentCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

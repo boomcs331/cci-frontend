@@ -1,15 +1,15 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, LoadingState } from "@/components/shared";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
 import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
 import ProductImageField from "@/components/production/ProductImageField";
 import { resolveProductImagePath, uploadProductImageFile } from "@/utils/productImage";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faRotateRight } from "@fortawesome/free-solid-svg-icons";
 
 /** FK จากฟอร์ม → ตัวเลขบวก หรือ null (ส่ง JSON ให้ backend ชัดเจน) */
 function normalizeFk(v: number | null | undefined): number | null {
@@ -36,6 +36,11 @@ export default function ProductsPage() {
   const [addImageFile, setAddImageFile] = useState<File | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [tablePreviewSrc, setTablePreviewSrc] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [productTypeFilter, setProductTypeFilter] = useState<number | "all">("all");
+  const [customerFilter, setCustomerFilter] = useState<number | "all">("all");
+  const [modelFilter, setModelFilter] = useState<number | "all">("all");
   const [formData, setFormData] = useState({
     productCode: '',
     productName: '',
@@ -75,15 +80,58 @@ export default function ProductsPage() {
       const response = await apiFetch(`/products?page=${page}&limit=${limit}`);
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.data || []);
-        setPagination(data.pagination);
+        let allProducts = data.data || [];
+        
+        // Client-side filtering
+        let filtered = allProducts;
+        
+        if (search) {
+          const searchLower = search.toLowerCase();
+          filtered = filtered.filter((p: any) => 
+            p.productCode?.toLowerCase().includes(searchLower) ||
+            p.productName?.toLowerCase().includes(searchLower) ||
+            p.description?.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        if (statusFilter !== 'all') {
+          filtered = filtered.filter((p: any) => 
+            statusFilter === 'active' ? p.isActive === true : p.isActive === false
+          );
+        }
+        
+        if (productTypeFilter !== 'all') {
+          filtered = filtered.filter((p: any) => p.productTypeId === productTypeFilter);
+        }
+        
+        if (customerFilter !== 'all') {
+          filtered = filtered.filter((p: any) => p.customerId === customerFilter);
+        }
+        
+        if (modelFilter !== 'all') {
+          filtered = filtered.filter((p: any) => p.modelId === modelFilter);
+        }
+        
+        const total = filtered.length;
+        const totalPages = Math.ceil(total / limit);
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedProducts = filtered.slice(startIndex, endIndex);
+        
+        setProducts(paginatedProducts);
+        setPagination({
+          total,
+          totalPages,
+          currentPage: page,
+          limit,
+        });
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, search, statusFilter, productTypeFilter, customerFilter, modelFilter]);
 
   useEffect(() => {
     void fetchProducts();
@@ -404,35 +452,93 @@ export default function ProductsPage() {
   };
 
   if (loading) {
-    return (
-      <div>
-        <PageBreadcrumb pageTitle="รายการสินค้า" />
-        <ComponentCard title="รายการสินค้า">
-          <div className="text-center py-8">กำลังโหลด...</div>
-        </ComponentCard>
-      </div>
-    );
+    return <LoadingState message="กำลังโหลด..." />;
   }
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="รายการสินค้า" />
-      <div className="space-y-6">
-        <ComponentCard title={`รายการสินค้า (${pagination?.total || 0})`}>
-          <div className="flex justify-between items-center mb-4">
-            <PaginationSelector currentLimit={limit} />
-            <button
-              onClick={() => {
-                resetForm();
-                setShowAddModal(true);
-              }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              เพิ่มสินค้า
-            </button>
+    <>
+    <PageContainer>
+      <PageHeader
+        title="รายการสินค้า"
+        description={`ทั้งหมด ${pagination?.total || 0} รายการ`}
+      />
+      <ContentCard>
+          <div className="mb-5 space-y-4 rounded-2xl border border-indigo-100/70 bg-gradient-to-br from-white via-slate-50/40 to-indigo-50/20 p-4 shadow-sm dark:border-gray-700/90 dark:from-gray-900 dark:via-gray-900/80 dark:to-indigo-950/20 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+              <input
+                type="text"
+                placeholder="รหัสสินค้า, ชื่อสินค้า, คำอธิบาย…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="all">สถานะ: ทั้งหมด</option>
+                <option value="active">ใช้งาน</option>
+                <option value="inactive">ไม่ใช้งาน</option>
+              </select>
+              <select
+                value={productTypeFilter}
+                onChange={(e) => setProductTypeFilter(e.target.value === "all" ? "all" : parseInt(e.target.value))}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="all">ประเภท: ทั้งหมด</option>
+                {productTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
+              </select>
+              <select
+                value={customerFilter}
+                onChange={(e) => setCustomerFilter(e.target.value === "all" ? "all" : parseInt(e.target.value))}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="all">ลูกค้า: ทั้งหมด</option>
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select
+                value={modelFilter}
+                onChange={(e) => setModelFilter(e.target.value === "all" ? "all" : parseInt(e.target.value))}
+                className="h-11 w-full rounded-xl border border-gray-300 bg-white px-4 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="all">โมเดล: ทั้งหมด</option>
+                {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('all');
+                  setProductTypeFilter('all');
+                  setCustomerFilter('all');
+                  setModelFilter('all');
+                }}
+                className="h-11 w-full rounded-xl border border-slate-600 bg-gradient-to-b from-slate-600 to-slate-700 px-4 text-sm font-medium text-white shadow-sm hover:from-slate-500 hover:to-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+              >
+                <FontAwesomeIcon icon={faRotateRight} className="mr-2 h-4 w-4" />
+                ล้างตัวกรอง
+              </button>
+            </div>
+          </div>
+          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <div className="flex shrink-0 items-center">
+              <PaginationSelector currentLimit={limit} />
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                เพิ่มสินค้า
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -454,7 +560,11 @@ export default function ProductsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {products.length === 0 ? (
-                  <TableEmptyRow colSpan={11} />
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                      ไม่มีข้อมูลสินค้า
+                    </td>
+                  </tr>
                 ) : (
                   products.map((prod) => (
                   <tr key={prod.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -505,8 +615,8 @@ export default function ProductsPage() {
             </table>
           </div>
           {pagination && <PaginationFooter page={pagination.page} limit={pagination.limit} total={pagination.total} totalPages={pagination.totalPages} />}
-        </ComponentCard>
-      </div>
+      </ContentCard>
+    </PageContainer>
 
       {showAddModal && (
         <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
@@ -801,6 +911,6 @@ export default function ProductsPage() {
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -1,12 +1,16 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import {
+  PageContainer,
+  PageHeader,
+  ContentCard,
+  ActionButton,
+  BaseModal,
+  LoadingState,
+} from "@/components/shared";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
-import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
 import { resolveWorkpieceImagePath, workpieceImageUrl } from "@/utils/workpieceImage";
 import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
@@ -523,89 +527,79 @@ export default function PCPage() {
     "-mx-4 flex min-h-[calc(100dvh-5.25rem)] flex-col gap-4 px-4 pb-2 md:-mx-6 md:px-6 md:pb-4";
 
   if (loading) {
-    return (
-      <div className={pageShellClass}>
-        <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
-        <ComponentCard title="ข้อมูลวัตถุดิบ">
-          <div className="py-8 text-center">กำลังโหลด...</div>
-        </ComponentCard>
-      </div>
-    );
+    return <LoadingState message="กำลังโหลด..." />;
   }
 
   if (error) {
     return (
-      <div className={pageShellClass}>
-        <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
-        <ComponentCard title="ข้อมูลวัตถุดิบ">
+      <PageContainer>
+        <PageHeader title="จัดการวัตถุดิบ" />
+        <ContentCard>
           <div className="py-8 text-center text-red-500">
             เกิดข้อผิดพลาด: {error}
           </div>
-        </ComponentCard>
-      </div>
+        </ContentCard>
+      </PageContainer>
     );
   }
 
   return (
-    <div className={pageShellClass}>
-      <PageBreadcrumb pageTitle="จัดการวัตถุดิบ" />
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
-        {submitSuccess && (
-          <Alert
-            variant="success"
-            title="สำเร็จ"
-            message={submitSuccess}
-          />
-        )}
-        
-        {submitError && (
-          <Alert
-            variant="error"
-            title="เกิดข้อผิดพลาด"
-            message={submitError}
-          />
-        )}
+    <PageContainer>
+      <PageHeader
+        title="จัดการวัตถุดิบ"
+        description={`ทั้งหมด ${totalItems} รายการ`}
+        actions={
+          <ActionButton
+            variant="primary"
+            onClick={() => {
+              setFormData({
+                matCode: '',
+                matTypeId: 1,
+                defaultLocationId: 1,
+                supplierId: 0,
+                modelId: 0,
+                deliveryTypeId: 0,
+                unitId: 0,
+                loadingPointId: 0,
+                processLineId: 0,
+                name: '',
+                description: '',
+                lr: '',
+                lotSize: 0,
+                scale: '',
+                minStock: 0,
+                createBy: currentUser
+              });
+              setShowAddModal(true);
+            }}
+          >
+            เพิ่มวัตถุดิบ
+          </ActionButton>
+        }
+      />
 
-        <OverviewHubSection
-          title="รับเข้า / จ่ายออก"
-          sectionDescription="ธุรกรรมคลังวัตถุดิบ — เปิดรายการรับเข้าหรือจ่ายออกได้ทันที"
-          items={warehouseTxnItems}
-        />
-        
-        <ComponentCard title={`วัตถุดิบทั้งหมด (${totalItems})`}>
+      {submitSuccess && (
+        <div className="mb-4 rounded-lg px-4 py-3 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+          {submitSuccess}
+        </div>
+      )}
+      
+      {submitError && (
+        <div className="mb-4 rounded-lg px-4 py-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+          {submitError}
+        </div>
+      )}
+
+      <OverviewHubSection
+        title="รับเข้า / จ่ายออก"
+        sectionDescription="ธุรกรรมคลังวัตถุดิบ — เปิดรายการรับเข้าหรือจ่ายออกได้ทันที"
+        items={warehouseTxnItems}
+      />
+      
+      <ContentCard title={`วัตถุดิบทั้งหมด (${totalItems})`}>
           <div className="mb-4 flex flex-col gap-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <PaginationSelector currentLimit={limit} />
-              <button
-                type="button"
-                onClick={() => {
-                setFormData({
-                  matCode: '',
-                  matTypeId: 1,
-                  defaultLocationId: 1,
-                  supplierId: 0,
-                  modelId: 0,
-                  deliveryTypeId: 0,
-                  unitId: 0,
-                  loadingPointId: 0,
-                  processLineId: 0,
-                  name: '',
-                  description: '',
-                  lr: '',
-                  lotSize: 0,
-                  scale: '',
-                  minStock: 0,
-                  createBy: currentUser
-                });
-                setShowAddModal(true);
-              }}
-                className="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 sm:w-auto"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                เพิ่มวัตถุดิบ
-              </button>
             </div>
 
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 p-4">
@@ -742,7 +736,11 @@ export default function PCPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {apiResponse.data.length === 0 ? (
-                    <TableEmptyRow colSpan={13} />
+                    <tr>
+                      <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
+                        ไม่พบข้อมูลวัตถุดิบ
+                      </td>
+                    </tr>
                   ) : (
                     apiResponse.data.map((material, idx) => {
                       const wpPath = resolveWorkpieceImagePath(material);
@@ -817,33 +815,21 @@ export default function PCPage() {
               hrefBuilder={paginationHref}
             />
           )}
-        </ComponentCard>
-      </div>
-      
-      {showAddModal && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">เพิ่มวัตถุดิบใหม่</h3>
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+        </ContentCard>
+
+      <BaseModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="เพิ่มวัตถุดิบใหม่"
+        size="lg"
+      >
+        <div className="overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+          <form onSubmit={handleSubmit} className="space-y-5">
+          {submitError && (
+            <div className="mb-4 rounded-lg px-4 py-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+              {submitError}
             </div>
-            
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
-              <form onSubmit={handleSubmit} className="space-y-5">
-              {submitError && (
-                <Alert
-                  variant="error"
-                  title="เกิดข้อผิดพลาด"
-                  message={submitError}
-                />
-              )}
+          )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัสวัตถุดิบ *</label>
                 <input 
@@ -1097,27 +1083,16 @@ export default function PCPage() {
                 </button>
               </div>
               </form>
-            </div>
           </div>
-        </div>
-      )}
-      
-      {showEditModal && editingMaterial && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">แก้ไขวัตถุดิบ</h3>
-              <button 
-                onClick={() => setShowEditModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+      </BaseModal>
+
+      <BaseModal
+        isOpen={showEditModal && editingMaterial !== null}
+        onClose={() => setShowEditModal(false)}
+        title="แก้ไขวัตถุดิบ"
+        size="lg"
+      >
+        <div className="overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
               <form onSubmit={async (e) => {
               e.preventDefault();
               try {
@@ -1163,7 +1138,7 @@ export default function PCPage() {
                 if (newWorkpiecePath) {
                   updateData.workpieceImagePath = newWorkpiecePath;
                 }
-                const response = await apiFetch(`/materials/${editingMaterial.id}`, {
+                const response = await apiFetch(`/materials/${editingMaterial!.id}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(updateData)
@@ -1185,11 +1160,9 @@ export default function PCPage() {
               }
             }} className="space-y-5">
               {submitError && (
-                <Alert
-                  variant="error"
-                  title="เกิดข้อผิดพลาด"
-                  message={submitError}
-                />
+                <div className="mb-4 rounded-lg px-4 py-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                  {submitError}
+                </div>
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัสวัตถุดิบ *</label>
@@ -1218,15 +1191,15 @@ export default function PCPage() {
                 <div className="mb-2">
                   <WorkpieceImage
                     src={editWorkpiecePreviewUrl}
-                    path={editWorkpiecePreviewUrl ? null : resolveWorkpieceImagePath(editingMaterial)}
-                    alt={editingMaterial.matName || editingMaterial.matCode}
+                    path={editWorkpiecePreviewUrl ? null : resolveWorkpieceImagePath(editingMaterial!)}
+                    alt={editingMaterial!.matName || editingMaterial!.matCode}
                     size="lg"
                     className="!h-auto !w-auto max-h-36"
                     onPreview={(src) =>
                       setImagePreview({
                         src,
-                        title: editingMaterial.matName || editingMaterial.matCode,
-                        subtitle: editingMaterial.matCode,
+                        title: editingMaterial!.matName || editingMaterial!.matCode,
+                        subtitle: editingMaterial!.matCode,
                       })
                     }
                   />
@@ -1416,8 +1389,8 @@ export default function PCPage() {
                 <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors">
                   อัปเดต
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowEditModal(false)}
                   className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2.5 rounded-lg transition-colors"
                 >
@@ -1425,52 +1398,41 @@ export default function PCPage() {
                 </button>
               </div>
               </form>
-            </div>
           </div>
+      </BaseModal>
+
+      <BaseModal
+        isOpen={showDeleteModal && deletingMaterial !== null}
+        onClose={() => setShowDeleteModal(false)}
+        title="ยืนยันการลบ"
+        size="sm"
+      >
+        <div className="mb-6">
+          <p className="text-gray-700 dark:text-gray-300">
+            คุณต้องการลบวัตถุดิบ <strong>{deletingMaterial?.matCode}</strong> หรือไม่?
+          </p>
+          <p className="text-sm text-red-600 mt-2">
+            การดำเนินการนี้ไม่สามารถย้อนกลับได้
+          </p>
         </div>
-      )}
-      
-      {showDeleteModal && deletingMaterial && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">ยืนยันการลบ</h3>
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700 dark:text-gray-300">
-                คุณต้องการลบวัตถุดิบ <strong>{deletingMaterial.matCode}</strong> หรือไม่?
-              </p>
-              <p className="text-sm text-red-600 mt-2">
-                การดำเนินการนี้ไม่สามารถย้อนกลับได้
-              </p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button 
-                onClick={confirmDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-lg transition-colors"
-              >
-                ลบ
-              </button>
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2.5 rounded-lg transition-colors"
-              >
-                ยกเลิก
-              </button>
-            </div>
-          </div>
+
+        <div className="flex gap-3">
+          <ActionButton
+            variant="danger"
+            onClick={confirmDelete}
+            className="flex-1"
+          >
+            ลบ
+          </ActionButton>
+          <ActionButton
+            variant="secondary"
+            onClick={() => setShowDeleteModal(false)}
+            className="flex-1"
+          >
+            ยกเลิก
+          </ActionButton>
         </div>
-      )}
+      </BaseModal>
 
       <WorkpieceImagePreviewModal
         open={!!imagePreview}
@@ -1479,6 +1441,6 @@ export default function PCPage() {
         subtitle={imagePreview?.subtitle}
         onClose={() => setImagePreview(null)}
       />
-    </div>
+    </PageContainer>
   );
 }

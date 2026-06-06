@@ -5,9 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, LoadingState } from "@/components/shared";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
@@ -234,49 +232,39 @@ export default function ProductionTrackingPage() {
   );
 
   if (loading && allPlans.length === 0) {
-    return (
-      <div>
-        <PageBreadcrumb pageTitle="ติดตามสถานะการผลิต" />
-        <ComponentCard title="ติดตามสถานะการผลิต">
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            กำลังโหลด...
-          </div>
-        </ComponentCard>
-      </div>
-    );
+    return <LoadingState message="กำลังโหลด..." />;
   }
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ติดตามสถานะการผลิต" />
+    <PageContainer>
+      <PageHeader
+        title="ติดตามสถานะการผลิต"
+        description="สรุปและกรองแผนการผลิตทั้งหมด"
+        actions={
+          <button
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            {loading ? "กำลังรีเฟรช..." : "รีเฟรชข้อมูล"}
+          </button>
+        }
+      />
+
       <div className="space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                ติดตามสถานะการผลิต
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                สรุปและกรองแผนการผลิตทั้งหมด — ลำดับงานโดยทั่วไป:{" "}
-                <span className="font-medium text-gray-800 dark:text-gray-200">
-                  ร่าง → จองแล้ว → ยืนยันแล้ว
-                </span>
-                {" "}
-                แผนที่ยืนยันและจ่ายออกแล้ว เปิดจาก “ดูรายละเอียด” เพื่อติดตามล็อตผลิตตาม{" "}
-                <span className="font-medium text-gray-800 dark:text-gray-200">
-                  ลำดับขั้นตอนผลิตของสินค้า
-                </span>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => load()}
-              disabled={loading}
-              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-            >
-              {loading ? "กำลังรีเฟรช..." : "รีเฟรชข้อมูล"}
-            </button>
-          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            ลำดับงานโดยทั่วไป:{" "}
+            <span className="font-medium text-gray-800 dark:text-gray-200">
+              ร่าง → จองแล้ว → ยืนยันแล้ว
+            </span>
+            {" "}
+            แผนที่ยืนยันและจ่ายออกแล้ว เปิดจาก "ดูรายละเอียด" เพื่อติดตามล็อตผลิตตาม{" "}
+            <span className="font-medium text-gray-800 dark:text-gray-200">
+              ลำดับขั้นตอนผลิตของสินค้า
+            </span>
+          </p>
         </div>
 
         {error && (
@@ -297,7 +285,7 @@ export default function ProductionTrackingPage() {
           {statCard("ยกเลิก", stats.cancelled, "text-red-700 dark:text-red-300")}
         </div>
 
-        <ComponentCard
+        <ContentCard
           title={`แผนการผลิต (แสดง ${pagination.total.toLocaleString()} จากทั้งหมด ${stats.total.toLocaleString()} แผน)`}
         >
           <div className="mb-4 space-y-3">
@@ -474,10 +462,11 @@ export default function ProductionTrackingPage() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {pagination.slice.length === 0 ? (
-                  <TableEmptyRow
-                    colSpan={6}
-                    message="ไม่มีแผนที่ตรงกับตัวกรอง"
-                  />
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      ไม่มีแผนที่ตรงกับตัวกรอง
+                    </td>
+                  </tr>
                 ) : (
                   pagination.slice.map((plan) => (
                     <tr
@@ -543,8 +532,8 @@ export default function ProductionTrackingPage() {
               hrefBuilder={paginationHref}
             />
           )}
-        </ComponentCard>
+        </ContentCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

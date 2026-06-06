@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader } from "@/components/shared";
 import { OverviewHubSection } from "@/components/overview/OverviewHubSection";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -58,8 +58,11 @@ const productItems = [
 
 export default function MasterDataPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Master Data" />
+    <PageContainer>
+      <PageHeader
+        title="Master Data"
+        description="ข้อมูลพื้นฐานสำหรับวัตถุดิบและสินค้า"
+      />
       <div className="space-y-8">
         <OverviewHubSection
           title="วัตถุดิบ"
@@ -74,6 +77,6 @@ export default function MasterDataPage() {
           icon={<FontAwesomeIcon icon={faBox} />}
         />
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,12 +1,9 @@
 "use client";
 import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, BaseModal, ActionButton, LoadingState } from "@/components/shared";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
-import Alert from "@/components/ui/alert/Alert";
 import { apiFetch } from "@/utils/api";
 
 interface ProcessLine {
@@ -40,6 +37,7 @@ function PageContent() {
   const [editingItem, setEditingItem] = useState<ProcessLine | null>(null);
   const [formData, setFormData] = useState({ code: "", name: "" });
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -87,9 +85,13 @@ function PageContent() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("ยืนยันการลบ?")) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      const response = await apiFetch(`/masters/process-lines/${id}`, { method: "DELETE" });
+      const response = await apiFetch(`/masters/process-lines/${deleteId}`, { method: "DELETE" });
       if (response.ok) {
         setMessage({ type: "success", text: "ลบสำเร็จ" });
         fetchData();
@@ -97,20 +99,41 @@ function PageContent() {
       }
     } catch (error) {
       setMessage({ type: "error", text: "เกิดข้อผิดพลาด" });
+    } finally {
+      setDeleteId(null);
     }
   };
 
-  if (loading) return <div className="text-center py-8">กำลังโหลด...</div>;
+  if (loading) return <LoadingState message="กำลังโหลด..." />;
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="สายการผลิต" />
-      <div className="space-y-6">
-        {message && <Alert variant={message.type} title={message.type === "success" ? "สำเร็จ" : "ข้อผิดพลาด"} message={message.text} />}
-        <ComponentCard title={`สายการผลิตทั้งหมด (${apiResponse?.data?.total || 0})`}>
+    <PageContainer>
+      <PageHeader
+        title="สายการผลิต"
+        description={`ทั้งหมด ${apiResponse?.data?.total || 0} รายการ`}
+        actions={
+          <ActionButton
+            variant="primary"
+            onClick={() => { setShowModal(true); setEditingItem(null); setFormData({ code: "", name: "" }); }}
+          >
+            เพิ่มสายการผลิต
+          </ActionButton>
+        }
+      />
+
+      {message && (
+        <div className={`mb-4 rounded-lg px-4 py-3 ${
+          message.type === "success"
+            ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+            : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      <ContentCard>
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
             <PaginationSelector currentLimit={limit} />
-            <button onClick={() => { setShowModal(true); setEditingItem(null); setFormData({ code: "", name: "" }); }} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">เพิ่มสายการผลิต</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -124,7 +147,11 @@ function PageContent() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {(apiResponse?.data?.data ?? []).length === 0 ? (
-                  <TableEmptyRow colSpan={4} />
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                      ไม่มีข้อมูล
+                    </td>
+                  </tr>
                 ) : (
                   (apiResponse?.data?.data ?? []).map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -134,8 +161,14 @@ function PageContent() {
                       {item.createDate ? new Date(item.createDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                     </td>
                     <td className="px-3 py-2 text-center">
-                      <button onClick={() => handleEdit(item)} className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded mr-1">แก้ไข</button>
-                      <button onClick={() => handleDelete(item.id)} className="px-2 py-1 text-xs text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">ลบ</button>
+                      <div className="flex gap-2 justify-center">
+                        <ActionButton variant="secondary" size="sm" onClick={() => handleEdit(item)}>
+                          แก้ไข
+                        </ActionButton>
+                        <ActionButton variant="danger" size="sm" onClick={() => handleDelete(item.id)}>
+                          ลบ
+                        </ActionButton>
+                      </div>
                     </td>
                   </tr>
                   ))
@@ -144,34 +177,68 @@ function PageContent() {
             </table>
           </div>
           {apiResponse?.data && <PaginationFooter size="sm" page={apiResponse.data.page} limit={apiResponse.data.limit} total={apiResponse.data.total} totalPages={apiResponse.data.totalPages} />}
-        </ComponentCard>
-      </div>
+        </ContentCard>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in flex items-center justify-center z-[99999] p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-cci-popup animate-cci-modal-in w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingItem ? "แก้ไข" : "เพิ่ม"}สายการผลิต</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัส *</label>
-                <input type="text" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อ *</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
-              </div>
-              <div className="flex gap-2 pt-3">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-1.5 rounded-lg">บันทึก</button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium py-1.5 rounded-lg">ยกเลิก</button>
-              </div>
-            </form>
+      <BaseModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={`${editingItem ? "แก้ไข" : "เพิ่ม"}สายการผลิต`}
+        size="sm"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัส *</label>
+            <input type="text" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
           </div>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อ *</label>
+            <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white" required />
+          </div>
+          <div className="flex gap-2 pt-3">
+            <ActionButton type="submit" className="flex-1">
+              บันทึก
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="flex-1"
+            >
+              ยกเลิก
+            </ActionButton>
+          </div>
+        </form>
+      </BaseModal>
+
+      {deleteId !== null && (
+        <BaseModal
+          isOpen={deleteId !== null}
+          onClose={() => setDeleteId(null)}
+          title="ยืนยันการลบ"
+          size="sm"
+        >
+          <div className="mb-6 text-gray-700 dark:text-gray-300">
+            คุณต้องการลบสายการผลิตรายการนี้หรือไม่?
+          </div>
+          <div className="flex gap-3">
+            <ActionButton
+              variant="danger"
+              onClick={confirmDelete}
+              className="flex-1"
+            >
+              ลบ
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              onClick={() => setDeleteId(null)}
+              className="flex-1"
+            >
+              ยกเลิก
+            </ActionButton>
+          </div>
+        </BaseModal>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

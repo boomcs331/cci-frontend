@@ -1,4 +1,4 @@
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader } from "@/components/shared";
 import VideosExample from "@/components/ui/video/VideosExample";
 import { Metadata } from "next";
 import React from "react";
@@ -11,10 +11,12 @@ export const metadata: Metadata = {
 
 export default function VideoPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Videos" />
-
+    <PageContainer>
+      <PageHeader
+        title="Videos"
+        description="Video component examples"
+      />
       <VideosExample />
-    </div>
+    </PageContainer>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader } from "@/components/shared";
 import { OverviewHubSection } from "@/components/overview/OverviewHubSection";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -74,8 +74,11 @@ const items = [
 
 export default function PCMaterialsOverviewPage() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ภาพรวมวัตถุดิบ" />
+    <PageContainer>
+      <PageHeader
+        title="ภาพรวมวัตถุดิบ"
+        description="PC — วัตถุดิบและคลัง"
+      />
       <div className="space-y-8">
         <OverviewHubSection
           title="PC — วัตถุดิบและคลัง"
@@ -84,6 +87,6 @@ export default function PCMaterialsOverviewPage() {
           items={items}
         />
       </div>
-    </div>
+    </PageContainer>
   );
 }

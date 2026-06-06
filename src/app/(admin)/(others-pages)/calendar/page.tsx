@@ -1,5 +1,5 @@
 import Calendar from "@/components/calendar/Calendar";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader } from "@/components/shared";
 import { Metadata } from "next";
 import React from "react";
 
@@ -11,9 +11,12 @@ export const metadata: Metadata = {
 };
 export default function page() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Calendar" />
+    <PageContainer>
+      <PageHeader
+        title="Calendar"
+        description="Calendar component for scheduling"
+      />
       <Calendar />
-    </div>
+    </PageContainer>
   );
 }

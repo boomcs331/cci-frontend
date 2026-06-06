@@ -1,6 +1,5 @@
 import LineChartOne from "@/components/charts/line/LineChartOne";
-import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader, ContentCard } from "@/components/shared";
 import { Metadata } from "next";
 import React from "react";
 
@@ -11,13 +10,16 @@ export const metadata: Metadata = {
 };
 export default function LineChart() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Line Chart" />
+    <PageContainer>
+      <PageHeader
+        title="Line Chart"
+        description="Line chart visualization examples"
+      />
       <div className="space-y-6">
-        <ComponentCard title="Line Chart 1">
+        <ContentCard title="Line Chart 1">
           <LineChartOne />
-        </ComponentCard>
+        </ContentCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

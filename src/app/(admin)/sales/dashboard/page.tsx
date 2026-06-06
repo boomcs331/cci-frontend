@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, LoadingState } from "@/components/shared";
 import {
   fetchDashboardSummary,
   type DashboardKPI,
@@ -91,9 +89,14 @@ export default function SalesDashboardPage() {
     );
   };
 
+  if (loading) return <LoadingState message="กำลังโหลด..." />;
+
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Dashboard ขาย" />
+    <PageContainer>
+      <PageHeader
+        title="Dashboard ขาย"
+        description="ภาพรวมยอดขายและสถานะออเดอร์"
+      />
 
       {error && (
         <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
@@ -101,14 +104,7 @@ export default function SalesDashboardPage() {
         </div>
       )}
 
-      {loading ? (
-        <ComponentCard title="Dashboard" desc="กำลังโหลดข้อมูล...">
-          <div className="text-center py-10 text-sm text-gray-500 dark:text-gray-400">
-            กำลังโหลด...
-          </div>
-        </ComponentCard>
-      ) : (
-        <>
+      <>
           {/* KPI Cards */}
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KPICard
@@ -138,7 +134,7 @@ export default function SalesDashboardPage() {
           </div>
 
           {/* Sales Chart */}
-          <ComponentCard title="กราฟยอดขาย 30 วันล่าสุด" desc="แสดงยอดขายและจำนวนออเดอร์ต่อวัน">
+          <ContentCard title="กราฟยอดขาย 30 วันล่าสุด">
             <div className="h-64">
               {salesChart.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
@@ -172,11 +168,11 @@ export default function SalesDashboardPage() {
                 </div>
               )}
             </div>
-          </ComponentCard>
+          </ContentCard>
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Top Products */}
-            <ComponentCard title="Top 5 สินค้าขายดี" desc="สินค้าที่มียอดขายสูงสุด">
+            <ContentCard title="Top 5 สินค้าขายดี">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead className="border-b border-gray-100 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
@@ -189,7 +185,11 @@ export default function SalesDashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {topProducts.length === 0 ? (
-                      <TableEmptyRow colSpan={4} message="ไม่มีข้อมูล" />
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                          ไม่มีข้อมูล
+                        </td>
+                      </tr>
                     ) : (
                       topProducts.map((product) => (
                         <tr
@@ -212,13 +212,10 @@ export default function SalesDashboardPage() {
                   </tbody>
                 </table>
               </div>
-            </ComponentCard>
+            </ContentCard>
 
             {/* Upcoming Deliveries */}
-            <ComponentCard
-              title="ออเดอร์ใกล้จัดส่ง"
-              desc="ออเดอร์ที่ต้องจัดส่งภายใน 7 วัน"
-            >
+            <ContentCard title="ออเดอร์ใกล้จัดส่ง">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead className="border-b border-gray-100 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
@@ -232,7 +229,11 @@ export default function SalesDashboardPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {upcomingDeliveries.length === 0 ? (
-                      <TableEmptyRow colSpan={5} message="ไม่มีออเดอร์ที่ต้องจัดส่งเร็วๆ นี้" />
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                          ไม่มีออเดอร์ที่ต้องจัดส่งเร็วๆ นี้
+                        </td>
+                      </tr>
                     ) : (
                       upcomingDeliveries.map((delivery) => {
                         const badge = statusBadge(delivery.status);
@@ -265,10 +266,9 @@ export default function SalesDashboardPage() {
                   </tbody>
                 </table>
               </div>
-            </ComponentCard>
+            </ContentCard>
           </div>
         </>
-      )}
-    </div>
+      </PageContainer>
   );
 }

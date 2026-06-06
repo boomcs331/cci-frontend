@@ -1,6 +1,5 @@
 import BarChartOne from "@/components/charts/bar/BarChartOne";
-import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageContainer, PageHeader, ContentCard } from "@/components/shared";
 import { Metadata } from "next";
 import React from "react";
 
@@ -12,13 +11,16 @@ export const metadata: Metadata = {
 
 export default function page() {
   return (
-    <div>
-      <PageBreadcrumb pageTitle="Bar Chart" />
+    <PageContainer>
+      <PageHeader
+        title="Bar Chart"
+        description="Bar chart visualization examples"
+      />
       <div className="space-y-6">
-        <ComponentCard title="Bar Chart 1">
+        <ContentCard title="Bar Chart 1">
           <BarChartOne />
-        </ComponentCard>
+        </ContentCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

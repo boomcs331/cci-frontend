@@ -2,9 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, BaseModal, ActionButton, LoadingState } from "@/components/shared";
 import {
   approveSalesOrder,
   fetchPendingApprovals,
@@ -22,6 +20,7 @@ export default function SalesApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ id: string; reason: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,27 +52,33 @@ export default function SalesApprovalsPage() {
   };
 
   const handleReject = async (id: string) => {
-    const reason = window.prompt("เหตุผลการปฏิเสธ");
-    if (!reason?.trim()) return;
-    setBusyId(id);
+    setRejectModal({ id, reason: "" });
+  };
+
+  const confirmReject = async () => {
+    if (!rejectModal?.reason?.trim()) return;
+    setBusyId(rejectModal.id);
     try {
-      await rejectSalesOrder(id, reason.trim());
+      await rejectSalesOrder(rejectModal.id, rejectModal.reason.trim());
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "ปฏิเสธไม่สำเร็จ");
     } finally {
       setBusyId(null);
+      setRejectModal(null);
     }
   };
 
-  return (
-    <div>
-      <PageBreadcrumb pageTitle="รออนุมัติออเดอร์" />
+  if (loading) return <LoadingState message="กำลังโหลด..." />;
 
-      <ComponentCard
-        title="คิวอนุมัติ"
-        desc="ออเดอร์ที่ส่งคำขอแล้ว รอหัวหน้าอนุมัติ"
-      >
+  return (
+    <PageContainer>
+      <PageHeader
+        title="รออนุมัติออเดอร์"
+        description={`ทั้งหมด ${items.length} รายการ`}
+      />
+
+      <ContentCard title="คิวอนุมัติ">
         {error && (
           <div className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
             {error}
@@ -92,10 +97,12 @@ export default function SalesApprovalsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {loading ? (
-                <TableEmptyRow colSpan={5} message="กำลังโหลด..." />
-              ) : items.length === 0 ? (
-                <TableEmptyRow colSpan={5} message="ไม่มีออเดอร์รออนุมัติ" />
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    ไม่มีออเดอร์รออนุมัติ
+                  </td>
+                </tr>
               ) : (
                 items.map((order) => {
                   const badge = statusBadge(order.status);
@@ -124,22 +131,22 @@ export default function SalesApprovalsPage() {
                       <td className="px-4 py-3">{formatDate(order.deliveryDate)}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
+                          <ActionButton
+                            variant="primary"
+                            size="sm"
                             disabled={busy}
                             onClick={() => void handleApprove(order.id)}
-                            className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs text-white hover:bg-brand-600 disabled:opacity-50"
                           >
                             อนุมัติ
-                          </button>
-                          <button
-                            type="button"
+                          </ActionButton>
+                          <ActionButton
+                            variant="danger"
+                            size="sm"
                             disabled={busy}
                             onClick={() => void handleReject(order.id)}
-                            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs text-white hover:bg-rose-700 disabled:opacity-50"
                           >
                             ปฏิเสธ
-                          </button>
+                          </ActionButton>
                         </div>
                       </td>
                     </tr>
@@ -149,7 +156,45 @@ export default function SalesApprovalsPage() {
             </tbody>
           </table>
         </div>
-      </ComponentCard>
-    </div>
+      </ContentCard>
+
+      {rejectModal && (
+        <BaseModal
+          isOpen={rejectModal !== null}
+          onClose={() => setRejectModal(null)}
+          title="ปฏิเสธออเดอร์"
+          size="sm"
+        >
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              เหตุผลการปฏิเสธ
+            </label>
+            <textarea
+              value={rejectModal.reason}
+              onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+              className="w-full h-24 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+              placeholder="ระบุเหตุผล..."
+            />
+          </div>
+          <div className="flex gap-3">
+            <ActionButton
+              variant="danger"
+              onClick={confirmReject}
+              disabled={!rejectModal.reason.trim()}
+              className="flex-1"
+            >
+              ยืนยันปฏิเสธ
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              onClick={() => setRejectModal(null)}
+              className="flex-1"
+            >
+              ยกเลิก
+            </ActionButton>
+          </div>
+        </BaseModal>
+      )}
+    </PageContainer>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
+import { PageHeader } from "@/components/shared";
 import { TRANSACTION_THEME, type PcTransactionVariant } from "./theme";
 
 export type PcTransactionStat = {
@@ -30,8 +30,6 @@ export function PcTransactionPageHeader({
 
   return (
     <div className="space-y-4">
-      <PageBreadcrumb pageTitle={pageTitle} />
-
       <div
         className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.gradient} p-5 shadow-lg ring-1 ${theme.ring} sm:p-6 lg:p-8`}
       >

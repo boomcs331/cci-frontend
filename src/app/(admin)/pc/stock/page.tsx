@@ -1,8 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, BaseModal, ActionButton } from "@/components/shared";
 import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { apiFetch } from "@/utils/api";
 
@@ -171,34 +169,22 @@ export default function PCStockPage() {
   };
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ยอดคงเหลือ วัตถุดิบ" />
+    <PageContainer>
+      <PageHeader
+        title="ยอดคงเหลือ วัตถุดิบ"
+        description={`ทั้งหมด ${stocks.length} รายการ`}
+      />
       <div className="space-y-6">
         {selectedStock && (
-          <>
-            <div
-              className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm animate-cci-backdrop-in z-[99999]"
-              onClick={() => setSelectedStock(null)}
-            />
-            <div className="fixed inset-0 z-[99999] p-4 flex items-center justify-center">
-              <div className="w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-cci-popup animate-cci-modal-in flex flex-col">
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      รายละเอียด Lot รับเข้า - {selectedStock.matCode}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{selectedStock.matName}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedStock(null)}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm"
-                  >
-                    ปิด
-                  </button>
-                </div>
+          <BaseModal
+            isOpen={selectedStock !== null}
+            onClose={() => setSelectedStock(null)}
+            title={`รายละเอียด Lot รับเข้า - ${selectedStock.matCode}`}
+            size="xl"
+          >
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{selectedStock.matName}</p>
 
-                <div className="p-5 overflow-auto space-y-4">
+            <div className="p-5 overflow-auto space-y-4">
                   <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-3 text-sm">
                     <div className="flex flex-wrap items-center gap-4">
                       <span>
@@ -239,10 +225,11 @@ export default function PCStockPage() {
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {lotItems.length === 0 ? (
-                            <TableEmptyRow
-                              colSpan={6}
-                              message="ไม่พบ lot/QR ที่ยังมีคงเหลือสำหรับวัตถุดิบนี้"
-                            />
+                            <tr>
+                              <td colSpan={6} className="px-3 py-8 text-center text-gray-500">
+                                ไม่พบ lot/QR ที่ยังมีคงเหลือสำหรับวัตถุดิบนี้
+                              </td>
+                            </tr>
                           ) : (
                             lotItems.map((lot) => {
                               const qr = lotQrCode(lot);
@@ -332,10 +319,11 @@ export default function PCStockPage() {
                             </thead>
                             <tbody className="divide-y divide-blue-100 dark:divide-blue-900/40">
                               {qrTransactions.length === 0 ? (
-                                <TableEmptyRow
-                                  colSpan={5}
-                                  message="ไม่พบรายการเคลื่อนไหวของ QR นี้"
-                                />
+                                <tr>
+                                  <td colSpan={5} className="px-3 py-8 text-center text-gray-500">
+                                    ไม่พบรายการเคลื่อนไหวของ QR นี้
+                                  </td>
+                                </tr>
                               ) : (
                                 qrTransactions.map((tx) => (
                                   <tr key={tx.id}>
@@ -362,9 +350,7 @@ export default function PCStockPage() {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </>
+          </BaseModal>
         )}
 
         {!selectedStock && showAlert && (lowStockItems.length > 0 || criticalStockItems.length > 0) && (
@@ -452,11 +438,7 @@ export default function PCStockPage() {
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">ยอดคงเหลือ วัตถุดิบ และสถานะการจอง</h2>
-        </div>
-
-        <ComponentCard title="ค้นหา">
+        <ContentCard title="ค้นหา">
           <input
             type="text"
             placeholder="ค้นหารหัสหรือชื่อวัตถุดิบ..."
@@ -464,9 +446,9 @@ export default function PCStockPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
           />
-        </ComponentCard>
+        </ContentCard>
 
-        <ComponentCard title={`รายการ Stock (${filteredStocks.length})`}>
+        <ContentCard title={`รายการ Stock (${filteredStocks.length})`}>
           {loading ? (
             <div className="text-center py-8">กำลังโหลด...</div>
           ) : (
@@ -486,7 +468,11 @@ export default function PCStockPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredStocks.length === 0 ? (
-                    <TableEmptyRow colSpan={8} />
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                        ไม่พบข้อมูล
+                      </td>
+                    </tr>
                   ) : (
                     filteredStocks.map((stock) => (
                       <tr key={stock.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -535,8 +521,8 @@ export default function PCStockPage() {
               </table>
             </div>
           )}
-        </ComponentCard>
+        </ContentCard>
       </div>
-    </div>
+    </PageContainer>
   );
 }

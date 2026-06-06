@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { PageContainer, PageHeader, ContentCard, LoadingState } from "@/components/shared";
 import { baht } from "@/app/(admin)/sales/_components/salesOrderUi";
 
 interface SalesCustomer {
@@ -48,9 +46,14 @@ export default function SalesCustomersPage() {
   const inputClass =
     "h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
 
+  if (loading) return <LoadingState message="กำลังโหลด..." />;
+
   return (
-    <div>
-      <PageBreadcrumb pageTitle="ลูกค้า (ฝั่งขาย)" />
+    <PageContainer>
+      <PageHeader
+        title="ลูกค้า (ฝั่งขาย)"
+        description={`ทั้งหมด ${customers.length} รายการ`}
+      />
 
       {error && (
         <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
@@ -58,7 +61,7 @@ export default function SalesCustomersPage() {
         </div>
       )}
 
-      <ComponentCard title="รายการลูกค้า" desc="จัดการลูกค้าและวงเงินเครดิต">
+      <ContentCard title="รายการลูกค้า">
         <div className="mb-4 flex items-center gap-4">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             ค้นหา:
@@ -86,10 +89,12 @@ export default function SalesCustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {loading ? (
-                <TableEmptyRow colSpan={8} message="กำลังโหลด..." />
-              ) : customers.length === 0 ? (
-                <TableEmptyRow colSpan={8} message="ไม่มีข้อมูลลูกค้า" />
+              {customers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                    ไม่มีข้อมูลลูกค้า
+                  </td>
+                </tr>
               ) : (
                 customers.map((customer) => (
                   <tr
@@ -124,7 +129,7 @@ export default function SalesCustomersPage() {
             </tbody>
           </table>
         </div>
-      </ComponentCard>
-    </div>
+      </ContentCard>
+    </PageContainer>
   );
 }
