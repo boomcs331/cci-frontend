@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { salesPlanningService } from "@/services/sales/salesPlanningService";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner, faCheckCircle, faExclamationCircle, faClock } from "@fortawesome/free-solid-svg-icons";
 
 interface PlanningProgressProps {
   batchId: number;
@@ -8,36 +11,16 @@ interface PlanningProgressProps {
   onError?: (error: string) => void;
 }
 
-interface BatchStatus {
-  status: string;
-  totalRows: number;
-  successRows: number;
-  errorRows: number;
-  skippedRows: number;
-  processedAt: string | null;
-  processingDurationMs: number | null;
-}
-
 export function PlanningProgress({ batchId, onComplete, onError }: PlanningProgressProps) {
-  const [status, setStatus] = useState<BatchStatus | null>(null);
+  const [status, setStatus] = useState<any>(null);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const pollStatus = async () => {
       try {
-        // TODO: Replace with actual API call
-        // const data = await fetchPlanningBatchStatus(batchId);
-        const data: BatchStatus = {
-          status: "PROCESSING",
-          totalRows: 100,
-          successRows: 45,
-          errorRows: 5,
-          skippedRows: 0,
-          processedAt: null,
-          processingDurationMs: null,
-        };
-        
+        const data = await salesPlanningService.getBatchStatus(batchId);
         setStatus(data);
         
         // Calculate progress
@@ -47,13 +30,15 @@ export function PlanningProgress({ batchId, onComplete, onError }: PlanningProgr
         }
 
         // Check if completed
-        if (data.status === "COMPLETED" || data.status === "PARTIAL" || data.status === "FAILED") {
+        if (data.status === "COMPLETED" || data.status === "PARTIAL" || data.status === "FAILED" || data.status === "CANCELLED") {
           setLoading(false);
           if (onComplete) onComplete();
         }
       } catch (err) {
         setLoading(false);
-        if (onError) onError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
+        const errorMessage = err instanceof Error ? err.message : "เกิดข้อผิดพลาด";
+        setError(errorMessage);
+        if (onError) onError(errorMessage);
       }
     };
 
@@ -63,85 +48,156 @@ export function PlanningProgress({ batchId, onComplete, onError }: PlanningProgr
     return () => clearInterval(interval);
   }, [batchId, onComplete, onError]);
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-3">
+        <FontAwesomeIcon icon={faExclamationCircle} className="text-4xl text-red-500" />
+        <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+      </div>
+    );
+  }
+
   if (!status) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center py-8 gap-3">
+        <FontAwesomeIcon icon={faSpinner} className="text-2xl text-brand-500 animate-spin" />
         <div className="text-sm text-gray-500 dark:text-gray-400">กำลังเริ่มประมวลผล...</div>
       </div>
     );
   }
 
-  const statusBadge = (status: string) => {
-    const map: Record<string, { label: string; className: string }> = {
-      PENDING: { label: "รอประมวลผล", className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
-      PROCESSING: { label: "กำลังประมวลผล", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-      COMPLETED: { label: "เสร็จสมบูรณ์", className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-      PARTIAL: { label: "บางส่วนสำเร็จ", className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
-      FAILED: { label: "ล้มเหลว", className: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300" },
-      CANCELLED: { label: "ยกเลิก", className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+  const statusConfig = (status: string) => {
+    const map: Record<string, { label: string; icon: any; className: string; bgColor: string }> = {
+      PENDING: { 
+        label: "รอประมวลผล", 
+        icon: faClock, 
+        className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+        bgColor: "bg-gray-50 dark:bg-gray-800"
+      },
+      PROCESSING: { 
+        label: "กำลังประมวลผล", 
+        icon: faSpinner, 
+        className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+        bgColor: "bg-blue-50 dark:bg-blue-900/20"
+      },
+      COMPLETED: { 
+        label: "เสร็จสมบูรณ์", 
+        icon: faCheckCircle, 
+        className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+        bgColor: "bg-green-50 dark:bg-green-900/20"
+      },
+      PARTIAL: { 
+        label: "บางส่วนสำเร็จ", 
+        icon: faExclamationCircle, 
+        className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
+        bgColor: "bg-yellow-50 dark:bg-yellow-900/20"
+      },
+      FAILED: { 
+        label: "ล้มเหลว", 
+        icon: faExclamationCircle, 
+        className: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
+        bgColor: "bg-rose-50 dark:bg-rose-900/20"
+      },
+      CANCELLED: { 
+        label: "ยกเลิก", 
+        icon: faClock, 
+        className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+        bgColor: "bg-gray-50 dark:bg-gray-800"
+      },
     };
-    return map[status] || { label: status, className: "bg-gray-100 text-gray-700" };
+    return map[status] || { label: status, icon: faClock, className: "bg-gray-100 text-gray-700", bgColor: "bg-gray-50" };
   };
 
-  const badge = statusBadge(status.status);
+  const config = statusConfig(status.status);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Status Header */}
+      <div className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            สถานะ:
-          </span>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
-          >
-            {badge.label}
-          </span>
+          <div className={`p-2 rounded-lg ${config.bgColor}`}>
+            <FontAwesomeIcon 
+              icon={config.icon} 
+              className={`text-xl ${status.status === 'PROCESSING' ? 'animate-spin' : ''} ${
+                status.status === 'COMPLETED' ? 'text-green-600' :
+                status.status === 'FAILED' ? 'text-red-600' :
+                status.status === 'PROCESSING' ? 'text-blue-600' :
+                'text-gray-600'
+              }`}
+            />
+          </div>
+          <div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">สถานะ</div>
+            <span className={`rounded-full px-3 py-1 text-sm font-medium ${config.className}`}>
+              {config.label}
+            </span>
+          </div>
         </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {progress.toFixed(0)}%
+        <div className="text-right">
+          <div className="text-sm text-gray-500 dark:text-gray-400">ความคืบหน้า</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {progress.toFixed(0)}%
+          </div>
         </div>
       </div>
 
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+      {/* Progress Bar */}
+      <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <div
-          className="h-full bg-brand-500 transition-all duration-300"
+          className="h-full bg-gradient-to-r from-brand-500 to-brand-600 transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      <div className="grid grid-cols-4 gap-4 text-center">
-        <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-          <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-center">
+          <div className="text-3xl font-bold text-gray-900 dark:text-white">
             {status.totalRows}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">ทั้งหมด</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">ทั้งหมด</div>
         </div>
-        <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
-          <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
+        <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 text-center">
+          <div className="text-3xl font-bold text-green-600 dark:text-green-400">
             {status.successRows}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">สำเร็จ</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">สำเร็จ</div>
         </div>
-        <div className="rounded-lg bg-rose-50 p-3 dark:bg-rose-900/20">
-          <div className="text-2xl font-semibold text-rose-600 dark:text-rose-400">
+        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-center">
+          <div className="text-3xl font-bold text-red-600 dark:text-red-400">
             {status.errorRows}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">ผิดพลาด</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">ผิดพลาด</div>
         </div>
-        <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-          <div className="text-2xl font-semibold text-gray-600 dark:text-gray-400">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-center">
+          <div className="text-3xl font-bold text-gray-600 dark:text-gray-400">
             {status.skippedRows}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">ข้าม</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">ข้าม</div>
         </div>
       </div>
 
+      {/* Processing Duration */}
       {status.processingDurationMs && (
-        <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-          เวลาประมวลผล: {(status.processingDurationMs / 1000).toFixed(2)} วินาที
+        <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <FontAwesomeIcon icon={faClock} />
+          <span>เวลาประมวลผล: {(status.processingDurationMs / 1000).toFixed(2)} วินาที</span>
         </div>
       )}
+
+      {/* Batch Info */}
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-500 dark:text-gray-400">Batch Code:</span>
+            <span className="ml-2 font-medium text-gray-900 dark:text-white">{status.batchCode}</span>
+          </div>
+          <div>
+            <span className="text-gray-500 dark:text-gray-400">Batch ID:</span>
+            <span className="ml-2 font-medium text-gray-900 dark:text-white">{status.batchId}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

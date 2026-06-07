@@ -31,6 +31,11 @@ export interface PlanningError {
   fieldName: string;
   fieldValue: string;
   severity: 'ERROR' | 'WARNING' | 'INFO';
+  errorDetails?: {
+    expectedTotal?: number;
+    actualTotal?: number;
+    difference?: number;
+  };
 }
 
 export interface PlanningRow {

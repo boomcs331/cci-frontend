@@ -11,6 +11,7 @@ import {
   submitSalesOrder,
   type CreateOrderInput,
 } from "@/services/sales/salesOrderService";
+import DatePicker from "@/components/form/date-picker";
 
 type CustomerOption = { id: number; name: string; code: string };
 type ProductOption = { id: number; productCode: string; productName: string };
@@ -26,7 +27,7 @@ export default function NewSalesOrderPage() {
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState("0");
-  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,7 +69,7 @@ export default function NewSalesOrderPage() {
 
   const buildPayload = (status: "DRAFT" | "PENDING"): CreateOrderInput => ({
     customerId: Number(customerId),
-    deliveryDate: deliveryDate || undefined,
+    deliveryDate: deliveryDate ? deliveryDate.toISOString().split('T')[0] : undefined,
     note: note || undefined,
     status,
     items: [
@@ -134,12 +135,16 @@ export default function NewSalesOrderPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-gray-500">วันจัดส่ง</label>
-              <input
-                type="date"
-                className={inputClass}
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
+              <DatePicker
+                id="delivery-date"
+                label="วันจัดส่ง"
+                placeholder="เลือกวันจัดส่ง"
+                defaultDate={deliveryDate || undefined}
+                onChange={(selectedDates) => {
+                  if (selectedDates && selectedDates.length > 0) {
+                    setDeliveryDate(selectedDates[0]);
+                  }
+                }}
               />
             </div>
             <div>

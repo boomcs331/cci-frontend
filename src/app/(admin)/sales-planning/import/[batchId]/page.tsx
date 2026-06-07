@@ -88,7 +88,28 @@ export default function BatchDetailPage() {
     { key: 'rowNumber', title: 'Row' },
     { key: 'errorType', title: 'Error Type' },
     { key: 'errorCode', title: 'Error Code' },
-    { key: 'errorMessage', title: 'Message' },
+    {
+      key: 'errorMessage',
+      title: 'Message',
+      render: (value, row) => (
+        <div>
+          <div className="font-medium">{value}</div>
+          {row.errorDetails && (
+            <div className="text-xs text-gray-500 mt-1">
+              {row.errorDetails.expectedTotal !== undefined && (
+                <div>ค่าที่ควรจะเป็น: {row.errorDetails.expectedTotal}</div>
+              )}
+              {row.errorDetails.actualTotal !== undefined && (
+                <div>ค่าที่กรอก: {row.errorDetails.actualTotal}</div>
+              )}
+              {row.errorDetails.difference !== undefined && (
+                <div>ความต่าง: {row.errorDetails.difference}</div>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       key: 'severity',
       title: 'Severity',

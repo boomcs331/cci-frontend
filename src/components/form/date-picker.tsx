@@ -13,6 +13,7 @@ type PropsType = {
   defaultDate?: DateOption;
   label?: string;
   placeholder?: string;
+  monthYearOnly?: boolean;
 };
 
 export default function DatePicker({
@@ -22,23 +23,77 @@ export default function DatePicker({
   label,
   defaultDate,
   placeholder,
+  monthYearOnly = false,
 }: PropsType) {
   useEffect(() => {
-    const flatPickr = flatpickr(`#${id}`, {
+    if (monthYearOnly) {
+      // For month-year only, use native HTML input
+      return;
+    }
+
+    const config: any = {
       mode: mode || "single",
       static: true,
       monthSelectorType: "static",
       dateFormat: "Y-m-d",
       defaultDate,
       onChange,
-    });
+    };
+
+    const flatPickr = flatpickr(`#${id}`, config);
 
     return () => {
-      if (!Array.isArray(flatPickr)) {
+      if (flatPickr && !Array.isArray(flatPickr)) {
         flatPickr.destroy();
       }
     };
-  }, [mode, onChange, id, defaultDate]);
+  }, [mode, onChange, id, defaultDate, monthYearOnly]);
+
+  if (monthYearOnly) {
+    // Use native month input for month-year only selection
+    const year = defaultDate ? (defaultDate as Date).getFullYear() : new Date().getFullYear();
+    const month = defaultDate ? (defaultDate as Date).getMonth() + 1 : new Date().getMonth() + 1;
+    const monthValue = `${year}-${String(month).padStart(2, '0')}`;
+
+    const thaiMonths = [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
+      'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
+      'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    ];
+
+    return (
+      <div>
+        {label && <Label htmlFor={id}>{label}</Label>}
+
+        <div className="relative">
+          <input
+            id={id}
+            type="month"
+            defaultValue={monthValue}
+            onChange={(e) => {
+              if (e.target.value && onChange) {
+                const [y, m] = e.target.value.split('-').map(Number);
+                const newDate = new Date(y, m - 1, 1);
+                if (Array.isArray(onChange)) {
+                  onChange.forEach(hook => hook([newDate], e.target.value, null as any));
+                } else {
+                  onChange([newDate], e.target.value, null as any);
+                }
+              }
+            }}
+            className="h-12 w-full rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-3 text-sm text-gray-900 dark:text-white shadow-sm transition-all duration-200 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none hover:border-gray-400 dark:hover:border-gray-500"
+            style={{
+              colorScheme: 'light',
+            }}
+          />
+
+          <span className="absolute text-gray-400 -translate-y-1/2 pointer-events-none right-4 top-1/2 dark:text-gray-500">
+            <CalenderIcon className="size-5" />
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

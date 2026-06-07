@@ -14,6 +14,10 @@ interface PlanningRow {
   model?: string;
   saleDate: string;
   quantity: number;
+  gate?: string;
+  location?: string;
+  round?: number;
+  line?: number;
 }
 
 export default function SalesPlanningDataPage() {
@@ -203,8 +207,12 @@ export default function SalesPlanningDataPage() {
             <thead className="border-b border-gray-100 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
               <tr>
                 <th className="px-4 py-3 font-medium">ลูกค้า</th>
-                <th className="px-4 py-3 font-medium">สินค้า</th>
                 <th className="px-4 py-3 font-medium">รุ่น</th>
+                <th className="px-4 py-3 font-medium">สินค้า</th>
+                <th className="px-4 py-3 font-medium">ประตู</th>
+                <th className="px-4 py-3 font-medium">สถานที่</th>
+                <th className="px-4 py-3 font-medium">รอบ</th>
+                <th className="px-4 py-3 font-medium">ไลน์</th>
                 <th className="px-4 py-3 font-medium">วันที่</th>
                 <th className="px-4 py-3 font-medium text-right">จำนวน</th>
               </tr>
@@ -212,7 +220,7 @@ export default function SalesPlanningDataPage() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                     ไม่พบข้อมูล
                   </td>
                 </tr>
@@ -223,8 +231,12 @@ export default function SalesPlanningDataPage() {
                     className="text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
                   >
                     <td className="px-4 py-3 font-medium">{row.customerCode}</td>
-                    <td className="px-4 py-3">{row.productCode}</td>
                     <td className="px-4 py-3">{row.model || "-"}</td>
+                    <td className="px-4 py-3">{row.productCode}</td>
+                    <td className="px-4 py-3">{row.gate || "-"}</td>
+                    <td className="px-4 py-3">{row.location || "-"}</td>
+                    <td className="px-4 py-3">{row.round || "-"}</td>
+                    <td className="px-4 py-3">{row.line || "-"}</td>
                     <td className="px-4 py-3">
                       {new Date(row.saleDate).toLocaleDateString("th-TH")}
                     </td>
