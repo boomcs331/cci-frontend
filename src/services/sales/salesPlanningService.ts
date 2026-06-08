@@ -164,6 +164,8 @@ export const salesPlanningService = {
       take?: number;
       errorType?: string;
       errorCode?: string;
+      rowNumber?: number;
+      fieldName?: string;
     },
   ): Promise<{ errors: PlanningError[]; total: number; skip: number; take: number }> {
     const params = new URLSearchParams();
@@ -171,6 +173,8 @@ export const salesPlanningService = {
     if (options?.take) params.set('take', options.take.toString());
     if (options?.errorType) params.set('errorType', options.errorType);
     if (options?.errorCode) params.set('errorCode', options.errorCode);
+    if (options?.rowNumber) params.set('rowNumber', options.rowNumber.toString());
+    if (options?.fieldName) params.set('fieldName', options.fieldName);
     const queryString = params.toString();
     const url = `/sales-planning/import/${batchId}/errors${queryString ? `?${queryString}` : ''}`;
     const res = await apiFetch(url);

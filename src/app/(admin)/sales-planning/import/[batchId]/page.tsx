@@ -37,6 +37,10 @@ export default function BatchDetailPage() {
   const errorTypeFilter = searchParams.get('errorType') || '';
   const errorCodeFilter = searchParams.get('errorCode') || '';
   const severityFilter = searchParams.get('severity') || '';
+  const rowNumberFilter = searchParams.get('rowNumber') || '';
+  const fieldNameFilter = searchParams.get('fieldName') || '';
+
+  const activeTab = (searchParams.get('tab') as 'rows' | 'errors') || 'rows';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +90,7 @@ export default function BatchDetailPage() {
 
   const errorColumns: Column<PlanningError>[] = [
     { key: 'rowNumber', title: 'Row' },
+    { key: 'fieldName', title: 'ฟิลด์ที่ผิดพลาด' },
     { key: 'errorType', title: 'Error Type' },
     { key: 'errorCode', title: 'Error Code' },
     {
@@ -121,7 +126,13 @@ export default function BatchDetailPage() {
     loadBatchDetail();
     loadRows();
     loadErrors();
-  }, [batchId, page, limit, errorPage, errorLimit, customerCodeFilter, productCodeFilter, statusFilter, errorTypeFilter, errorCodeFilter, severityFilter]);
+  }, [batchId, page, limit, errorPage, errorLimit, customerCodeFilter, productCodeFilter, statusFilter, errorTypeFilter, errorCodeFilter, severityFilter, rowNumberFilter, fieldNameFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'errors') {
+      loadErrors();
+    }
+  }, [activeTab]);
 
   const loadBatchDetail = async () => {
     setLoading(true);
@@ -161,6 +172,8 @@ export default function BatchDetailPage() {
         take: errorLimit,
         errorType: errorTypeFilter || undefined,
         errorCode: errorCodeFilter || undefined,
+        rowNumber: rowNumberFilter ? parseInt(rowNumberFilter) : undefined,
+        fieldName: fieldNameFilter || undefined,
       });
       setErrorsData(result);
     } catch (err) {
@@ -195,6 +208,12 @@ export default function BatchDetailPage() {
   const totalErrors = errorsData?.total || 0;
   const totalErrorPages = Math.ceil(totalErrors / errorLimit);
 
+  const setTab = (tab: 'rows' | 'errors') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.push(`?${params.toString()}`);
+  };
+
   return (
     <PageContainer>
       <PageHeader
@@ -206,9 +225,33 @@ export default function BatchDetailPage() {
         }
       />
 
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-800">
+          <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">ทั้งหมด</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{batch.totalRows}</p>
+          <p className="mt-1 text-xs text-gray-400">รายการ</p>
+        </div>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">สำเร็จ</p>
+          <p className="mt-2 text-3xl font-bold text-emerald-700 dark:text-emerald-300">{batch.successRows}</p>
+          <p className="mt-1 text-xs text-emerald-500">บันทึกแล้ว</p>
+        </div>
+        <div className="rounded-xl border border-rose-100 bg-rose-50 p-5 shadow-sm dark:border-rose-500/20 dark:bg-rose-500/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-rose-600 dark:text-rose-400">ผิดพลาด</p>
+          <p className="mt-2 text-3xl font-bold text-rose-700 dark:text-rose-300">{batch.errorRows}</p>
+          <p className="mt-1 text-xs text-rose-500">ต้องแก้ไข</p>
+        </div>
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">ข้าม</p>
+          <p className="mt-2 text-3xl font-bold text-amber-700 dark:text-amber-300">{batch.skippedRows}</p>
+          <p className="mt-1 text-xs text-amber-500">ถูกข้าม</p>
+        </div>
+      </div>
+
       {/* Batch Info */}
-      <ContentCard title="ข้อมูล Batch">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <ContentCard title="ข้อมูล Batch" className="mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <InfoCard label="Batch Code" value={batch.batchCode} />
           <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -220,10 +263,6 @@ export default function BatchDetailPage() {
           </div>
           <InfoCard label="ปี/เดือน" value={`${batch.year}/${batch.month}`} />
           <InfoCard label="ชื่อไฟล์" value={batch.fileName} />
-          <InfoCard label="Total Rows" value={batch.totalRows} />
-          <InfoCard label="Success Rows" value={batch.successRows} />
-          <InfoCard label="Error Rows" value={batch.errorRows} />
-          <InfoCard label="Skipped Rows" value={batch.skippedRows} />
           <InfoCard
             label="Upload Date"
             value={new Date(batch.uploadedAt).toLocaleString('th-TH')}
@@ -235,7 +274,43 @@ export default function BatchDetailPage() {
         </div>
       </ContentCard>
 
-      {/* Planning Rows */}
+      {/* Tabs */}
+      <div className="mb-4 flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setTab('rows')}
+          className={`relative px-5 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'rows'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          }`}
+        >
+          ข้อมูลที่สำเร็จ ({totalRows})
+          {activeTab === 'rows' && (
+            <span className="absolute inset-x-0 -bottom-px h-0.5 bg-emerald-600 dark:bg-emerald-400" />
+          )}
+        </button>
+        <button
+          onClick={() => setTab('errors')}
+          className={`relative px-5 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'errors'
+              ? 'text-rose-600 dark:text-rose-400'
+              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+          }`}
+        >
+          ข้อผิดพลาด
+          {totalErrors > 0 && (
+            <span className="ml-2 inline-flex items-center justify-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
+              {totalErrors}
+            </span>
+          )}
+          {activeTab === 'errors' && (
+            <span className="absolute inset-x-0 -bottom-px h-0.5 bg-rose-600 dark:bg-rose-400" />
+          )}
+        </button>
+      </div>
+
+      {/* Planning Rows Tab */}
+      {activeTab === 'rows' && (
       <ContentCard title={`ข้อมูล Planning Rows (${totalRows} รายการ)`}>
         <SearchCard
           onReset={() => {
@@ -319,9 +394,10 @@ export default function BatchDetailPage() {
           />
         )}
       </ContentCard>
+      )}
 
-      {/* Errors */}
-      {totalErrors > 0 && (
+      {/* Errors Tab */}
+      {activeTab === 'errors' && (
         <ContentCard title={`ข้อผิดพลาด (${totalErrors} รายการ)`}>
           <SearchCard
             onReset={() => {
@@ -329,10 +405,45 @@ export default function BatchDetailPage() {
               params.delete('errorType');
               params.delete('errorCode');
               params.delete('severity');
+              params.delete('rowNumber');
+              params.delete('fieldName');
               params.set('errorPage', '1');
               router.push(`?${params.toString()}`);
             }}
           >
+            <FormField
+              label="Row Number"
+              name="rowNumber"
+              type="number"
+              value={rowNumberFilter}
+              onChange={(value: string | number) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (value) {
+                  params.set('rowNumber', String(value));
+                } else {
+                  params.delete('rowNumber');
+                }
+                params.set('errorPage', '1');
+                router.push(`?${params.toString()}`);
+              }}
+              placeholder="Row Number"
+            />
+            <FormField
+              label="Field Name"
+              name="fieldName"
+              value={fieldNameFilter}
+              onChange={(value: string | number) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (value) {
+                  params.set('fieldName', String(value));
+                } else {
+                  params.delete('fieldName');
+                }
+                params.set('errorPage', '1');
+                router.push(`?${params.toString()}`);
+              }}
+              placeholder="Field Name"
+            />
             <FormField
               label="Error Type"
               name="errorType"
@@ -394,19 +505,21 @@ export default function BatchDetailPage() {
             emptyMessage="ไม่พบข้อมูล errors"
             rowKey="id"
           />
-          <PaginationFooter
-            page={errorPage}
-            limit={errorLimit}
-            total={totalErrors}
-            totalPages={totalErrorPages}
-            hrefBuilder={(targetPage) => {
-              const params = new URLSearchParams(searchParams.toString());
-              params.set('errorPage', String(targetPage));
-              params.set('errorLimit', String(errorLimit));
-              return `?${params.toString()}`;
-            }}
-            summaryLocale="th"
-          />
+          {totalErrors > 0 && (
+            <PaginationFooter
+              page={errorPage}
+              limit={errorLimit}
+              total={totalErrors}
+              totalPages={totalErrorPages}
+              hrefBuilder={(targetPage) => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('errorPage', String(targetPage));
+                params.set('errorLimit', String(errorLimit));
+                return `?${params.toString()}`;
+              }}
+              summaryLocale="th"
+            />
+          )}
         </ContentCard>
       )}
     </PageContainer>
