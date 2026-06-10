@@ -184,7 +184,7 @@ export const salesPlanningService = {
   // Get batch rows
   async getBatchRows(
     batchId: number,
-    options?: { skip?: number; take?: number; customerCode?: string; productCode?: string; status?: string },
+    options?: { skip?: number; take?: number; customerCode?: string; productCode?: string; status?: string; saleDate?: string },
   ): Promise<{ rows: PlanningRow[]; total: number; skip: number; take: number }> {
     const params = new URLSearchParams();
     if (options?.skip) params.set('skip', options.skip.toString());
@@ -192,6 +192,7 @@ export const salesPlanningService = {
     if (options?.customerCode) params.set('customerCode', options.customerCode);
     if (options?.productCode) params.set('productCode', options.productCode);
     if (options?.status) params.set('status', options.status);
+    if (options?.saleDate) params.set('saleDate', options.saleDate);
     const queryString = params.toString();
     const url = `/sales-planning/import/${batchId}/rows${queryString ? `?${queryString}` : ''}`;
     const res = await apiFetch(url);
@@ -202,6 +203,26 @@ export const salesPlanningService = {
   async getBatchDetail(batchId: number): Promise<{ batch: PlanningBatch; rows: PlanningRow[]; errors: PlanningError[] }> {
     const res = await apiFetch(`/sales-planning/import/${batchId}/detail`);
     return parseEnvelope<{ batch: PlanningBatch; rows: PlanningRow[]; errors: PlanningError[] }>(res);
+  },
+
+  async deleteBatch(batchId: number): Promise<void> {
+    await apiFetch(`/sales-planning/import/${batchId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async reprocessBatch(batchId: number): Promise<void> {
+    await apiFetch(`/sales-planning/import/${batchId}/reprocess`, {
+      method: 'POST',
+    });
+  },
+
+  async downloadBatch(batchId: number): Promise<Blob> {
+    const res = await apiFetch(`/sales-planning/import/${batchId}/download`);
+    if (!res.ok) {
+      throw new Error(`Failed to download batch (${res.status})`);
+    }
+    return res.blob();
   },
 
   // Cancel import

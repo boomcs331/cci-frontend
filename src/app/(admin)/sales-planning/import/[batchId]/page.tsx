@@ -9,8 +9,6 @@ import {
   PageHeader,
   ContentCard,
   InfoCard,
-  SearchCard,
-  FormField,
   DataTable,
   StatusBadge,
   ActionButton,
@@ -20,6 +18,10 @@ import {
 } from '@/components/shared';
 import PaginationFooter from '@/components/pagination/PaginationFooter';
 import { createPaginationHrefBuilder } from '@/lib/pagination';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs, { Dayjs } from 'dayjs';
 
 export default function BatchDetailPage() {
   const params = useParams();
@@ -34,6 +36,7 @@ export default function BatchDetailPage() {
   const customerCodeFilter = searchParams.get('customerCode') || '';
   const productCodeFilter = searchParams.get('productCode') || '';
   const statusFilter = searchParams.get('status') || '';
+  const saleDateFilter = searchParams.get('saleDate') || '';
   const errorTypeFilter = searchParams.get('errorType') || '';
   const errorCodeFilter = searchParams.get('errorCode') || '';
   const severityFilter = searchParams.get('severity') || '';
@@ -49,6 +52,7 @@ export default function BatchDetailPage() {
     rows: PlanningRow[];
     errors: PlanningError[];
   } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rowsData, setRowsData] = useState<{
     rows: PlanningRow[];
     total: number;
@@ -126,7 +130,7 @@ export default function BatchDetailPage() {
     loadBatchDetail();
     loadRows();
     loadErrors();
-  }, [batchId, page, limit, errorPage, errorLimit, customerCodeFilter, productCodeFilter, statusFilter, errorTypeFilter, errorCodeFilter, severityFilter, rowNumberFilter, fieldNameFilter]);
+  }, [batchId, page, limit, errorPage, errorLimit, customerCodeFilter, productCodeFilter, statusFilter, saleDateFilter, errorTypeFilter, errorCodeFilter, severityFilter, rowNumberFilter, fieldNameFilter]);
 
   useEffect(() => {
     if (activeTab === 'errors') {
@@ -157,6 +161,7 @@ export default function BatchDetailPage() {
         customerCode: customerCodeFilter || undefined,
         productCode: productCodeFilter || undefined,
         status: statusFilter || undefined,
+        saleDate: saleDateFilter || undefined,
       });
       setRowsData(result);
     } catch (err) {
@@ -178,6 +183,56 @@ export default function BatchDetailPage() {
       setErrorsData(result);
     } catch (err) {
       console.error('Failed to load errors:', err);
+    }
+  };
+
+  const handleDownload = async () => {
+    setActionLoading('download');
+    try {
+      const blob = await salesPlanningService.downloadBatch(batchId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `batch-${batch.batchCode}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Failed to download:', err);
+      alert('ดาวน์โหลดไม่สำเร็จ');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReprocess = async () => {
+    if (!confirm('ยืนยันที่จะประมวลผลใหม่?')) return;
+    setActionLoading('reprocess');
+    try {
+      await salesPlanningService.reprocessBatch(batchId);
+      alert('เริ่มประมวลผลใหม่แล้ว');
+      loadBatchDetail();
+    } catch (err) {
+      console.error('Failed to reprocess:', err);
+      alert('ประมวลผลใหม่ไม่สำเร็จ');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('ยืนยันที่จะลบ batch นี้?')) return;
+    setActionLoading('delete');
+    try {
+      await salesPlanningService.deleteBatch(batchId);
+      alert('ลบ batch สำเร็จ');
+      router.push('/sales-planning/import');
+    } catch (err) {
+      console.error('Failed to delete:', err);
+      alert('ลบไม่สำเร็จ');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -219,9 +274,35 @@ export default function BatchDetailPage() {
       <PageHeader
         title={`รายละเอียด Batch: ${batch.batchCode}`}
         actions={
-          <ActionButton variant="secondary" onClick={() => router.back()}>
-            กลับ
-          </ActionButton>
+          <div className="flex gap-2">
+            <ActionButton 
+              variant="secondary" 
+              onClick={() => router.back()}
+            >
+              กลับ
+            </ActionButton>
+            <ActionButton 
+              variant="primary" 
+              onClick={handleDownload}
+              loading={actionLoading === 'download'}
+            >
+              ดาวน์โหลด
+            </ActionButton>
+            <ActionButton 
+              variant="warning" 
+              onClick={handleReprocess}
+              loading={actionLoading === 'reprocess'}
+            >
+              ประมวลผลใหม่
+            </ActionButton>
+            <ActionButton 
+              variant="danger" 
+              onClick={handleDelete}
+              loading={actionLoading === 'delete'}
+            >
+              ลบ
+            </ActionButton>
+          </div>
         }
       />
 
@@ -312,71 +393,123 @@ export default function BatchDetailPage() {
       {/* Planning Rows Tab */}
       {activeTab === 'rows' && (
       <ContentCard title={`ข้อมูล Planning Rows (${totalRows} รายการ)`}>
-        <SearchCard
-          onReset={() => {
-            const params = new URLSearchParams(searchParams.toString());
-            params.delete('customerCode');
-            params.delete('productCode');
-            params.delete('status');
-            params.set('page', '1');
-            router.push(`?${params.toString()}`);
-          }}
-        >
-          <FormField
-            label="ลูกค้า"
-            name="customerCode"
-            value={customerCodeFilter}
-            onChange={(value: string | number) => {
-              const params = new URLSearchParams(searchParams.toString());
-              if (value) {
-                params.set('customerCode', String(value));
-              } else {
-                params.delete('customerCode');
-              }
-              params.set('page', '1');
-              router.push(`?${params.toString()}`);
-            }}
-            placeholder="รหัสลูกค้า"
-          />
-          <FormField
-            label="สินค้า"
-            name="productCode"
-            value={productCodeFilter}
-            onChange={(value: string | number) => {
-              const params = new URLSearchParams(searchParams.toString());
-              if (value) {
-                params.set('productCode', String(value));
-              } else {
-                params.delete('productCode');
-              }
-              params.set('page', '1');
-              router.push(`?${params.toString()}`);
-            }}
-            placeholder="รหัสสินค้า"
-          />
-          <FormField
-            label="สถานะ"
-            name="status"
-            type="select"
-            value={statusFilter}
-            onChange={(value: string | number) => {
-              const params = new URLSearchParams(searchParams.toString());
-              if (value) {
-                params.set('status', String(value));
-              } else {
-                params.delete('status');
-              }
-              params.set('page', '1');
-              router.push(`?${params.toString()}`);
-            }}
-            options={[
-              { value: '', label: 'ทั้งหมด' },
-              { value: 'VALID', label: 'VALID' },
-              { value: 'INVALID', label: 'INVALID' },
-              { value: 'SKIPPED', label: 'SKIPPED' },
-            ]}
-          />
-        </SearchCard>
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                ลูกค้า
+              </label>
+              <input
+                type="text"
+                value={customerCodeFilter}
+                onChange={(e) => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  if (e.target.value) {
+                    params.set('customerCode', e.target.value);
+                  } else {
+                    params.delete('customerCode');
+                  }
+                  params.set('page', '1');
+                  router.push(`?${params.toString()}`);
+                }}
+                placeholder="รหัสลูกค้า"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+              />
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                สินค้า
+              </label>
+              <input
+                type="text"
+                value={productCodeFilter}
+                onChange={(e) => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  if (e.target.value) {
+                    params.set('productCode', e.target.value);
+                  } else {
+                    params.delete('productCode');
+                  }
+                  params.set('page', '1');
+                  router.push(`?${params.toString()}`);
+                }}
+                placeholder="รหัสสินค้า"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+              />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                สถานะ
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  if (e.target.value) {
+                    params.set('status', e.target.value);
+                  } else {
+                    params.delete('status');
+                  }
+                  params.set('page', '1');
+                  router.push(`?${params.toString()}`);
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+              >
+                <option value="">ทั้งหมด</option>
+                <option value="VALID">VALID</option>
+                <option value="INVALID">INVALID</option>
+                <option value="SKIPPED">SKIPPED</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                วันที่
+              </label>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={saleDateFilter ? dayjs(saleDateFilter) : null}
+                  onChange={(newValue: Dayjs | null) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (newValue && newValue.isValid()) {
+                      params.set('saleDate', newValue.format('YYYY-MM-DD'));
+                    } else {
+                      params.delete('saleDate');
+                    }
+                    params.set('page', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  format="YYYY-MM-DD"
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      fullWidth: true,
+                      placeholder: 'เลือกวันที่',
+                    },
+                    field: {
+                      clearable: true,
+                    },
+                  }}
+                />
+              </LocalizationProvider>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.delete('customerCode');
+                  params.delete('productCode');
+                  params.delete('status');
+                  params.delete('saleDate');
+                  params.set('page', '1');
+                  router.push(`?${params.toString()}`);
+                }}
+                className="mb-0.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:border-blue-400"
+              >
+                รีเซ็ต
+              </button>
+            </div>
+          </div>
+        </div>
         <DataTable
           columns={rowColumns}
           data={rows}
@@ -399,106 +532,135 @@ export default function BatchDetailPage() {
       {/* Errors Tab */}
       {activeTab === 'errors' && (
         <ContentCard title={`ข้อผิดพลาด (${totalErrors} รายการ)`}>
-          <SearchCard
-            onReset={() => {
-              const params = new URLSearchParams(searchParams.toString());
-              params.delete('errorType');
-              params.delete('errorCode');
-              params.delete('severity');
-              params.delete('rowNumber');
-              params.delete('fieldName');
-              params.set('errorPage', '1');
-              router.push(`?${params.toString()}`);
-            }}
-          >
-            <FormField
-              label="Row Number"
-              name="rowNumber"
-              type="number"
-              value={rowNumberFilter}
-              onChange={(value: string | number) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (value) {
-                  params.set('rowNumber', String(value));
-                } else {
-                  params.delete('rowNumber');
-                }
-                params.set('errorPage', '1');
-                router.push(`?${params.toString()}`);
-              }}
-              placeholder="Row Number"
-            />
-            <FormField
-              label="Field Name"
-              name="fieldName"
-              value={fieldNameFilter}
-              onChange={(value: string | number) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (value) {
-                  params.set('fieldName', String(value));
-                } else {
-                  params.delete('fieldName');
-                }
-                params.set('errorPage', '1');
-                router.push(`?${params.toString()}`);
-              }}
-              placeholder="Field Name"
-            />
-            <FormField
-              label="Error Type"
-              name="errorType"
-              value={errorTypeFilter}
-              onChange={(value: string | number) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (value) {
-                  params.set('errorType', String(value));
-                } else {
-                  params.delete('errorType');
-                }
-                params.set('errorPage', '1');
-                router.push(`?${params.toString()}`);
-              }}
-              placeholder="Error Type"
-            />
-            <FormField
-              label="Error Code"
-              name="errorCode"
-              value={errorCodeFilter}
-              onChange={(value: string | number) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (value) {
-                  params.set('errorCode', String(value));
-                } else {
-                  params.delete('errorCode');
-                }
-                params.set('errorPage', '1');
-                router.push(`?${params.toString()}`);
-              }}
-              placeholder="Error Code"
-            />
-            <FormField
-              label="Severity"
-              name="severity"
-              type="select"
-              value={severityFilter}
-              onChange={(value: string | number) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (value) {
-                  params.set('severity', String(value));
-                } else {
-                  params.delete('severity');
-                }
-                params.set('errorPage', '1');
-                router.push(`?${params.toString()}`);
-              }}
-              options={[
-                { value: '', label: 'ทั้งหมด' },
-                { value: 'ERROR', label: 'ERROR' },
-                { value: 'WARNING', label: 'WARNING' },
-                { value: 'INFO', label: 'INFO' },
-              ]}
-            />
-          </SearchCard>
+          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[120px]">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Row Number
+                </label>
+                <input
+                  type="number"
+                  value={rowNumberFilter}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('rowNumber', e.target.value);
+                    } else {
+                      params.delete('rowNumber');
+                    }
+                    params.set('errorPage', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  placeholder="Row Number"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+                />
+              </div>
+              <div className="flex-1 min-w-[150px]">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Field Name
+                </label>
+                <input
+                  type="text"
+                  value={fieldNameFilter}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('fieldName', e.target.value);
+                    } else {
+                      params.delete('fieldName');
+                    }
+                    params.set('errorPage', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  placeholder="Field Name"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+                />
+              </div>
+              <div className="flex-1 min-w-[150px]">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Error Type
+                </label>
+                <input
+                  type="text"
+                  value={errorTypeFilter}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('errorType', e.target.value);
+                    } else {
+                      params.delete('errorType');
+                    }
+                    params.set('errorPage', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  placeholder="Error Type"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+                />
+              </div>
+              <div className="flex-1 min-w-[150px]">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Error Code
+                </label>
+                <input
+                  type="text"
+                  value={errorCodeFilter}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('errorCode', e.target.value);
+                    } else {
+                      params.delete('errorCode');
+                    }
+                    params.set('errorPage', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  placeholder="Error Code"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+                />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Severity
+                </label>
+                <select
+                  value={severityFilter}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) {
+                      params.set('severity', e.target.value);
+                    } else {
+                      params.delete('severity');
+                    }
+                    params.set('errorPage', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+                >
+                  <option value="">ทั้งหมด</option>
+                  <option value="ERROR">ERROR</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="INFO">INFO</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete('errorType');
+                    params.delete('errorCode');
+                    params.delete('severity');
+                    params.delete('rowNumber');
+                    params.delete('fieldName');
+                    params.set('errorPage', '1');
+                    router.push(`?${params.toString()}`);
+                  }}
+                  className="mb-0.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:border-blue-400"
+                >
+                  รีเซ็ต
+                </button>
+              </div>
+            </div>
+          </div>
           <DataTable
             columns={errorColumns}
             data={errors}

@@ -1,0 +1,12 @@
+allowBuilds:
+  core-js: false
+  esbuild: false
+  msw: false
+  sharp: false
+  unrs-resolver: false
+onlyBuiltDependencies:
+  - core-js
+  - esbuild
+  - msw
+  - sharp
+  - unrs-resolver
