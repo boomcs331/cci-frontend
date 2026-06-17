@@ -22,6 +22,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { Dayjs } from 'dayjs';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFileLines, faCheckCircle, faXmarkCircle, faBan } from '@fortawesome/free-solid-svg-icons';
 
 export default function BatchDetailPage() {
   const params = useParams();
@@ -263,6 +265,8 @@ export default function BatchDetailPage() {
   const totalErrors = errorsData?.total || 0;
   const totalErrorPages = Math.ceil(totalErrors / errorLimit);
 
+  const successRate = totalRows > 0 ? Math.round((batch.successRows / totalRows) * 100) : 0;
+
   const setTab = (tab: 'rows' | 'errors') => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
@@ -274,10 +278,11 @@ export default function BatchDetailPage() {
       <PageHeader
         title={`รายละเอียด Batch: ${batch.batchCode}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <ActionButton 
               variant="secondary" 
               onClick={() => router.back()}
+              className="px-4"
             >
               กลับ
             </ActionButton>
@@ -285,6 +290,7 @@ export default function BatchDetailPage() {
               variant="primary" 
               onClick={handleDownload}
               loading={actionLoading === 'download'}
+              className="px-4"
             >
               ดาวน์โหลด
             </ActionButton>
@@ -292,6 +298,7 @@ export default function BatchDetailPage() {
               variant="warning" 
               onClick={handleReprocess}
               loading={actionLoading === 'reprocess'}
+              className="px-4"
             >
               ประมวลผลใหม่
             </ActionButton>
@@ -299,6 +306,7 @@ export default function BatchDetailPage() {
               variant="danger" 
               onClick={handleDelete}
               loading={actionLoading === 'delete'}
+              className="px-4"
             >
               ลบ
             </ActionButton>
@@ -306,384 +314,395 @@ export default function BatchDetailPage() {
         }
       />
 
-      {/* Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-800">
-          <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">ทั้งหมด</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{batch.totalRows}</p>
-          <p className="mt-1 text-xs text-gray-400">รายการ</p>
-        </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm dark:border-emerald-500/20 dark:bg-emerald-500/10">
-          <p className="text-xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">สำเร็จ</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-700 dark:text-emerald-300">{batch.successRows}</p>
-          <p className="mt-1 text-xs text-emerald-500">บันทึกแล้ว</p>
-        </div>
-        <div className="rounded-xl border border-rose-100 bg-rose-50 p-5 shadow-sm dark:border-rose-500/20 dark:bg-rose-500/10">
-          <p className="text-xs font-medium uppercase tracking-wider text-rose-600 dark:text-rose-400">ผิดพลาด</p>
-          <p className="mt-2 text-3xl font-bold text-rose-700 dark:text-rose-300">{batch.errorRows}</p>
-          <p className="mt-1 text-xs text-rose-500">ต้องแก้ไข</p>
-        </div>
-        <div className="rounded-xl border border-amber-100 bg-amber-50 p-5 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10">
-          <p className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">ข้าม</p>
-          <p className="mt-2 text-3xl font-bold text-amber-700 dark:text-amber-300">{batch.skippedRows}</p>
-          <p className="mt-1 text-xs text-amber-500">ถูกข้าม</p>
-        </div>
-      </div>
-
-      {/* Batch Info */}
-      <ContentCard title="ข้อมูล Batch" className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <InfoCard label="Batch Code" value={batch.batchCode} />
-          <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              สถานะ
-            </p>
-            <div className="mt-1">
-              <StatusBadge status={statusMap[batch.status] || 'info'} />
+      {/* Modern Dashboard */}
+      <div className="space-y-6">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">ทั้งหมด</p>
+                <p className="text-3xl font-light text-slate-900 dark:text-white">{batch.totalRows}</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
+                <FontAwesomeIcon icon={faFileLines} className="text-slate-600 dark:text-slate-300 text-sm" />
+              </div>
             </div>
           </div>
-          <InfoCard label="ปี/เดือน" value={`${batch.year}/${batch.month}`} />
-          <InfoCard label="ชื่อไฟล์" value={batch.fileName} />
-          <InfoCard
-            label="Upload Date"
-            value={new Date(batch.uploadedAt).toLocaleString('th-TH')}
-          />
-          <InfoCard
-            label="Processed Date"
-            value={batch.processedAt ? new Date(batch.processedAt).toLocaleString('th-TH') : '-'}
-          />
-        </div>
-      </ContentCard>
-
-      {/* Tabs */}
-      <div className="mb-4 flex gap-1 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={() => setTab('rows')}
-          className={`relative px-5 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'rows'
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-          }`}
-        >
-          ข้อมูลที่สำเร็จ ({totalRows})
-          {activeTab === 'rows' && (
-            <span className="absolute inset-x-0 -bottom-px h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-          )}
-        </button>
-        <button
-          onClick={() => setTab('errors')}
-          className={`relative px-5 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'errors'
-              ? 'text-rose-600 dark:text-rose-400'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-          }`}
-        >
-          ข้อผิดพลาด
-          {totalErrors > 0 && (
-            <span className="ml-2 inline-flex items-center justify-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">
-              {totalErrors}
-            </span>
-          )}
-          {activeTab === 'errors' && (
-            <span className="absolute inset-x-0 -bottom-px h-0.5 bg-rose-600 dark:bg-rose-400" />
-          )}
-        </button>
-      </div>
-
-      {/* Planning Rows Tab */}
-      {activeTab === 'rows' && (
-      <ContentCard title={`ข้อมูล Planning Rows (${totalRows} รายการ)`}>
-        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                ลูกค้า
-              </label>
-              <input
-                type="text"
-                value={customerCodeFilter}
-                onChange={(e) => {
-                  const params = new URLSearchParams(searchParams.toString());
-                  if (e.target.value) {
-                    params.set('customerCode', e.target.value);
-                  } else {
-                    params.delete('customerCode');
-                  }
-                  params.set('page', '1');
-                  router.push(`?${params.toString()}`);
-                }}
-                placeholder="รหัสลูกค้า"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-              />
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-900/30 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-2">สำเร็จ</p>
+                <p className="text-3xl font-light text-emerald-700 dark:text-emerald-300">{batch.successRows}</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-white dark:bg-emerald-800 flex items-center justify-center shadow-sm">
+                <FontAwesomeIcon icon={faCheckCircle} className="text-emerald-600 dark:text-emerald-300 text-sm" />
+              </div>
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                สินค้า
-              </label>
-              <input
-                type="text"
-                value={productCodeFilter}
-                onChange={(e) => {
-                  const params = new URLSearchParams(searchParams.toString());
-                  if (e.target.value) {
-                    params.set('productCode', e.target.value);
-                  } else {
-                    params.delete('productCode');
-                  }
-                  params.set('page', '1');
-                  router.push(`?${params.toString()}`);
-                }}
-                placeholder="รหัสสินค้า"
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-              />
+          </div>
+          <div className="bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-900/20 dark:to-rose-900/30 rounded-2xl p-5 border border-rose-200 dark:border-rose-800">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-rose-600 dark:text-rose-400 mb-2">ผิดพลาด</p>
+                <p className="text-3xl font-light text-rose-700 dark:text-rose-300">{batch.errorRows}</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-white dark:bg-rose-800 flex items-center justify-center shadow-sm">
+                <FontAwesomeIcon icon={faXmarkCircle} className="text-rose-600 dark:text-rose-300 text-sm" />
+              </div>
             </div>
-            <div className="flex-1 min-w-[150px]">
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                สถานะ
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  const params = new URLSearchParams(searchParams.toString());
-                  if (e.target.value) {
-                    params.set('status', e.target.value);
-                  } else {
-                    params.delete('status');
-                  }
-                  params.set('page', '1');
-                  router.push(`?${params.toString()}`);
-                }}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-              >
-                <option value="">ทั้งหมด</option>
-                <option value="VALID">VALID</option>
-                <option value="INVALID">INVALID</option>
-                <option value="SKIPPED">SKIPPED</option>
-              </select>
-            </div>
-            <div className="flex-1 min-w-[180px]">
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                วันที่
-              </label>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  value={saleDateFilter ? dayjs(saleDateFilter) : null}
-                  onChange={(newValue: Dayjs | null) => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (newValue && newValue.isValid()) {
-                      params.set('saleDate', newValue.format('YYYY-MM-DD'));
-                    } else {
-                      params.delete('saleDate');
-                    }
-                    params.set('page', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  format="YYYY-MM-DD"
-                  slotProps={{
-                    textField: {
-                      size: 'small',
-                      fullWidth: true,
-                      placeholder: 'เลือกวันที่',
-                    },
-                    field: {
-                      clearable: true,
-                    },
-                  }}
-                />
-              </LocalizationProvider>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  const params = new URLSearchParams(searchParams.toString());
-                  params.delete('customerCode');
-                  params.delete('productCode');
-                  params.delete('status');
-                  params.delete('saleDate');
-                  params.set('page', '1');
-                  router.push(`?${params.toString()}`);
-                }}
-                className="mb-0.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:border-blue-400"
-              >
-                รีเซ็ต
-              </button>
+          </div>
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-900/30 rounded-2xl p-5 border border-amber-200 dark:border-amber-800">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2">ข้าม</p>
+                <p className="text-3xl font-light text-amber-700 dark:text-amber-300">{batch.skippedRows}</p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-white dark:bg-amber-800 flex items-center justify-center shadow-sm">
+                <FontAwesomeIcon icon={faBan} className="text-amber-600 dark:text-amber-300 text-sm" />
+              </div>
             </div>
           </div>
         </div>
-        <DataTable
-          columns={rowColumns}
-          data={rows}
-          emptyMessage="ไม่พบข้อมูล planning rows"
-          rowKey="id"
-        />
-        {totalRows > 0 && (
-          <PaginationFooter
-            page={page}
-            limit={limit}
-            total={totalRows}
-            totalPages={totalPages}
-            hrefBuilder={createPaginationHrefBuilder(searchParams, limit)}
-            summaryLocale="th"
-          />
-        )}
-      </ContentCard>
-      )}
 
-      {/* Errors Tab */}
-      {activeTab === 'errors' && (
-        <ContentCard title={`ข้อผิดพลาด (${totalErrors} รายการ)`}>
-          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[120px]">
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Row Number
-                </label>
-                <input
-                  type="number"
-                  value={rowNumberFilter}
-                  onChange={(e) => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('rowNumber', e.target.value);
-                    } else {
-                      params.delete('rowNumber');
-                    }
-                    params.set('errorPage', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  placeholder="Row Number"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Progress & Batch Info */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Progress Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">อัตราความสำเร็จ</h3>
+                <span className="text-2xl font-light text-slate-900 dark:text-white">{successRate}%</span>
+              </div>
+              <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-4">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ease-out ${
+                    successRate >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : 
+                    successRate >= 50 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 
+                    'bg-gradient-to-r from-rose-400 to-rose-500'
+                  }`}
+                  style={{ width: `${successRate}%` }}
                 />
               </div>
-              <div className="flex-1 min-w-[150px]">
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Field Name
-                </label>
-                <input
-                  type="text"
-                  value={fieldNameFilter}
-                  onChange={(e) => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('fieldName', e.target.value);
-                    } else {
-                      params.delete('fieldName');
-                    }
-                    params.set('errorPage', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  placeholder="Field Name"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-                />
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                  สำเร็จ {batch.successRows}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                  ผิดพลาด {batch.errorRows}
+                </span>
               </div>
-              <div className="flex-1 min-w-[150px]">
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Error Type
-                </label>
-                <input
-                  type="text"
-                  value={errorTypeFilter}
-                  onChange={(e) => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('errorType', e.target.value);
-                    } else {
-                      params.delete('errorType');
-                    }
-                    params.set('errorPage', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  placeholder="Error Type"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-                />
+            </div>
+
+            {/* Batch Info Card */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-4">ข้อมูล Batch</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Batch Code</span>
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">{batch.batchCode}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">สถานะ</span>
+                  <StatusBadge status={statusMap[batch.status] || 'info'} />
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">ปี/เดือน</span>
+                  <span className="text-sm font-medium text-slate-900 dark:text-white">{batch.year}/{batch.month}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Upload</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">{new Date(batch.uploadedAt).toLocaleDateString('th-TH')}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Processed</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">{batch.processedAt ? new Date(batch.processedAt).toLocaleDateString('th-TH') : '-'}</span>
+                </div>
               </div>
-              <div className="flex-1 min-w-[150px]">
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Error Code
-                </label>
-                <input
-                  type="text"
-                  value={errorCodeFilter}
-                  onChange={(e) => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('errorCode', e.target.value);
-                    } else {
-                      params.delete('errorCode');
-                    }
-                    params.set('errorPage', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  placeholder="Error Code"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-                />
-              </div>
-              <div className="flex-1 min-w-[120px]">
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Severity
-                </label>
-                <select
-                  value={severityFilter}
-                  onChange={(e) => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    if (e.target.value) {
-                      params.set('severity', e.target.value);
-                    } else {
-                      params.delete('severity');
-                    }
-                    params.set('errorPage', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400"
-                >
-                  <option value="">ทั้งหมด</option>
-                  <option value="ERROR">ERROR</option>
-                  <option value="WARNING">WARNING</option>
-                  <option value="INFO">INFO</option>
-                </select>
-              </div>
-              <div className="flex items-end">
+            </div>
+          </div>
+
+          {/* Tabs Section */}
+          <div className="lg:col-span-2">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              {/* Tabs */}
+              <div className="flex border-b border-slate-200 dark:border-slate-700">
                 <button
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    params.delete('errorType');
-                    params.delete('errorCode');
-                    params.delete('severity');
-                    params.delete('rowNumber');
-                    params.delete('fieldName');
-                    params.set('errorPage', '1');
-                    router.push(`?${params.toString()}`);
-                  }}
-                  className="mb-0.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:border-blue-400"
+                  onClick={() => setTab('rows')}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                    activeTab === 'rows'
+                      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/20 border-b-2 border-emerald-500'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
                 >
-                  รีเซ็ต
+                  ข้อมูลที่สำเร็จ ({totalRows})
+                </button>
+                <button
+                  onClick={() => setTab('errors')}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                    activeTab === 'errors'
+                      ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-900/20 border-b-2 border-rose-500'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  ข้อผิดพลาด
+                  {totalErrors > 0 && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-xs">
+                      {totalErrors}
+                    </span>
+                  )}
                 </button>
               </div>
+
+              {/* Tab Content */}
+              <div className="p-6">
+                {activeTab === 'rows' ? (
+                  <div>
+                    {/* Filters */}
+                    <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">ลูกค้า</label>
+                          <input
+                            type="text"
+                            value={customerCodeFilter}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.value) {
+                                params.set('customerCode', e.target.value);
+                              } else {
+                                params.delete('customerCode');
+                              }
+                              params.set('page', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            placeholder="รหัสลูกค้า"
+                            className="w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:ring-emerald-500/40 dark:focus:border-emerald-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">สินค้า</label>
+                          <input
+                            type="text"
+                            value={productCodeFilter}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.value) {
+                                params.set('productCode', e.target.value);
+                              } else {
+                                params.delete('productCode');
+                              }
+                              params.set('page', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            placeholder="รหัสสินค้า"
+                            className="w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:ring-emerald-500/40 dark:focus:border-emerald-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">สถานะ</label>
+                          <select
+                            value={statusFilter}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.value) {
+                                params.set('status', e.target.value);
+                              } else {
+                                params.delete('status');
+                              }
+                              params.set('page', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            className="w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:ring-emerald-500/40 dark:focus:border-emerald-500 outline-none transition-all"
+                          >
+                            <option value="">ทั้งหมด</option>
+                            <option value="VALID">VALID</option>
+                            <option value="INVALID">INVALID</option>
+                            <option value="SKIPPED">SKIPPED</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">วันที่</label>
+                          <LocalizationProvider dateAdapter={AdapterDayjs}>
+                            <DatePicker
+                              value={saleDateFilter ? dayjs(saleDateFilter) : null}
+                              onChange={(newValue: Dayjs | null) => {
+                                const params = new URLSearchParams(searchParams.toString());
+                                if (newValue && newValue.isValid()) {
+                                  params.set('saleDate', newValue.format('YYYY-MM-DD'));
+                                } else {
+                                  params.delete('saleDate');
+                                }
+                                params.set('page', '1');
+                                router.push(`?${params.toString()}`);
+                              }}
+                              format="YYYY-MM-DD"
+                              slotProps={{
+                                textField: {
+                                  size: 'small',
+                                  fullWidth: true,
+                                  className: 'rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm'
+                                },
+                                field: {
+                                  clearable: true,
+                                },
+                              }}
+                            />
+                          </LocalizationProvider>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => {
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.delete('customerCode');
+                            params.delete('productCode');
+                            params.delete('status');
+                            params.delete('saleDate');
+                            params.set('page', '1');
+                            router.push(`?${params.toString()}`);
+                          }}
+                          className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                        >
+                          รีเซ็ตตัวกรอง
+                        </button>
+                      </div>
+                    </div>
+                    <DataTable
+                      columns={rowColumns}
+                      data={rows}
+                      emptyMessage="ไม่พบข้อมูล planning rows"
+                      rowKey="id"
+                    />
+                    {totalRows > 0 && (
+                      <div className="mt-4">
+                        <PaginationFooter
+                          page={page}
+                          limit={limit}
+                          total={totalRows}
+                          totalPages={totalPages}
+                          hrefBuilder={createPaginationHrefBuilder(searchParams, limit)}
+                          summaryLocale="th"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    {/* Error Filters */}
+                    <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Row Number</label>
+                          <input
+                            type="number"
+                            value={rowNumberFilter}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.value) {
+                                params.set('rowNumber', e.target.value);
+                              } else {
+                                params.delete('rowNumber');
+                              }
+                              params.set('errorPage', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            placeholder="Row Number"
+                            className="w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:ring-emerald-500/40 dark:focus:border-emerald-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Error Type</label>
+                          <input
+                            type="text"
+                            value={errorTypeFilter}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.value) {
+                                params.set('errorType', e.target.value);
+                              } else {
+                                params.delete('errorType');
+                              }
+                              params.set('errorPage', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            placeholder="Error Type"
+                            className="w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:ring-emerald-500/40 dark:focus:border-emerald-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Severity</label>
+                          <select
+                            value={severityFilter}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.value) {
+                                params.set('severity', e.target.value);
+                              } else {
+                                params.delete('severity');
+                              }
+                              params.set('errorPage', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            className="w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:ring-emerald-500/40 dark:focus:border-emerald-500 outline-none transition-all"
+                          >
+                            <option value="">ทั้งหมด</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="INFO">INFO</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => {
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.delete('errorType');
+                            params.delete('errorCode');
+                            params.delete('severity');
+                            params.delete('rowNumber');
+                            params.delete('fieldName');
+                            params.set('errorPage', '1');
+                            router.push(`?${params.toString()}`);
+                          }}
+                          className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                        >
+                          รีเซ็ตตัวกรอง
+                        </button>
+                      </div>
+                    </div>
+                    <DataTable
+                      columns={errorColumns}
+                      data={errors}
+                      emptyMessage="ไม่พบข้อมูล errors"
+                      rowKey="id"
+                    />
+                    {totalErrors > 0 && (
+                      <div className="mt-4">
+                        <PaginationFooter
+                          page={errorPage}
+                          limit={errorLimit}
+                          total={totalErrors}
+                          totalPages={totalErrorPages}
+                          hrefBuilder={(targetPage) => {
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.set('errorPage', String(targetPage));
+                            params.set('errorLimit', String(errorLimit));
+                            return `?${params.toString()}`;
+                          }}
+                          summaryLocale="th"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-          <DataTable
-            columns={errorColumns}
-            data={errors}
-            emptyMessage="ไม่พบข้อมูล errors"
-            rowKey="id"
-          />
-          {totalErrors > 0 && (
-            <PaginationFooter
-              page={errorPage}
-              limit={errorLimit}
-              total={totalErrors}
-              totalPages={totalErrorPages}
-              hrefBuilder={(targetPage) => {
-                const params = new URLSearchParams(searchParams.toString());
-                params.set('errorPage', String(targetPage));
-                params.set('errorLimit', String(errorLimit));
-                return `?${params.toString()}`;
-              }}
-              summaryLocale="th"
-            />
-          )}
-        </ContentCard>
-      )}
+        </div>
+      </div>
     </PageContainer>
   );
 }

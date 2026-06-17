@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { usePageTitle } from "@/context/PageTitleContext";
 import {
   PageContainer,
   PageHeader,
@@ -12,11 +13,16 @@ import {
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
-import { resolveWorkpieceImagePath, workpieceImageUrl } from "@/utils/workpieceImage";
+import { resolveWorkpieceImagePath } from "@/utils/workpieceImage";
 import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
 import WorkpieceImagePreviewModal from "@/components/pc/shared/WorkpieceImagePreviewModal";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
 import { OverviewHubSection } from "@/components/overview/OverviewHubSection";
+import {
+  PcTransactionFilterCard,
+  PcFilterField,
+  PcFilterSearchInput,
+} from "@/components/pc/transactions/PcTransactionFilterCard";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRightFromBracket,
@@ -163,6 +169,11 @@ async function getMaterials(page: number = 1, limit: number = 10, filters: any =
 
 export default function PCPage() {
   const searchParams = useSearchParams();
+  const { setPageTitle } = usePageTitle();
+
+  useEffect(() => {
+    setPageTitle("วัตถุดิบ", "จัดการและตรวจสอบวัตถุดิบทั้งหมด");
+  }, [setPageTitle]);
   const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -326,11 +337,12 @@ export default function PCPage() {
   };
   
   const handleEdit = (material: Material) => {
+    if (!material) return;
     setEditingMaterial(material);
     setFormData({
-      matCode: material.matCode,
-      matTypeId: material.matTypeId,
-      defaultLocationId: material.defaultLocationId,
+      matCode: material.matCode || '',
+      matTypeId: material.matTypeId || 0,
+      defaultLocationId: material.defaultLocationId || 0,
       supplierId: material.supplierId || 0,
       modelId: material.model?.id || 0,
       deliveryTypeId: material.deliveryType?.id || 0,
@@ -523,34 +535,16 @@ export default function PCPage() {
     fetchData();
   }, [page, limit]);
 
-  const pageShellClass =
-    "-mx-4 flex min-h-[calc(100dvh-5.25rem)] flex-col gap-4 px-4 pb-2 md:-mx-6 md:px-6 md:pb-4";
-
-  if (loading) {
-    return <LoadingState message="กำลังโหลด..." />;
-  }
-
-  if (error) {
-    return (
-      <PageContainer>
-        <PageHeader title="จัดการวัตถุดิบ" />
-        <ContentCard>
-          <div className="py-8 text-center text-red-500">
-            เกิดข้อผิดพลาด: {error}
-          </div>
-        </ContentCard>
-      </PageContainer>
-    );
-  }
-
   return (
     <PageContainer>
-      <PageHeader
-        title="จัดการวัตถุดิบ"
-        description={`ทั้งหมด ${totalItems} รายการ`}
-        actions={
-          <ActionButton
-            variant="primary"
+      {/* Top Bar with Title and Action */}
+      <div className="bg-blue-600 rounded-xl p-6 mb-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">วัตถุดิบ</h1>
+            <p className="text-blue-100 mt-1">จัดการและตรวจสอบวัตถุดิบทั้งหมด</p>
+          </div>
+          <button 
             onClick={() => {
               setFormData({
                 matCode: '',
@@ -572,11 +566,24 @@ export default function PCPage() {
               });
               setShowAddModal(true);
             }}
+            className="bg-white text-blue-600 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
           >
-            เพิ่มวัตถุดิบ
-          </ActionButton>
-        }
-      />
+            + เพิ่มวัตถุดิบ
+          </button>
+        </div>
+      </div>
+      
+      {/* Quick Actions Tab Bar */}
+      <div className="flex gap-4 mb-6 backdrop-blur-sm bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm">
+        <a href="/pc/income" className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg p-3 text-center transition-colors backdrop-blur-md">
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">รับเข้า</div>
+          <div className="text-sm text-gray-600 dark:text-gray-300">บันทึกการรับเข้าคลัง</div>
+        </a>
+        <a href="/pc/outcome" className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg p-3 text-center transition-colors backdrop-blur-md">
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">จ่ายออก</div>
+          <div className="text-sm text-gray-600 dark:text-gray-300">จ่ายออกตามแผน</div>
+        </a>
+      </div>
 
       {submitSuccess && (
         <div className="mb-4 rounded-lg px-4 py-3 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">
@@ -590,468 +597,450 @@ export default function PCPage() {
         </div>
       )}
 
-      <OverviewHubSection
-        title="รับเข้า / จ่ายออก"
-        sectionDescription="ธุรกรรมคลังวัตถุดิบ — เปิดรายการรับเข้าหรือจ่ายออกได้ทันที"
-        items={warehouseTxnItems}
-      />
-      
-      <ContentCard title={`วัตถุดิบทั้งหมด (${totalItems})`}>
-          <div className="mb-4 flex flex-col gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <PaginationSelector currentLimit={limit} />
-            </div>
+      {/* Search Card */}
+      <PcTransactionFilterCard
+        variant="income"
+        onReset={() => {
+          setSearchValue('');
+          setUnitValue('');
+          setStatusValue('');
+          window.history.replaceState({}, '', `?page=1&limit=${limit}`);
+          const fetchData = async () => {
+            const response = await getMaterials(1, limit);
+            setApiResponse(response);
+          };
+          fetchData();
+        }}
+        hasActiveFilters={!!(searchValue || unitValue || statusValue)}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <PcFilterField label="ค้นหาวัตถุดิบ">
+            <PcFilterSearchInput
+              value={searchValue}
+              onChange={(value) => {
+                setSearchValue(value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (value) {
+                  params.set('search', value);
+                } else {
+                  params.delete('search');
+                }
+                params.set('page', '1');
+                window.history.replaceState({}, '', `?${params.toString()}`);
+                const fetchData = async () => {
+                  const response = await getMaterials(1, limit, Object.fromEntries(params));
+                  setApiResponse(response);
+                };
+                fetchData();
+              }}
+              placeholder="ระบุรหัสหรือชื่อวัตถุดิบ..."
+            />
+          </PcFilterField>
 
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/40 p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                <div className="lg:col-span-6">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                    ค้นหา
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="ค้นหาด้วยรหัส/ชื่อ..."
-                    value={searchValue}
-                    className="h-11 w-full px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    onChange={(e) => {
-                      setSearchValue(e.target.value);
-                      const params = new URLSearchParams(searchParams.toString());
-                      if (e.target.value) {
-                        params.set('search', e.target.value);
-                      } else {
-                        params.delete('search');
-                      }
-                      params.set('page', '1');
-                      window.history.replaceState({}, '', `?${params.toString()}`);
-                      const fetchData = async () => {
-                        const response = await getMaterials(1, limit, Object.fromEntries(params));
-                        setApiResponse(response);
-                      };
-                      fetchData();
-                    }}
-                  />
-                </div>
+          <PcFilterField label="หน่วย">
+            <select
+              value={unitValue}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              onChange={(e) => {
+                setUnitValue(e.target.value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) {
+                  params.set('unit', e.target.value);
+                } else {
+                  params.delete('unit');
+                }
+                params.set('page', '1');
+                window.history.replaceState({}, '', `?${params.toString()}`);
+                const fetchData = async () => {
+                  const response = await getMaterials(1, limit, Object.fromEntries(params));
+                  setApiResponse(response);
+                };
+                fetchData();
+              }}
+            >
+              <option value="">หน่วยทั้งหมด</option>
+              <option value="KG">KG</option>
+              <option value="PCS">PCS</option>
+              <option value="M">M</option>
+            </select>
+          </PcFilterField>
 
-                <div className="lg:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                    หน่วย
-                  </label>
-                  <select
-                    value={unitValue}
-                    className="h-11 w-full px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    onChange={(e) => {
-                      setUnitValue(e.target.value);
-                      const params = new URLSearchParams(searchParams.toString());
-                      if (e.target.value) {
-                        params.set('unit', e.target.value);
-                      } else {
-                        params.delete('unit');
-                      }
-                      params.set('page', '1');
-                      window.history.replaceState({}, '', `?${params.toString()}`);
-                      const fetchData = async () => {
-                        const response = await getMaterials(1, limit, Object.fromEntries(params));
-                        setApiResponse(response);
-                      };
-                      fetchData();
-                    }}
-                  >
-                    <option value="">ทุกหน่วย</option>
-                    <option value="KG">KG</option>
-                    <option value="PCS">PCS</option>
-                    <option value="M">M</option>
-                  </select>
-                </div>
+          <PcFilterField label="สถานะ">
+            <select
+              value={statusValue}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              onChange={(e) => {
+                setStatusValue(e.target.value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) {
+                  params.set('isActive', e.target.value);
+                } else {
+                  params.delete('isActive');
+                }
+                params.set('page', '1');
+                window.history.replaceState({}, '', `?${params.toString()}`);
+                const fetchData = async () => {
+                  const response = await getMaterials(1, limit, Object.fromEntries(params));
+                  setApiResponse(response);
+                };
+                fetchData();
+              }}
+            >
+              <option value="">สถานะทั้งหมด</option>
+              <option value="true">ใช้งาน</option>
+              <option value="false">ไม่ใช้งาน</option>
+            </select>
+          </PcFilterField>
+        </div>
+        
+        <div className="flex justify-end mt-4">
+          <PaginationSelector currentLimit={limit} />
+        </div>
+      </PcTransactionFilterCard>
 
-                <div className="lg:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                    สถานะ
-                  </label>
-                  <select
-                    value={statusValue}
-                    className="h-11 w-full px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    onChange={(e) => {
-                      setStatusValue(e.target.value);
-                      const params = new URLSearchParams(searchParams.toString());
-                      if (e.target.value) {
-                        params.set('isActive', e.target.value);
-                      } else {
-                        params.delete('isActive');
-                      }
-                      params.set('page', '1');
-                      window.history.replaceState({}, '', `?${params.toString()}`);
-                      const fetchData = async () => {
-                        const response = await getMaterials(1, limit, Object.fromEntries(params));
-                        setApiResponse(response);
-                      };
-                      fetchData();
-                    }}
-                  >
-                    <option value="">ทุกสถานะ</option>
-                    <option value="true">ใช้งาน</option>
-                    <option value="false">ไม่ใช้งาน</option>
-                  </select>
+      {/* Detailed List Layout */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mt-6">
+        {apiResponse?.data && apiResponse.data.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-gray-500 dark:text-gray-400">ไม่พบข้อมูลวัตถุดิบ</p>
+          </div>
+        ) : apiResponse?.data ? (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {apiResponse.data.map((material, index) => {
+              if (!material) return null;
+              const wpPath = resolveWorkpieceImagePath(material);
+              return (
+                <div
+                  key={material.id}
+                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${index === 0 ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <WorkpieceImage
+                        path={wpPath}
+                        alt={material.matName || material.matCode}
+                        size="md"
+                        onPreview={(src) =>
+                          setImagePreview({
+                            src,
+                            title: material.matName || material.matCode,
+                            subtitle: material.matCode,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white">{material.matCode}</h3>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                              {material.unitMaster?.name || material.unit || '-'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{material.matName || '-'}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button 
+                            onClick={() => handleEdit(material)}
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(material)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">โมเดล</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{material.model?.name || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ประเภทการส่ง</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{material.deliveryType?.name || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ที่เก็บ</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{material.defaultLocation?.name || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ขนาดล็อต</div>
+                          <div className="text-sm text-gray-900 dark:text-white">{material.lotSize?.toLocaleString() || '0'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="lg:col-span-2 flex items-end">
-                  <button
-                    onClick={() => {
-                      setSearchValue('');
-                      setUnitValue('');
-                      setStatusValue('');
-                      window.history.replaceState({}, '', `?page=1&limit=${limit}`);
-                      const fetchData = async () => {
-                        const response = await getMaterials(1, limit);
-                        setApiResponse(response);
-                      };
-                      fetchData();
-                    }}
-                    className="h-11 w-full px-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-                  >
-                    ล้างตัวกรอง
-                  </button>
-                </div>
-              </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-10 text-gray-500">
+            <div className="text-base font-medium text-gray-700 dark:text-gray-200">ไม่พบข้อมูลวัตถุดิบ</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              ลองปรับคำค้น/ตัวกรอง หรือเพิ่มวัตถุดิบใหม่
             </div>
           </div>
-          {apiResponse?.data ? (
-            <div className="max-h-[min(70dvh,calc(100dvh-17rem))] overflow-auto rounded-xl border border-gray-200 dark:border-gray-700">
-              <table className="min-w-max w-full table-auto">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-gray-50 shadow-sm dark:bg-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">รหัสวัตถุดิบ</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ชื่อวัตถุดิบ</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">รูปชิ้นงาน</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">โมเดล</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ประเภทการส่ง</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ขนาดล็อต</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">หน่วย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">Scale</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ที่เก็บ</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">จุดขนถ่าย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">ผู้จัดจำหน่าย</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">สายการผลิต</th>
-                    <th className="sticky right-0 z-20 bg-gray-50 px-4 py-3 text-center text-sm font-medium whitespace-nowrap text-gray-900 shadow-[-4px_0_8px_-4px_rgba(0,0,0,.08)] dark:bg-gray-800 dark:text-white">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {apiResponse.data.length === 0 ? (
-                    <tr>
-                      <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
-                        ไม่พบข้อมูลวัตถุดิบ
-                      </td>
-                    </tr>
-                  ) : (
-                    apiResponse.data.map((material, idx) => {
-                      const wpPath = resolveWorkpieceImagePath(material);
-                      return (
-                      <tr
-                        key={material.id}
-                        className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${idx % 2 === 1 ? "bg-gray-50/40 dark:bg-gray-900/20" : ""}`}
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matCode}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.matName || '-'}</td>
-                        <td className="px-4 py-3 text-center align-middle">
-                          <div className="flex justify-center">
-                            <WorkpieceImage
-                              path={wpPath}
-                              alt={material.matName || material.matCode}
-                              size="sm"
-                              onPreview={(src) =>
-                                setImagePreview({
-                                  src,
-                                  title: material.matName || material.matCode,
-                                  subtitle: material.matCode,
-                                })
-                              }
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.model?.name || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.deliveryType?.name || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.lotSize?.toLocaleString() || '0'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.unitMaster?.name || material.unit || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.scale || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.defaultLocation?.name || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.loadingPoint?.name || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.supplier?.name || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">{material.processLine?.name || '-'}</td>
-                        <td className="sticky right-0 z-10 bg-white px-4 py-3 text-center whitespace-nowrap shadow-[-4px_0_8px_-4px_rgba(0,0,0,.06)] dark:bg-gray-900">
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => handleEdit(material)} className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button onClick={() => handleDelete(material)} className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-gray-500">
-              <div className="text-base font-medium text-gray-700 dark:text-gray-200">ไม่พบข้อมูลวัตถุดิบ</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                ลองปรับคำค้น/ตัวกรอง หรือเพิ่มวัตถุดิบใหม่
-              </div>
-            </div>
-          )}
+        )}
+      </div>
 
-          {apiResponse?.pagination && (
-            <PaginationFooter
-              page={page}
-              limit={limit}
-              total={totalItems}
-              totalPages={totalPages}
-              hrefBuilder={paginationHref}
-            />
-          )}
-        </ContentCard>
+      {apiResponse?.pagination && (
+        <PaginationFooter
+          page={page}
+          limit={limit}
+          total={totalItems}
+          totalPages={totalPages}
+          hrefBuilder={paginationHref}
+        />
+      )}
 
+      {/* Add Modal */}
       <BaseModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         title="เพิ่มวัตถุดิบใหม่"
-        size="lg"
+        size="xl"
       >
-        <div className="overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+        <div className="overflow-y-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl" style={{maxHeight: 'calc(90vh - 100px)'}}>
           <form onSubmit={handleSubmit} className="space-y-5">
           {submitError && (
-            <div className="mb-4 rounded-lg px-4 py-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
               {submitError}
             </div>
           )}
+          
+          <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">ข้อมูลพื้นฐาน</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัสวัตถุดิบ *</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">รหัสวัตถุดิบ *</label>
                 <input 
                   type="text" 
                   value={formData.matCode} 
                   onChange={(e) => setFormData({...formData, matCode: e.target.value})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                   required 
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อวัตถุดิบ *</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ชื่อวัตถุดิบ *</label>
                 <input 
                   type="text" 
                   value={formData.name} 
                   onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                   required 
                 />
               </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                รูปภาพชิ้นงาน <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
+                onChange={(e) => setAddWorkpieceFromInput(e.target.files?.[0] ?? null)}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
+              <div className="mt-2">
+                <WorkpieceImage
+                  src={addWorkpiecePreviewUrl}
+                  path={null}
+                  size="lg"
+                  className="!h-auto !w-auto max-h-32"
+                  onPreview={(src) =>
+                    setImagePreview({ src, title: formData.name || formData.matCode || "รูปชิ้นงาน" })
+                  }
+                />
+              </div>
+            </div>
+          </div>
 
+          <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">การจัดการ</h3>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  รูปภาพชิ้นงาน <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
-                  onChange={(e) => setAddWorkpieceFromInput(e.target.files?.[0] ?? null)}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
-                <div className="mt-2">
-                  <WorkpieceImage
-                    src={addWorkpiecePreviewUrl}
-                    path={null}
-                    size="lg"
-                      className="!h-auto !w-auto max-h-40"
-                      onPreview={(src) =>
-                        setImagePreview({ src, title: formData.name || formData.matCode || "รูปชิ้นงาน" })
-                      }
-                    />
-                  </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภท *</label>
-                  <select 
-                    value={formData.matTypeId} 
-                    onChange={(e) => setFormData({...formData, matTypeId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                    required
-                  >
-                    {materialTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ที่เก็บ *</label>
-                  <select 
-                    value={formData.defaultLocationId} 
-                    onChange={(e) => setFormData({...formData, defaultLocationId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                    required
-                  >
-                    {locations.map(location => (
-                      <option key={location.id} value={location.id}>{location.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">คำอธิบาย</label>
-                <textarea 
-                  value={formData.description} 
-                  onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  rows={3} 
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หน่วย</label>
-                  <select 
-                    value={formData.unitId} 
-                    onChange={(e) => setFormData({...formData, unitId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {units && units.map(unit => (
-                      <option key={unit.id} value={unit.id}>{unit.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LR</label>
-                  <select 
-                    value={formData.lr} 
-                    onChange={(e) => setFormData({...formData, lr: e.target.value})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="">เลือก</option>
-                    <option value="L">L</option>
-                    <option value="R">R</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">โมเดล</label>
-                  <select 
-                    value={formData.modelId} 
-                    onChange={(e) => setFormData({...formData, modelId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {models && models.map(model => (
-                      <option key={model.id} value={model.id}>{model.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภทการส่ง</label>
-                  <select 
-                    value={formData.deliveryTypeId} 
-                    onChange={(e) => setFormData({...formData, deliveryTypeId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {deliveryTypes && deliveryTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จุดขนถ่าย</label>
-                  <select 
-                    value={formData.loadingPointId} 
-                    onChange={(e) => setFormData({...formData, loadingPointId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {loadingPoints && loadingPoints.map(point => (
-                      <option key={point.id} value={point.id}>{point.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สายการผลิต</label>
-                  <select 
-                    value={formData.processLineId} 
-                    onChange={(e) => setFormData({...formData, processLineId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {processLines && processLines.map(line => (
-                      <option key={line.id} value={line.id}>{line.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scale</label>
-                  <input 
-                    type="text" 
-                    value={formData.scale} 
-                    onChange={(e) => setFormData({...formData, scale: e.target.value})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
-                  <input 
-                    type="number" 
-                    value={formData.minStock.toString()} 
-                    onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้จัดจำหน่าย</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ประเภท *</label>
                 <select 
-                  value={formData.supplierId} 
-                  onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})}
-                  onFocus={async () => {
-                    const suppliersData = await getSuppliers();
-                    setSuppliers(suppliersData);
-                  }}
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
+                  value={formData.matTypeId} 
+                  onChange={(e) => setFormData({...formData, matTypeId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required
                 >
-                  <option value="0">ไม่ระบุ</option>
-                  {suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  {materialTypes.map(type => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
                   ))}
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ขนาดล็อต</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ที่เก็บ *</label>
+                <select 
+                  value={formData.defaultLocationId} 
+                  onChange={(e) => setFormData({...formData, defaultLocationId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  required
+                >
+                  {locations.map(location => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">คำอธิบาย</label>
+              <textarea 
+                value={formData.description} 
+                onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                rows={3} 
+              />
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">รายละเอียดเพิ่มเติม</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">หน่วย</label>
+                <select 
+                  value={formData.unitId} 
+                  onChange={(e) => setFormData({...formData, unitId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {units && units.map(unit => (
+                    <option key={unit.id} value={unit.id}>{unit.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">LR</label>
+                <select 
+                  value={formData.lr} 
+                  onChange={(e) => setFormData({...formData, lr: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">เลือก</option>
+                  <option value="L">L</option>
+                  <option value="R">R</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Scale</label>
+                <input 
+                  type="text" 
+                  value={formData.scale} 
+                  onChange={(e) => setFormData({...formData, scale: e.target.value})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">โมเดล</label>
+                <select 
+                  value={formData.modelId} 
+                  onChange={(e) => setFormData({...formData, modelId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {models && models.map(model => (
+                    <option key={model.id} value={model.id}>{model.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ประเภทการส่ง</label>
+                <select 
+                  value={formData.deliveryTypeId} 
+                  onChange={(e) => setFormData({...formData, deliveryTypeId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {deliveryTypes && deliveryTypes.map(type => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">จุดขนถ่าย</label>
+                <select 
+                  value={formData.loadingPointId} 
+                  onChange={(e) => setFormData({...formData, loadingPointId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {loadingPoints && loadingPoints.map(point => (
+                    <option key={point.id} value={point.id}>{point.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">สายการผลิต</label>
+                <select 
+                  value={formData.processLineId} 
+                  onChange={(e) => setFormData({...formData, processLineId: parseInt(e.target.value)})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="0">ไม่ระบุ</option>
+                  {processLines && processLines.map(line => (
+                    <option key={line.id} value={line.id}>{line.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Min Stock</label>
+                <input 
+                  type="number" 
+                  value={formData.minStock.toString()} 
+                  onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ขนาดล็อต</label>
                 <input 
                   type="number" 
                   value={formData.lotSize.toString()} 
                   onChange={(e) => setFormData({...formData, lotSize: parseInt(e.target.value) || 0})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                 />
               </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ผู้จัดจำหน่าย</label>
+              <select 
+                value={formData.supplierId} 
+                onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})}
+                onFocus={async () => {
+                  const suppliersData = await getSuppliers();
+                  setSuppliers(suppliersData);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="0">ไม่ระบุ</option>
+                {suppliers.map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
               
-              <div className="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-600">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors">
+              <div className="flex gap-3 pt-4">
+                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
                   บันทึก
                 </button>
                 <button 
@@ -1077,22 +1066,23 @@ export default function PCPage() {
                       createBy: currentUser
                     });
                   }}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2.5 rounded-lg transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-colors"
                 >
                   ยกเลิก
                 </button>
               </div>
-              </form>
+            </form>
           </div>
       </BaseModal>
 
+      {/* Edit Modal */}
       <BaseModal
         isOpen={showEditModal && editingMaterial !== null}
         onClose={() => setShowEditModal(false)}
         title="แก้ไขวัตถุดิบ"
-        size="lg"
+        size="xl"
       >
-        <div className="overflow-y-auto" style={{maxHeight: 'calc(90vh - 80px)'}}>
+        <div className="overflow-y-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl" style={{maxHeight: 'calc(90vh - 100px)'}}>
               <form onSubmit={async (e) => {
               e.preventDefault();
               try {
@@ -1160,244 +1150,246 @@ export default function PCPage() {
               }
             }} className="space-y-5">
               {submitError && (
-                <div className="mb-4 rounded-lg px-4 py-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                   {submitError}
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัสวัตถุดิบ *</label>
-                <input 
-                  type="text" 
-                  value={formData.matCode} 
-                  onChange={(e) => setFormData({...formData, matCode: e.target.value})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  required 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อวัตถุดิบ *</label>
-                <input 
-                  type="text" 
-                  value={formData.name} 
-                  onChange={(e) => setFormData({...formData, name: e.target.value})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  required 
-                />
+
+              <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">ข้อมูลพื้นฐาน</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">รหัสวัตถุดิบ *</label>
+                    <input 
+                      type="text" 
+                      value={formData.matCode} 
+                      onChange={(e) => setFormData({...formData, matCode: e.target.value})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ชื่อวัตถุดิบ *</label>
+                    <input 
+                      type="text" 
+                      value={formData.name} 
+                      onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      required 
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">รูปภาพชิ้นงาน</label>
+                  <div className="mb-2">
+                    <WorkpieceImage
+                      src={editWorkpiecePreviewUrl}
+                      path={editWorkpiecePreviewUrl ? null : editingMaterial ? resolveWorkpieceImagePath(editingMaterial) : null}
+                      alt={editingMaterial?.matName || editingMaterial?.matCode || '-'}
+                      size="lg"
+                      className="!h-auto !w-auto max-h-32"
+                      onPreview={(src) =>
+                        setImagePreview({
+                          src,
+                          title: editingMaterial?.matName || editingMaterial?.matCode || '-',
+                          subtitle: editingMaterial?.matCode || '-',
+                        })
+                      }
+                    />
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
+                    onChange={(e) => setEditWorkpieceFromInput(e.target.files?.[0] ?? null)}
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">เว้นว่างเพื่อคงรูปเดิม — JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รูปภาพชิ้นงาน</label>
-                <div className="mb-2">
-                  <WorkpieceImage
-                    src={editWorkpiecePreviewUrl}
-                    path={editWorkpiecePreviewUrl ? null : resolveWorkpieceImagePath(editingMaterial!)}
-                    alt={editingMaterial!.matName || editingMaterial!.matCode}
-                    size="lg"
-                    className="!h-auto !w-auto max-h-36"
-                    onPreview={(src) =>
-                      setImagePreview({
-                        src,
-                        title: editingMaterial!.matName || editingMaterial!.matCode,
-                        subtitle: editingMaterial!.matCode,
-                      })
-                    }
-                  />
+              <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">การจัดการ</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ประเภท *</label>
+                    <select 
+                      value={formData.matTypeId} 
+                      onChange={(e) => setFormData({...formData, matTypeId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      required
+                    >
+                      <option value="">เลือกประเภท</option>
+                      {materialTypes.map(type => (
+                        <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ที่เก็บ *</label>
+                    <select 
+                      value={formData.defaultLocationId} 
+                      onChange={(e) => setFormData({...formData, defaultLocationId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                      required
+                    >
+                      <option value="">เลือกที่เก็บ</option>
+                      {locations.map(location => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
-                  onChange={(e) => setEditWorkpieceFromInput(e.target.files?.[0] ?? null)}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">เว้นว่างเพื่อคงรูปเดิม — JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภท *</label>
-                  <select 
-                    value={formData.matTypeId} 
-                    onChange={(e) => setFormData({...formData, matTypeId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                    required
-                  >
-                    <option value="">เลือกประเภท</option>
-                    {materialTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ที่เก็บ *</label>
-                  <select 
-                    value={formData.defaultLocationId} 
-                    onChange={(e) => setFormData({...formData, defaultLocationId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                    required
-                  >
-                    <option value="">เลือกที่เก็บ</option>
-                    {locations.map(location => (
-                      <option key={location.id} value={location.id}>{location.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">คำอธิบาย</label>
-                <textarea 
-                  value={formData.description} 
-                  onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  rows={3} 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้จัดจำหน่าย</label>
-                <select 
-                  value={formData.supplierId} 
-                  onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                >
-                  <option value="0">ไม่ระบุ</option>
-                  {suppliers && suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หน่วย</label>
-                  <select 
-                    value={formData.unitId} 
-                    onChange={(e) => setFormData({...formData, unitId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {units && units.map(unit => (
-                      <option key={unit.id} value={unit.id}>{unit.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">โมเดล</label>
-                  <select 
-                    value={formData.modelId} 
-                    onChange={(e) => setFormData({...formData, modelId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {models && models.map(model => (
-                      <option key={model.id} value={model.id}>{model.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ประเภทการส่ง</label>
-                  <select 
-                    value={formData.deliveryTypeId} 
-                    onChange={(e) => setFormData({...formData, deliveryTypeId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {deliveryTypes && deliveryTypes.map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">จุดขนถ่าย</label>
-                  <select 
-                    value={formData.loadingPointId} 
-                    onChange={(e) => setFormData({...formData, loadingPointId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {loadingPoints && loadingPoints.map(point => (
-                      <option key={point.id} value={point.id}>{point.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สายการผลิต</label>
-                  <select 
-                    value={formData.processLineId} 
-                    onChange={(e) => setFormData({...formData, processLineId: parseInt(e.target.value)})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="0">ไม่ระบุ</option>
-                    {processLines && processLines.map(line => (
-                      <option key={line.id} value={line.id}>{line.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LR</label>
-                  <select 
-                    value={formData.lr} 
-                    onChange={(e) => setFormData({...formData, lr: e.target.value})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800"
-                  >
-                    <option value="">เลือก</option>
-                    <option value="L">L</option>
-                    <option value="R">R</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scale</label>
-                  <input 
-                    type="text" 
-                    value={formData.scale} 
-                    onChange={(e) => setFormData({...formData, scale: e.target.value})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min Stock</label>
-                  <input 
-                    type="number" 
-                    value={formData.minStock.toString()} 
-                    onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
-                    className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">คำอธิบาย</label>
+                  <textarea 
+                    value={formData.description} 
+                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    rows={3} 
                   />
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ขนาดล็อต</label>
-                <input 
-                  type="number" 
-                  value={formData.lotSize.toString()} 
-                  onChange={(e) => setFormData({...formData, lotSize: parseInt(e.target.value) || 0})} 
-                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:outline-none focus:ring-3 focus:ring-blue-500/10 focus:border-blue-300 dark:focus:border-blue-800" 
-                />
+
+              <div className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">รายละเอียดเพิ่มเติม</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">หน่วย</label>
+                    <select 
+                      value={formData.unitId} 
+                      onChange={(e) => setFormData({...formData, unitId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="0">ไม่ระบุ</option>
+                      {units && units.map(unit => (
+                        <option key={unit.id} value={unit.id}>{unit.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">โมเดล</label>
+                    <select 
+                      value={formData.modelId} 
+                      onChange={(e) => setFormData({...formData, modelId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="0">ไม่ระบุ</option>
+                      {models && models.map(model => (
+                        <option key={model.id} value={model.id}>{model.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ประเภทการส่ง</label>
+                    <select 
+                      value={formData.deliveryTypeId} 
+                      onChange={(e) => setFormData({...formData, deliveryTypeId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="0">ไม่ระบุ</option>
+                      {deliveryTypes && deliveryTypes.map(type => (
+                        <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">จุดขนถ่าย</label>
+                    <select 
+                      value={formData.loadingPointId} 
+                      onChange={(e) => setFormData({...formData, loadingPointId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="0">ไม่ระบุ</option>
+                      {loadingPoints && loadingPoints.map(point => (
+                        <option key={point.id} value={point.id}>{point.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">สายการผลิต</label>
+                    <select 
+                      value={formData.processLineId} 
+                      onChange={(e) => setFormData({...formData, processLineId: parseInt(e.target.value)})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="0">ไม่ระบุ</option>
+                      {processLines && processLines.map(line => (
+                        <option key={line.id} value={line.id}>{line.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">LR</label>
+                    <select 
+                      value={formData.lr} 
+                      onChange={(e) => setFormData({...formData, lr: e.target.value})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">เลือก</option>
+                      <option value="L">L</option>
+                      <option value="R">R</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Scale</label>
+                    <input 
+                      type="text" 
+                      value={formData.scale} 
+                      onChange={(e) => setFormData({...formData, scale: e.target.value})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Min Stock</label>
+                    <input 
+                      type="number" 
+                      value={formData.minStock.toString()} 
+                      onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ขนาดล็อต</label>
+                    <input 
+                      type="number" 
+                      value={formData.lotSize.toString()} 
+                      onChange={(e) => setFormData({...formData, lotSize: parseInt(e.target.value) || 0})} 
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">ผู้จัดจำหน่าย</label>
+                  <select 
+                    value={formData.supplierId} 
+                    onChange={(e) => setFormData({...formData, supplierId: parseInt(e.target.value)})} 
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="0">ไม่ระบุ</option>
+                    {suppliers && suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               
-              <div className="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-600">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors">
+              <div className="flex gap-3 pt-4">
+                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
                   อัปเดต
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2.5 rounded-lg transition-colors"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 px-4 rounded-lg transition-colors"
                 >
                   ยกเลิก
                 </button>
               </div>
-              </form>
+            </form>
           </div>
       </BaseModal>
 

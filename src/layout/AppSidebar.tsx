@@ -33,11 +33,13 @@ type AccessConfig = AccessPolicy;
 type NestedMenuItem = AccessConfig & {
   name: string;
   path: string;
+  icon?: React.ReactNode;
 };
 
 type SubMenuItem = AccessConfig & {
   name: string;
   path: string;
+  icon?: React.ReactNode;
   pro?: boolean;
   new?: boolean;
   isCollapsible?: boolean;
@@ -270,7 +272,7 @@ const AppSidebar: React.FC = () => {
     if (!isHydrated) {
       // แสดงเมนูพื้นฐานในช่วง SSR
       return (
-        <ul className="flex flex-col gap-4">
+        <ul className="flex flex-col gap-10">
           {navItems.map((nav, index) => (
             <li key={nav.name}>
               {nav.subItems ? (
@@ -299,7 +301,7 @@ const AppSidebar: React.FC = () => {
     const filteredItems = filterMenuByPermissions(navItems);
 
     return (
-      <ul className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-10">
         {filteredItems.map((nav, index) => (
           <li key={nav.name}>
             {nav.subItems ? (
@@ -360,7 +362,11 @@ const AppSidebar: React.FC = () => {
                 ref={(el) => {
                   subMenuRefs.current[`${menuType}-${index}`] = el;
                 }}
-                className="overflow-hidden transition-all duration-300"
+                className={`overflow-hidden transition-all duration-300 border-l-2 ${
+                  openSubmenu?.type === menuType && openSubmenu?.index === index
+                    ? "border-blue-600"
+                    : "border-transparent"
+                }`}
                 style={{
                   height:
                     openSubmenu?.type === menuType && openSubmenu?.index === index
@@ -380,7 +386,10 @@ const AppSidebar: React.FC = () => {
                             }}
                             className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
                           >
-                            {subItem.name}
+                            <div className="flex items-center gap-2">
+                              {subItem.icon && <span className="text-gray-400">{subItem.icon}</span>}
+                              {subItem.name}
+                            </div>
                             <ChevronDownIcon
                               className={`w-4 h-4 transition-transform ${openNestedSubmenu[`${menuType}-${index}-${subIndex}`] ? 'rotate-180' : ''}`}
                             />
@@ -396,7 +405,10 @@ const AppSidebar: React.FC = () => {
                                       : "menu-dropdown-item-inactive"
                                       }`}
                                   >
-                                    {nestedItem.name}
+                                    <div className="flex items-center gap-2">
+                                      {nestedItem.icon && <span className="text-gray-400">{nestedItem.icon}</span>}
+                                      {nestedItem.name}
+                                    </div>
                                   </Link>
                                 </li>
                               ))}
@@ -411,7 +423,10 @@ const AppSidebar: React.FC = () => {
                             : "menu-dropdown-item-inactive"
                             }`}
                         >
-                          {subItem.name}
+                          <div className="flex items-center gap-2">
+                            {subItem.icon && <span className="text-gray-400">{subItem.icon}</span>}
+                            {subItem.name}
+                          </div>
                           <span className="flex items-center gap-1 ml-auto">
                             {subItem.new && (
                               <span
@@ -502,12 +517,12 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`fixed flex flex-col top-[20px] left-[20px] bg-gradient-to-b from-white to-gray-50 shadow-2xl rounded-r-2xl text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border border-gray-100/50
         ${isExpanded || isMobileOpen
-          ? "w-[290px]"
+          ? "w-[260px] px-5"
           : isHovered
-            ? "w-[290px]"
-            : "w-[90px]"
+            ? "w-[260px] px-5"
+            : "w-[90px] px-2"
         }
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0`}
@@ -515,34 +530,25 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+        className={`py-8 flex items-center ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
           }`}
       >
-        <Link href="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex-shrink-0 relative">
+            <div className="absolute inset-0 bg-blue-500/10 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <Image
               src="/images/logo/logo-icon.svg"
               alt="Logo"
               width={32}
               height={32}
+              className="relative"
             />
+          </div>
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <div className="flex flex-col">
+              <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">CPS</span>
+              <span className="text-sm font-medium text-gray-500 tracking-wide">Backoffice</span>
+            </div>
           )}
         </Link>
       </div>
@@ -551,7 +557,7 @@ const AppSidebar: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered
+                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 font-semibold tracking-wider ${!isExpanded && !isHovered
                   ? "lg:justify-center"
                   : "justify-start"
                   }`}

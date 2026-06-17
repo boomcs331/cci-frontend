@@ -390,7 +390,7 @@ export default function PCOutcomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 px-3 pb-8 sm:px-4 lg:px-6">
+    <div className="w-full space-y-6 px-3 pb-8 sm:px-4 lg:px-6">
       <PcTransactionPageHeader
         variant="outcome"
         pageTitle="รายการจ่ายออก"
