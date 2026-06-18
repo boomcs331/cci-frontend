@@ -5,16 +5,12 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import TableEmptyRow from "@/components/common/TableEmptyRow";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.css";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import { apiFetch } from "@/utils/api";
 import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
-
-type FlatpickrApi = ReturnType<typeof flatpickr>;
-
-function clearFlatpickr(fp: FlatpickrApi | undefined) {
-  if (fp && !Array.isArray(fp)) fp.clear();
-}
 
 /** สถานะแผนการผลิต / การจัดงาน */
 const PLAN_STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -255,11 +251,6 @@ export default function PickingSlipPage() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const dateFromPickerRef = useRef<HTMLInputElement>(null);
-  const dateToPickerRef = useRef<HTMLInputElement>(null);
-  const flatpickrRefs = useRef<{ from?: FlatpickrApi; to?: FlatpickrApi }>(
-    {}
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -336,25 +327,6 @@ export default function PickingSlipPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    if (!loading && dateFromPickerRef.current) {
-      const fp1 = flatpickr(dateFromPickerRef.current, {
-        dateFormat: "Y-m-d",
-        onChange: (_dates, dateStr) => setFilterDateFrom(dateStr),
-      });
-      const fp2 = flatpickr(dateToPickerRef.current!, {
-        dateFormat: "Y-m-d",
-        onChange: (_dates, dateStr) => setFilterDateTo(dateStr),
-      });
-      flatpickrRefs.current = { from: fp1, to: fp2 };
-      return () => {
-        fp1.destroy();
-        fp2.destroy();
-        flatpickrRefs.current = {};
-      };
-    }
-  }, [loading]);
 
   const filteredGroups = useMemo(() => {
     let list = groups;
@@ -598,57 +570,43 @@ export default function PickingSlipPage() {
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                 วันที่แผน ตั้งแต่
               </label>
-              <div className="relative">
-                <input
-                  ref={dateFromPickerRef}
-                  type="text"
-                  readOnly
-                  value={filterDateFrom}
-                  placeholder="เลือกวันที่"
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer text-sm"
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={filterDateFrom ? dayjs(filterDateFrom) : null}
+                  onChange={(newValue) => setFilterDateFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      placeholder: 'เลือกวันที่',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                    },
+                    popper: { sx: { zIndex: 999999 } },
+                    dialog: { sx: { zIndex: 999999 } },
+                  }}
                 />
-                <svg
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
+              </LocalizationProvider>
             </div>
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                 ถึงวันที่
               </label>
-              <div className="relative">
-                <input
-                  ref={dateToPickerRef}
-                  type="text"
-                  readOnly
-                  value={filterDateTo}
-                  placeholder="เลือกวันที่"
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer text-sm"
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={filterDateTo ? dayjs(filterDateTo) : null}
+                  onChange={(newValue) => setFilterDateTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      placeholder: 'เลือกวันที่',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                    },
+                    popper: { sx: { zIndex: 999999 } },
+                    dialog: { sx: { zIndex: 999999 } },
+                  }}
                 />
-                <svg
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
+              </LocalizationProvider>
             </div>
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
@@ -674,8 +632,6 @@ export default function PickingSlipPage() {
                   setFilterDateTo("");
                   setFilterStatus("");
                   setSearchTerm("");
-                  clearFlatpickr(flatpickrRefs.current.from);
-                  clearFlatpickr(flatpickrRefs.current.to);
                 }}
                 className="flex-1 px-3 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm flex items-center justify-center gap-1.5"
               >

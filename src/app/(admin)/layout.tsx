@@ -23,9 +23,9 @@ function AdminLayoutContent({
 
   // sidebar left=20px, expanded=260px, collapsed=90px, gap=20px
   // content left = sidebarLeft + sidebarWidth + gap
-  const mainContentMargin = isMobileOpen
-    ? "ml-0 px-5"
-    : isExpanded || isHovered
+  // Mobile: no margin (sidebar overlays)
+  // Desktop: shift content right of sidebar
+  const mainContentMargin = isExpanded || isHovered
     ? "lg:ml-[300px]"  // 20 + 260 + 20
     : "lg:ml-[130px]"; // 20 + 90 + 20
 
@@ -34,9 +34,9 @@ function AdminLayoutContent({
       <AppSidebar />
       <Backdrop />
       <div
-        className={`transition-all duration-300 ease-in-out pt-5 pr-5 ${mainContentMargin}`}
+        className={`transition-all duration-300 ease-in-out pt-3 px-3 sm:pt-5 sm:px-5 lg:pr-5 ${mainContentMargin}`}
       >
-        <div className="px-6 mb-5">
+        <div className="mb-5">
           <AppHeader title={title} description={description} />
         </div>
         {children}

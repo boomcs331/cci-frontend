@@ -5,9 +5,10 @@ import DepartmentSwitcher from "@/components/header/DepartmentSwitcher";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useAdminOverlay } from "@/context/AdminOverlayContext";
 import { useSidebar } from "@/context/SidebarContext";
-import Image from "next/image";
-import Link from "next/link";
-import React, { useState ,useEffect,useRef} from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { getSession, getUserDepartmentCode, SESSION_UPDATED_EVENT, clearSession } from "@/utils/session";
+import { sessionDisplayName } from "@/utils/resolveStoredUserLabel";
+import { useRouter } from "next/navigation";
 
 interface AppHeaderProps {
   title?: string;
@@ -16,6 +17,10 @@ interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({ title, description }) => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [deptCode, setDeptCode] = useState("");
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const router = useRouter();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const { hideTopChrome } = useAdminOverlay();
@@ -34,6 +39,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, description }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const refresh = () => {
+      const session = getSession();
+      const user = session?.user;
+      if (user) {
+        setDisplayName(sessionDisplayName(user) || user.username || "ผู้ใช้");
+        setDeptCode(getUserDepartmentCode() || "");
+      }
+    };
+    refresh();
+    window.addEventListener(SESSION_UPDATED_EVENT, refresh);
+    return () => window.removeEventListener(SESSION_UPDATED_EVENT, refresh);
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
@@ -48,7 +67,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, description }) => {
     };
   }, []);
 
-  if (hideTopChrome) {
+  const handleLogout = () => {
+    clearSession();
+    router.push("/signin");
+  };
+
+  if (hideTopChrome || isMobileOpen) {
     return null;
   }
 
@@ -94,22 +118,36 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, description }) => {
             )}
           </button>
 
-          <Link href="/" className="lg:hidden">
-            <Image
-              width={154}
-              height={32}
-              className="dark:hidden"
-              src="./images/logo/logo.svg"
-              alt="Logo"
-            />
-            <Image
-              width={154}
-              height={32}
-              className="hidden dark:block"
-              src="./images/logo/logo-dark.svg"
-              alt="Logo"
-            />
-          </Link>
+          <div className="relative lg:hidden">
+            <button
+              onClick={() => setShowUserMenu(prev => !prev)}
+              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold shrink-0">
+                {displayName.charAt(0).toUpperCase() || "U"}
+              </div>
+              <div className="flex flex-col leading-tight text-left">
+                <span className="text-sm font-semibold text-gray-800 dark:text-white truncate max-w-[110px]">{displayName || "ผู้ใช้"}</span>
+                {deptCode && <span className="text-xs text-gray-500 dark:text-gray-400">แผนก {deptCode}</span>}
+              </div>
+              <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showUserMenu && (
+              <div className="absolute left-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 z-50">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  ออกจากระบบ
+                </button>
+              </div>
+            )}
+          </div>
 
           {title && (
             <div className="flex-1">

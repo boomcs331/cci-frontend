@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.min.css";
+import React, { useState } from "react";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import { getMfgDateErrorCode, getPcFieldErrorMessage } from "@/lib/pc";
 import PoNoInput, { validatePoNoField } from "@/components/pc/shared/PoNoInput";
 
@@ -62,7 +64,6 @@ function AddReceivingModalInner({
   const [mfgDateTouched, setMfgDateTouched] = useState(false);
   const [poShowErrors, setPoShowErrors] = useState(false);
   const [poValid, setPoValid] = useState(false);
-  const mfgDatePickerRef = useRef<HTMLInputElement>(null);
 
   const resolveMfgDateError = (dateStr: string): string | null => {
     const code = getMfgDateErrorCode(dateStr);
@@ -83,23 +84,6 @@ function AddReceivingModalInner({
     }
     onSubmit(e);
   };
-
-  useEffect(() => {
-    if (!mfgDatePickerRef.current) return;
-    const fp = flatpickr(mfgDatePickerRef.current, {
-      dateFormat: "Y-m-d",
-      maxDate: "today",
-      onChange: (_selectedDates, dateStr) => {
-        setMfgDate?.(dateStr);
-        setMfgDateTouched(true);
-        setMfgDateError(resolveMfgDateError(dateStr));
-      },
-      defaultDate: mfgDate || undefined,
-    });
-    return () => {
-      if (!Array.isArray(fp)) fp.destroy();
-    };
-  }, [mfgDate, setMfgDate]);
 
   const selectedMaterial = materials.find((m) => m.id === materialId);
   const filteredSuppliers = selectedMaterial?.supplierId 
@@ -224,31 +208,32 @@ function AddReceivingModalInner({
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">วันที่ผลิต (MFG Date) *</label>
-                <div className="relative">
-                  <input 
-                    ref={mfgDatePickerRef}
-                    type="text" 
-                    value={mfgDate || ''} 
-                    onChange={(e) => {
-                      setMfgDate?.(e.target.value);
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={mfgDate ? dayjs(mfgDate) : null}
+                    maxDate={dayjs()}
+                    onChange={(newValue) => {
+                      const dateStr = newValue ? newValue.format('YYYY-MM-DD') : '';
+                      setMfgDate?.(dateStr);
                       setMfgDateTouched(true);
-                      setMfgDateError(resolveMfgDateError(e.target.value));
+                      setMfgDateError(resolveMfgDateError(dateStr));
                     }}
-                    onBlur={() => {
-                      setMfgDateTouched(true);
-                      setMfgDateError(resolveMfgDateError(mfgDate ?? ''));
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        error: !!(mfgDateTouched && mfgDateError),
+                        onBlur: () => {
+                          setMfgDateTouched(true);
+                          setMfgDateError(resolveMfgDateError(mfgDate ?? ''));
+                        },
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
                     }}
-                    className={`w-full h-11 rounded-lg border px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${
-                      mfgDateTouched && mfgDateError
-                        ? 'border-red-500 dark:border-red-500'
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                    placeholder="เลือกวันที่"
                   />
-                  <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
+                </LocalizationProvider>
                 {mfgDateTouched && mfgDateError && (
                   <p className="mt-1 text-xs text-red-600 dark:text-red-400">{mfgDateError}</p>
                 )}
@@ -276,7 +261,7 @@ function AddReceivingModalInner({
               <button
                 type="button"
                 onClick={onClose}
-                className="h-11 rounded-xl bg-gray-500 px-6 text-sm font-medium text-white hover:bg-gray-600 sm:w-auto sm:shrink-0"
+                className="h-14 w-full rounded-xl bg-gray-500 px-6 text-base font-medium text-white hover:bg-gray-600 sm:h-11 sm:w-auto sm:shrink-0 sm:text-sm"
               >
                 ยกเลิก
               </button>
@@ -287,7 +272,7 @@ function AddReceivingModalInner({
                   !!resolveMfgDateError(mfgDate ?? "") ||
                   !poValid
                 }
-                className="h-11 flex-1 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-400"
+                className="h-14 w-full rounded-xl bg-blue-600 px-6 text-base font-medium text-white hover:bg-blue-700 disabled:bg-gray-400 sm:h-11 sm:flex-1 sm:text-sm"
               >
                 {submitLoading ? "กำลังบันทึก..." : "บันทึก"}
               </button>

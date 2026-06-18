@@ -14,7 +14,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`p-6 ${className}`}>
+    <div className={`p-3 sm:p-4 lg:p-6 ${className}`}>
       {children}
     </div>
   );

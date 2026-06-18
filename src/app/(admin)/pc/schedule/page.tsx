@@ -9,8 +9,10 @@ import Alert from "@/components/ui/alert/Alert";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import TimePicker from "@/components/ui/TimePicker";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.css";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
@@ -205,10 +207,6 @@ export default function PCSchedulePage() {
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [filterTimeFrom, setFilterTimeFrom] = useState<string>('');
   const [filterTimeTo, setFilterTimeTo] = useState<string>('');
-  const datePickerRef = useRef<HTMLInputElement>(null);
-  const flatpickrInstance = useRef<any>(null);
-  const dateFromPickerRef = useRef<HTMLInputElement>(null);
-  const dateToPickerRef = useRef<HTMLInputElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -358,46 +356,6 @@ export default function PCSchedulePage() {
       rows: plans,
     }).catch((e) => console.error(e));
   };
-
-  useEffect(() => {
-    const fp1 = flatpickr(dateFromPickerRef.current!, {
-      dateFormat: "Y-m-d",
-      onChange: (_selectedDates, dateStr) => {
-        setFilterDateFrom(dateStr);
-      },
-    });
-
-    const fp2 = flatpickr(dateToPickerRef.current!, {
-      dateFormat: "Y-m-d",
-      onChange: (_selectedDates, dateStr) => {
-        setFilterDateTo(dateStr);
-      },
-    });
-
-    return () => {
-      fp1.destroy();
-      fp2.destroy();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (showModal && datePickerRef.current && !flatpickrInstance.current) {
-      flatpickrInstance.current = flatpickr(datePickerRef.current, {
-        dateFormat: "Y-m-d",
-        onChange: (_selectedDates, dateStr) => {
-          setForm((prev) => ({ ...prev, planDate: dateStr }));
-        },
-        defaultDate: form.planDate || new Date(),
-        clickOpens: true,
-        allowInput: false,
-      });
-    }
-
-    if (!showModal && flatpickrInstance.current) {
-      flatpickrInstance.current.destroy();
-      flatpickrInstance.current = null;
-    }
-  }, [showModal, form.planDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -932,35 +890,41 @@ export default function PCSchedulePage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div>
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่เริ่มต้น</label>
-                <div className="relative">
-                  <input
-                    ref={dateFromPickerRef}
-                    type="text"
-                    value={filterDateFrom}
-                    onChange={() => {}}
-                    placeholder="เลือกวันที่"
-                    className="h-11 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={filterDateFrom ? dayjs(filterDateFrom) : null}
+                    onChange={(newValue) => setFilterDateFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        placeholder: 'เลือกวันที่',
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.75rem', height: '44px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
+                    }}
                   />
-                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
+                </LocalizationProvider>
               </div>
               <div>
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">วันที่สิ้นสุด</label>
-                <div className="relative">
-                  <input
-                    ref={dateToPickerRef}
-                    type="text"
-                    value={filterDateTo}
-                    onChange={() => {}}
-                    placeholder="เลือกวันที่"
-                    className="h-11 w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={filterDateTo ? dayjs(filterDateTo) : null}
+                    onChange={(newValue) => setFilterDateTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        placeholder: 'เลือกวันที่',
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.75rem', height: '44px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
+                    }}
                   />
-                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
+                </LocalizationProvider>
               </div>
               <div>
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">เวลาเริ่มต้น</label>
@@ -1207,20 +1171,23 @@ export default function PCSchedulePage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">วันที่ *</label>
-                    <div className="relative">
-                      <input 
-                        ref={datePickerRef}
-                        type="text" 
-                        value={form.planDate} 
-                        onChange={(e) => setForm({ ...form, planDate: e.target.value })} 
-                        className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-white" 
-                        placeholder="เลือกวันที่"
-                        required 
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <DatePicker
+                        value={form.planDate ? dayjs(form.planDate) : null}
+                        onChange={(newValue) => setForm({ ...form, planDate: newValue ? newValue.format('YYYY-MM-DD') : '' })}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            size: 'small',
+                            placeholder: 'เลือกวันที่',
+                            required: true,
+                            sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
+                          },
+                          popper: { sx: { zIndex: 999999 } },
+                          dialog: { sx: { zIndex: 999999 } },
+                        }}
                       />
-                      <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
+                    </LocalizationProvider>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">

@@ -20,8 +20,10 @@ import {
 } from "@/utils/ensureProductionLotsAfterReserve";
 import type { GenerateProductQrOrdersResponse } from "@/services/productionPlanQrService";
 import TimePicker from "@/components/ui/TimePicker";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.css";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
 interface ProductionPlan {
   id: number;
@@ -69,9 +71,6 @@ export default function ScheduleReservationsPage() {
   const [filterTimeFrom, setFilterTimeFrom] = useState<string>("");
   const [filterTimeTo, setFilterTimeTo] = useState<string>("");
 
-  const dateFromPickerRef = useRef<HTMLInputElement>(null);
-  const dateToPickerRef = useRef<HTMLInputElement>(null);
-
   const sessionUser = useMemo(() => getSession()?.user, []);
 
   const stats = useMemo(() => {
@@ -113,29 +112,6 @@ export default function ScheduleReservationsPage() {
   useEffect(() => {
     void fetchPlans({ showInitialSpinner: true });
   }, [fetchPlans]);
-
-  useEffect(() => {
-    if (!loading && dateFromPickerRef.current) {
-      const fp1 = flatpickr(dateFromPickerRef.current, {
-        dateFormat: "Y-m-d",
-        onChange: (_selectedDates, dateStr) => {
-          setFilterDateFrom(dateStr);
-        },
-      });
-
-      const fp2 = flatpickr(dateToPickerRef.current!, {
-        dateFormat: "Y-m-d",
-        onChange: (_selectedDates, dateStr) => {
-          setFilterDateTo(dateStr);
-        },
-      });
-
-      return () => {
-        fp1.destroy();
-        fp2.destroy();
-      };
-    }
-  }, [loading]);
 
   const applyFilters = useCallback(() => {
     let filtered = [...plans];
@@ -606,57 +582,43 @@ export default function ScheduleReservationsPage() {
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                   วันที่เริ่มต้น
                 </label>
-                <div className="relative">
-                  <input
-                    ref={dateFromPickerRef}
-                    type="text"
-                    readOnly
-                    value={filterDateFrom}
-                    placeholder="เลือกวันที่"
-                    className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={filterDateFrom ? dayjs(filterDateFrom) : null}
+                    onChange={(newValue) => setFilterDateFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        placeholder: 'เลือกวันที่',
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
+                    }}
                   />
-                  <svg
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
+                </LocalizationProvider>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                   วันที่สิ้นสุด
                 </label>
-                <div className="relative">
-                  <input
-                    ref={dateToPickerRef}
-                    type="text"
-                    readOnly
-                    value={filterDateTo}
-                    placeholder="เลือกวันที่"
-                    className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={filterDateTo ? dayjs(filterDateTo) : null}
+                    onChange={(newValue) => setFilterDateTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        placeholder: 'เลือกวันที่',
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
+                    }}
                   />
-                  <svg
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
+                </LocalizationProvider>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">

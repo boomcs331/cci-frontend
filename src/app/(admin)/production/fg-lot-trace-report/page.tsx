@@ -23,6 +23,10 @@ import {
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import {
   ensureThaiPdfFontsLoaded,
   registerThaiFontOnDoc,
@@ -265,23 +269,41 @@ export default function FgLotTraceReportPage() {
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 วันที่สร้างล็อต (จาก)
               </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={startDate ? dayjs(startDate) : null}
+                  onChange={(newValue) => setStartDate(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
+                    },
+                    popper: { sx: { zIndex: 999999 } },
+                    dialog: { sx: { zIndex: 999999 } },
+                  }}
+                />
+              </LocalizationProvider>
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 วันที่สร้างล็อต (ถึง)
               </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={endDate ? dayjs(endDate) : null}
+                  onChange={(newValue) => setEndDate(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
+                    },
+                    popper: { sx: { zIndex: 999999 } },
+                    dialog: { sx: { zIndex: 999999 } },
+                  }}
+                />
+              </LocalizationProvider>
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">

@@ -1,4 +1,8 @@
 import React from 'react';
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
 export type FormFieldType = 'text' | 'number' | 'email' | 'password' | 'date' | 'select' | 'textarea';
 
@@ -78,6 +82,24 @@ export const FormField: React.FC<FormFieldProps> = ({
           rows={3}
           className={inputClassName}
         />
+      ) : type === 'date' ? (
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            value={value ? dayjs(String(value)) : null}
+            onChange={(newValue) => onChange?.(newValue ? newValue.format('YYYY-MM-DD') : '')}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                size: 'small',
+                error: !!error,
+                disabled,
+                sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '40px' } },
+              },
+              popper: { sx: { zIndex: 999999 } },
+              dialog: { sx: { zIndex: 999999 } },
+            }}
+          />
+        </LocalizationProvider>
       ) : (
         <input
           type={type}

@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { usePageTitle } from "@/context/PageTitleContext";
 import {
   PageContainer,
   PageHeader,
@@ -169,11 +168,7 @@ async function getMaterials(page: number = 1, limit: number = 10, filters: any =
 
 export default function PCPage() {
   const searchParams = useSearchParams();
-  const { setPageTitle } = usePageTitle();
-
-  useEffect(() => {
-    setPageTitle("วัตถุดิบ", "จัดการและตรวจสอบวัตถุดิบทั้งหมด");
-  }, [setPageTitle]);
+  // Header title removed - page displays its own title in blue card
   const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -537,270 +532,372 @@ export default function PCPage() {
 
   return (
     <PageContainer>
-      {/* Top Bar with Title and Action */}
-      <div className="bg-blue-600 rounded-xl p-6 mb-6 text-white">
-        <div className="flex items-center justify-between">
+      {/* ── Header ── */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-600 to-blue-500 rounded-2xl p-6 mb-6 text-white shadow-lg shadow-blue-500/20">
+        <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 80% 50%, white 0%, transparent 60%)'}} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">วัตถุดิบ</h1>
-            <p className="text-blue-100 mt-1">จัดการและตรวจสอบวัตถุดิบทั้งหมด</p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">วัตถุดิบ</h1>
+            </div>
+            <p className="text-blue-100 text-sm">จัดการและตรวจสอบวัตถุดิบทั้งหมดในระบบ</p>
+            <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-1.5 text-sm text-blue-100">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                <span>ทั้งหมด <strong className="text-white">{apiResponse?.pagination?.total ?? apiResponse?.data?.length ?? 0}</strong> รายการ</span>
+              </div>
+            </div>
           </div>
-          <button 
+          <button
             onClick={() => {
-              setFormData({
-                matCode: '',
-                matTypeId: 1,
-                defaultLocationId: 1,
-                supplierId: 0,
-                modelId: 0,
-                deliveryTypeId: 0,
-                unitId: 0,
-                loadingPointId: 0,
-                processLineId: 0,
-                name: '',
-                description: '',
-                lr: '',
-                lotSize: 0,
-                scale: '',
-                minStock: 0,
-                createBy: currentUser
-              });
+              setFormData({ matCode: '', matTypeId: 1, defaultLocationId: 1, supplierId: 0, modelId: 0, deliveryTypeId: 0, unitId: 0, loadingPointId: 0, processLineId: 0, name: '', description: '', lr: '', lotSize: 0, scale: '', minStock: 0, createBy: currentUser });
               setShowAddModal(true);
             }}
-            className="bg-white text-blue-600 px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+            className="inline-flex items-center gap-2 bg-white text-blue-600 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition-all shadow-md hover:shadow-lg active:scale-95 shrink-0"
           >
-            + เพิ่มวัตถุดิบ
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            เพิ่มวัตถุดิบ
           </button>
         </div>
       </div>
-      
-      {/* Quick Actions Tab Bar */}
-      <div className="flex gap-4 mb-6 backdrop-blur-sm bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm">
-        <a href="/pc/income" className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg p-3 text-center transition-colors backdrop-blur-md">
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">รับเข้า</div>
-          <div className="text-sm text-gray-600 dark:text-gray-300">บันทึกการรับเข้าคลัง</div>
+
+      {/* ── Quick Actions ── */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <a href="/pc/income" className="group flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-600 transition-all">
+          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition-colors shrink-0">
+            <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900 dark:text-white text-sm">รับเข้า</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">บันทึกการรับวัตถุดิบเข้าคลัง</div>
+          </div>
+          <svg className="w-4 h-4 text-gray-400 ml-auto group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </a>
-        <a href="/pc/outcome" className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg p-3 text-center transition-colors backdrop-blur-md">
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">จ่ายออก</div>
-          <div className="text-sm text-gray-600 dark:text-gray-300">จ่ายออกตามแผน</div>
+        <a href="/pc/outcome" className="group flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-600 transition-all">
+          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-900/30 group-hover:bg-orange-100 dark:group-hover:bg-orange-900/50 transition-colors shrink-0">
+            <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-900 dark:text-white text-sm">จ่ายออก</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">จ่ายวัตถุดิบตามแผน (FIFO)</div>
+          </div>
+          <svg className="w-4 h-4 text-gray-400 ml-auto group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </a>
       </div>
 
+      {/* ── Alerts ── */}
       {submitSuccess && (
-        <div className="mb-4 rounded-lg px-4 py-3 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800">
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           {submitSuccess}
         </div>
       )}
-      
       {submitError && (
-        <div className="mb-4 rounded-lg px-4 py-3 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+        <div className="mb-4 flex items-center gap-3 rounded-xl px-4 py-3 bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           {submitError}
         </div>
       )}
 
-      {/* Search Card */}
-      <PcTransactionFilterCard
-        variant="income"
-        onReset={() => {
-          setSearchValue('');
-          setUnitValue('');
-          setStatusValue('');
-          window.history.replaceState({}, '', `?page=1&limit=${limit}`);
-          const fetchData = async () => {
-            const response = await getMaterials(1, limit);
-            setApiResponse(response);
-          };
-          fetchData();
-        }}
-        hasActiveFilters={!!(searchValue || unitValue || statusValue)}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <PcFilterField label="ค้นหาวัตถุดิบ">
-            <PcFilterSearchInput
-              value={searchValue}
-              onChange={(value) => {
-                setSearchValue(value);
-                const params = new URLSearchParams(searchParams.toString());
-                if (value) {
-                  params.set('search', value);
-                } else {
-                  params.delete('search');
-                }
-                params.set('page', '1');
-                window.history.replaceState({}, '', `?${params.toString()}`);
-                const fetchData = async () => {
-                  const response = await getMaterials(1, limit, Object.fromEntries(params));
-                  setApiResponse(response);
-                };
-                fetchData();
-              }}
-              placeholder="ระบุรหัสหรือชื่อวัตถุดิบ..."
-            />
-          </PcFilterField>
-
-          <PcFilterField label="หน่วย">
-            <select
-              value={unitValue}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              onChange={(e) => {
-                setUnitValue(e.target.value);
-                const params = new URLSearchParams(searchParams.toString());
-                if (e.target.value) {
-                  params.set('unit', e.target.value);
-                } else {
-                  params.delete('unit');
-                }
-                params.set('page', '1');
-                window.history.replaceState({}, '', `?${params.toString()}`);
-                const fetchData = async () => {
-                  const response = await getMaterials(1, limit, Object.fromEntries(params));
-                  setApiResponse(response);
-                };
-                fetchData();
-              }}
-            >
-              <option value="">หน่วยทั้งหมด</option>
-              <option value="KG">KG</option>
-              <option value="PCS">PCS</option>
-              <option value="M">M</option>
-            </select>
-          </PcFilterField>
-
-          <PcFilterField label="สถานะ">
-            <select
-              value={statusValue}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              onChange={(e) => {
-                setStatusValue(e.target.value);
-                const params = new URLSearchParams(searchParams.toString());
-                if (e.target.value) {
-                  params.set('isActive', e.target.value);
-                } else {
-                  params.delete('isActive');
-                }
-                params.set('page', '1');
-                window.history.replaceState({}, '', `?${params.toString()}`);
-                const fetchData = async () => {
-                  const response = await getMaterials(1, limit, Object.fromEntries(params));
-                  setApiResponse(response);
-                };
-                fetchData();
-              }}
-            >
-              <option value="">สถานะทั้งหมด</option>
-              <option value="true">ใช้งาน</option>
-              <option value="false">ไม่ใช้งาน</option>
-            </select>
-          </PcFilterField>
+      {/* ── Filter Card ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" /></svg>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">ค้นหาและกรอง</span>
+            {(searchValue || unitValue || statusValue) && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">มีตัวกรอง</span>
+            )}
+          </div>
+          {(searchValue || unitValue || statusValue) && (
+            <button onClick={() => { setSearchValue(''); setUnitValue(''); setStatusValue(''); window.history.replaceState({}, '', `?page=1&limit=${limit}`); getMaterials(1, limit).then(setApiResponse); }}
+              className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              ล้างตัวกรอง
+            </button>
+          )}
         </div>
-        
-        <div className="flex justify-end mt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input
+              type="text"
+              value={searchValue}
+              placeholder="ค้นหารหัสหรือชื่อวัตถุดิบ..."
+              className="w-full pl-9 pr-3 h-10 rounded-xl border border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-600 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) { params.set('search', e.target.value); } else { params.delete('search'); }
+                params.set('page', '1');
+                window.history.replaceState({}, '', `?${params.toString()}`);
+                getMaterials(1, limit, Object.fromEntries(params)).then(setApiResponse);
+              }}
+            />
+          </div>
+          <select
+            value={unitValue}
+            className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-600 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
+            onChange={(e) => {
+              setUnitValue(e.target.value);
+              const params = new URLSearchParams(searchParams.toString());
+              if (e.target.value) { params.set('unit', e.target.value); } else { params.delete('unit'); }
+              params.set('page', '1');
+              window.history.replaceState({}, '', `?${params.toString()}`);
+              getMaterials(1, limit, Object.fromEntries(params)).then(setApiResponse);
+            }}
+          >
+            <option value="">หน่วยทั้งหมด</option>
+            <option value="KG">KG</option>
+            <option value="PCS">PCS</option>
+            <option value="M">M</option>
+          </select>
+          <select
+            value={statusValue}
+            className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-600 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition"
+            onChange={(e) => {
+              setStatusValue(e.target.value);
+              const params = new URLSearchParams(searchParams.toString());
+              if (e.target.value) { params.set('isActive', e.target.value); } else { params.delete('isActive'); }
+              params.set('page', '1');
+              window.history.replaceState({}, '', `?${params.toString()}`);
+              getMaterials(1, limit, Object.fromEntries(params)).then(setApiResponse);
+            }}
+          >
+            <option value="">สถานะทั้งหมด</option>
+            <option value="true">ใช้งาน</option>
+            <option value="false">ไม่ใช้งาน</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ── Material Table ── */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            รายการวัตถุดิบทั้งหมด
+            {apiResponse?.pagination?.total != null && (
+              <span className="ml-2 text-xs font-normal text-gray-400">({apiResponse.pagination.total.toLocaleString()} รายการ)</span>
+            )}
+          </span>
           <PaginationSelector currentLimit={limit} />
         </div>
-      </PcTransactionFilterCard>
-
-      {/* Detailed List Layout */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mt-6">
-        {apiResponse?.data && apiResponse.data.length === 0 ? (
-          <div className="py-12 text-center">
-            <p className="text-gray-500 dark:text-gray-400">ไม่พบข้อมูลวัตถุดิบ</p>
-          </div>
-        ) : apiResponse?.data ? (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {apiResponse.data.map((material, index) => {
-              if (!material) return null;
-              const wpPath = resolveWorkpieceImagePath(material);
-              return (
-                <div
-                  key={material.id}
-                  className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${index === 0 ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <WorkpieceImage
-                        path={wpPath}
-                        alt={material.matName || material.matCode}
-                        size="md"
-                        onPreview={(src) =>
-                          setImagePreview({
-                            src,
-                            title: material.matName || material.matCode,
-                            subtitle: material.matCode,
-                          })
-                        }
-                      />
+        <div className="overflow-x-auto w-full hidden md:block">
+          <table className="w-full text-sm min-w-full">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-14">#</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">รูป</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">รหัส</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">ชื่อวัตถุดิบ</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">หน่วย</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">ที่เก็บ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">โมเดล</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">ขนาดล็อต</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-24">สถานะ</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-24">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+              {loading ? (
+                <tr>
+                  <td colSpan={10} className="py-16">
+                    <div className="flex flex-col items-center gap-3 text-gray-400">
+                      <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                      <span className="text-sm">กำลังโหลด...</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-base font-semibold text-gray-900 dark:text-white">{material.matCode}</h3>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                              {material.unitMaster?.name || material.unit || '-'}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{material.matName || '-'}</p>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button 
-                            onClick={() => handleEdit(material)}
-                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(material)}
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                  </td>
+                </tr>
+              ) : !apiResponse?.data || apiResponse.data.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-16">
+                    <div className="flex flex-col items-center gap-3 text-gray-400">
+                      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลวัตถุดิบ</div>
+                        <div className="text-xs text-gray-400 mt-1">ลองปรับคำค้นหาหรือเพิ่มวัตถุดิบใหม่</div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">โมเดล</div>
-                          <div className="text-sm text-gray-900 dark:text-white">{material.model?.name || '-'}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ประเภทการส่ง</div>
-                          <div className="text-sm text-gray-900 dark:text-white">{material.deliveryType?.name || '-'}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ที่เก็บ</div>
-                          <div className="text-sm text-gray-900 dark:text-white">{material.defaultLocation?.name || '-'}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">ขนาดล็อต</div>
-                          <div className="text-sm text-gray-900 dark:text-white">{material.lotSize?.toLocaleString() || '0'}</div>
-                        </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : apiResponse.data.map((material, idx) => {
+                if (!material) return null;
+                const wpPath = resolveWorkpieceImagePath(material);
+                const rowNum = (page - 1) * limit + idx + 1;
+                return (
+                  <tr key={material.id} className="group hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors">
+                    <td className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 font-mono">{rowNum}</td>
+                    <td className="px-4 py-3">
+                      <WorkpieceImage path={wpPath} alt={material.matName || material.matCode} size="md"
+                        onPreview={(src) => setImagePreview({ src, title: material.matName || material.matCode, subtitle: material.matCode })} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md">
+                        {material.matCode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{material.matName || '-'}</div>
+                      {material.materialsType?.name && (
+                        <div className="text-xs text-gray-400 mt-0.5">{material.materialsType.name}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 min-w-[40px]">
+                        {material.unitMaster?.name || material.unit || '-'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">{material.defaultLocation?.name || '-'}</span>
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">{material.model?.name || '-'}</span>
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell">
+                      <span className="text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                        {material.lotSize?.toLocaleString() || '0'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {material.isActive ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ใช้งาน
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>ปิดใช้
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => handleEdit(material)}
+                          title="แก้ไข"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:text-blue-400 dark:hover:bg-blue-900/30 transition-all">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
+                        <button onClick={() => handleDelete(material)}
+                          title="ลบ"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-900/30 transition-all">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
                       </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden p-4 space-y-3">
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 text-gray-400 py-8">
+              <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <span className="text-sm">กำลังโหลด...</span>
+            </div>
+          ) : !apiResponse?.data || apiResponse.data.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 text-gray-400 py-8">
+              <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              <div className="text-center">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลวัตถุดิบ</div>
+                <div className="text-xs text-gray-400 mt-1">ลองปรับคำค้นหาหรือเพิ่มวัตถุดิบใหม่</div>
+              </div>
+            </div>
+          ) : apiResponse.data.map((material, idx) => {
+            if (!material) return null;
+            const wpPath = resolveWorkpieceImagePath(material);
+            const rowNum = (page - 1) * limit + idx + 1;
+            return (
+              <div key={material.id} className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-start gap-3">
+                  <WorkpieceImage path={wpPath} alt={material.matName || material.matCode} size="md"
+                    onPreview={(src) => setImagePreview({ src, title: material.matName || material.matCode, subtitle: material.matCode })} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{rowNum}</span>
+                      <span className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20 px-2 py-0.5 rounded-md">
+                        {material.matCode}
+                      </span>
+                    </div>
+                    <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">{material.matName || '-'}</div>
+                    {material.materialsType?.name && (
+                      <div className="text-xs text-gray-400 mb-2">{material.materialsType.name}</div>
+                    )}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                        {material.unitMaster?.name || material.unit || '-'}
+                      </span>
+                      {material.isActive ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <span className="w-1 h-1 rounded-full bg-emerald-500"></span>ใช้งาน
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                          <span className="w-1 h-1 rounded-full bg-gray-400"></span>ปิดใช้
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {material.defaultLocation?.name && (
+                        <div>
+                          <span className="text-gray-400 dark:text-gray-500">ที่เก็บ:</span>{' '}
+                          <span className="text-gray-700 dark:text-gray-300">{material.defaultLocation.name}</span>
+                        </div>
+                      )}
+                      {material.model?.name && (
+                        <div>
+                          <span className="text-gray-400 dark:text-gray-500">โมเดล:</span>{' '}
+                          <span className="text-gray-700 dark:text-gray-300">{material.model.name}</span>
+                        </div>
+                      )}
+                      {material.lotSize != null && (
+                        <div>
+                          <span className="text-gray-400 dark:text-gray-500">ขนาดล็อต:</span>{' '}
+                          <span className="text-gray-700 dark:text-gray-300 tabular-nums">{material.lotSize.toLocaleString()}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-10 text-gray-500">
-            <div className="text-base font-medium text-gray-700 dark:text-gray-200">ไม่พบข้อมูลวัตถุดิบ</div>
-            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              ลองปรับคำค้น/ตัวกรอง หรือเพิ่มวัตถุดิบใหม่
-            </div>
-          </div>
-        )}
+                <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <button onClick={() => handleEdit(material)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 transition-colors">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    แก้ไข
+                  </button>
+                  <button onClick={() => handleDelete(material)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/30 dark:hover:bg-red-900/50 transition-colors">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    ลบ
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {apiResponse?.pagination && (
-        <PaginationFooter
-          page={page}
-          limit={limit}
-          total={totalItems}
-          totalPages={totalPages}
-          hrefBuilder={paginationHref}
-        />
+        <div className="mt-4">
+          <PaginationFooter page={page} limit={limit} total={totalItems} totalPages={totalPages} hrefBuilder={paginationHref} />
+        </div>
       )}
 
       {/* Add Modal */}

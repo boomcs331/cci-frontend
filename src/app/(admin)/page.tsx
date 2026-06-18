@@ -23,6 +23,10 @@ import ComponentCard from "@/components/common/ComponentCard";
 import { OverviewHubSection, type OverviewHubItem } from "@/components/overview/OverviewHubSection";
 import { dashboardFetch } from "@/utils/dashboardFetch";
 import { getUserMenus } from "@/utils/session";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import { PERMISSIONS } from "@/constants/permissions";
 import type { MenuItem } from "@/types/user";
 import { StatusDonutChart, TopBarChart, TrendLineChart } from "@/components/dashboard/DashboardCharts";
@@ -780,19 +784,35 @@ export default function DashboardPage() {
           ))}
           {rangeKey === "custom" && (
             <div className="flex items-center gap-2 pl-2">
-              <input
-                type="date"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={customFrom ? dayjs(customFrom) : null}
+                  onChange={(newValue) => setCustomFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.25rem', height: '32px' } },
+                    },
+                    popper: { sx: { zIndex: 999999 } },
+                    dialog: { sx: { zIndex: 999999 } },
+                  }}
+                />
+              </LocalizationProvider>
               <span className="text-xs text-gray-500">ถึง</span>
-              <input
-                type="date"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-              />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={customTo ? dayjs(customTo) : null}
+                  onChange={(newValue) => setCustomTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                  slotProps={{
+                    textField: {
+                      size: 'small',
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.25rem', height: '32px' } },
+                    },
+                    popper: { sx: { zIndex: 999999 } },
+                    dialog: { sx: { zIndex: 999999 } },
+                  }}
+                />
+              </LocalizationProvider>
             </div>
           )}
         </div>

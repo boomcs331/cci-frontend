@@ -3,8 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import flatpickr from "flatpickr";
-import "flatpickr/dist/flatpickr.css";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import { PageContainer, PageHeader, ContentCard, LoadingState } from "@/components/shared";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
@@ -62,12 +64,6 @@ function normalizePlansPayload(raw: unknown): ProductionPlan[] {
   });
 }
 
-type FlatpickrApi = ReturnType<typeof flatpickr>;
-
-function clearFlatpickr(fp: FlatpickrApi | undefined) {
-  if (fp && !Array.isArray(fp)) fp.clear();
-}
-
 function detailHref(plan: ProductionPlan): string {
   if (plan.status === "reserved" || plan.status === "confirmed") {
     return `/pc/schedule/reservations/${plan.id}`;
@@ -95,10 +91,6 @@ export default function ProductionTrackingPage() {
   const [filterTimeFrom, setFilterTimeFrom] = useState("");
   const [filterTimeTo, setFilterTimeTo] = useState("");
 
-  const dateFromPickerRef = useRef<HTMLInputElement>(null);
-  const dateToPickerRef = useRef<HTMLInputElement>(null);
-  const flatpickrRefs = useRef<{ from?: FlatpickrApi; to?: FlatpickrApi }>({});
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -119,25 +111,6 @@ export default function ProductionTrackingPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  useEffect(() => {
-    if (!loading && dateFromPickerRef.current) {
-      const fp1 = flatpickr(dateFromPickerRef.current, {
-        dateFormat: "Y-m-d",
-        onChange: (_d, dateStr) => setFilterDateFrom(dateStr),
-      });
-      const fp2 = flatpickr(dateToPickerRef.current!, {
-        dateFormat: "Y-m-d",
-        onChange: (_d, dateStr) => setFilterDateTo(dateStr),
-      });
-      flatpickrRefs.current = { from: fp1, to: fp2 };
-      return () => {
-        fp1.destroy();
-        fp2.destroy();
-        flatpickrRefs.current = {};
-      };
-    }
-  }, [loading]);
 
   const stats = useMemo(() => {
     const s = { draft: 0, reserved: 0, confirmed: 0, cancelled: 0 };
@@ -317,8 +290,6 @@ export default function ProductionTrackingPage() {
                   setFilterDateTo("");
                   setFilterTimeFrom("");
                   setFilterTimeTo("");
-                  clearFlatpickr(flatpickrRefs.current.from);
-                  clearFlatpickr(flatpickrRefs.current.to);
                 }}
                 className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 flex items-center justify-center gap-2"
               >
@@ -343,57 +314,43 @@ export default function ProductionTrackingPage() {
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                   วันที่เริ่มต้น
                 </label>
-                <div className="relative">
-                  <input
-                    ref={dateFromPickerRef}
-                    type="text"
-                    readOnly
-                    value={filterDateFrom}
-                    placeholder="เลือกวันที่"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={filterDateFrom ? dayjs(filterDateFrom) : null}
+                    onChange={(newValue) => setFilterDateFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        placeholder: 'เลือกวันที่',
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
+                    }}
                   />
-                  <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
+                </LocalizationProvider>
               </div>
               <div>
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                   วันที่สิ้นสุด
                 </label>
-                <div className="relative">
-                  <input
-                    ref={dateToPickerRef}
-                    type="text"
-                    readOnly
-                    value={filterDateTo}
-                    placeholder="เลือกวันที่"
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white cursor-pointer"
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={filterDateTo ? dayjs(filterDateTo) : null}
+                    onChange={(newValue) => setFilterDateTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        placeholder: 'เลือกวันที่',
+                        sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                      },
+                      popper: { sx: { zIndex: 999999 } },
+                      dialog: { sx: { zIndex: 999999 } },
+                    }}
                   />
-                  <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
+                </LocalizationProvider>
               </div>
               <div>
                 <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">

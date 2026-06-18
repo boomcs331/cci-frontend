@@ -8,6 +8,10 @@ import {
   faPlus,
   faQrcode,
 } from "@fortawesome/free-solid-svg-icons";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
@@ -453,20 +457,38 @@ export default function PCOutcomePage() {
             </select>
           </PcFilterField>
           <PcFilterField label="วันที่เริ่ม">
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => setFilterDateFrom(e.target.value)}
-              className={INPUT_CLS}
-            />
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                value={filterDateFrom ? dayjs(filterDateFrom) : null}
+                onChange={(newValue) => setFilterDateFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: 'small',
+                    sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                  },
+                  popper: { sx: { zIndex: 999999 } },
+                  dialog: { sx: { zIndex: 999999 } },
+                }}
+              />
+            </LocalizationProvider>
           </PcFilterField>
           <PcFilterField label="วันที่สิ้นสุด">
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => setFilterDateTo(e.target.value)}
-              className={INPUT_CLS}
-            />
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                value={filterDateTo ? dayjs(filterDateTo) : null}
+                onChange={(newValue) => setFilterDateTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: 'small',
+                    sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                  },
+                  popper: { sx: { zIndex: 999999 } },
+                  dialog: { sx: { zIndex: 999999 } },
+                }}
+              />
+            </LocalizationProvider>
           </PcFilterField>
         </div>
       </PcTransactionFilterCard>
