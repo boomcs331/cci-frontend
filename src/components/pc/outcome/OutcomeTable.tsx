@@ -36,28 +36,28 @@ export default function OutcomeTable({
     <>
       {/* Desktop Table View */}
       <div className="overflow-x-auto hidden md:block">
-        <table className="w-full min-w-[760px] table-auto text-left">
+        <table className="w-full min-w-[800px] table-auto text-left">
           <thead>
-            <tr className={`border-b border-gray-200/80 dark:border-gray-700 ${headerBg}`}>
-              <th className="sticky left-0 z-[1] whitespace-nowrap bg-inherit px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+            <tr className={`border-b-2 border-orange-200 dark:border-orange-800 ${headerBg}`}>
+              <th className="sticky left-0 z-[1] whitespace-nowrap bg-inherit px-5 py-4 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 เลขที่ใบจ่าย
               </th>
-              <th className="whitespace-nowrap px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+              <th className="whitespace-nowrap px-5 py-4 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 วันที่จ่าย
               </th>
-              <th className="px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 วัตถุดิบ
               </th>
-              <th className="hidden px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 md:table-cell">
+              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 แผนก
               </th>
-              <th className="hidden px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 lg:table-cell">
+              <th className="whitespace-nowrap px-5 py-4 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 Work Order
               </th>
-              <th className="whitespace-nowrap px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+              <th className="whitespace-nowrap px-5 py-4 text-right text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 จำนวน
               </th>
-              <th className="px-4 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+              <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200">
                 เอกสาร
               </th>
             </tr>
@@ -69,59 +69,54 @@ export default function OutcomeTable({
               outcomes.map((out) => (
                 <tr
                   key={out.id}
-                  className="group transition-colors hover:bg-gray-50/90 dark:hover:bg-gray-800/40"
+                  className="group transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/20 hover:shadow-sm"
                 >
-                  <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-gray-100 bg-white px-4 py-3.5 text-sm font-semibold text-gray-900 group-hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-white dark:group-hover:bg-gray-800/40">
-                    <span className="font-mono text-[13px]">{out.issueNo}</span>
+                  <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-gray-100 bg-white px-5 py-4 text-sm font-bold text-orange-700 group-hover:bg-orange-50/70 dark:border-gray-800 dark:bg-gray-900 dark:text-orange-400 dark:group-hover:bg-orange-950/20">
+                    <span className="font-mono">{out.issueNo}</span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-sm text-gray-700 dark:text-gray-200">
+                  <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-600 dark:text-gray-300">
                     {new Date(out.issueDate).toLocaleDateString("th-TH", {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
                     })}
                   </td>
-                  <td className="max-w-[220px] px-4 py-3.5 sm:max-w-xs">
-                    <div className="font-medium text-gray-900 dark:text-white">
+                  <td className="max-w-[250px] px-5 py-4">
+                    <div className="font-semibold text-gray-900 dark:text-white text-sm">
                       {out.items?.[0]?.material?.matCode}
                     </div>
                     <div
-                      className="truncate text-xs text-gray-500 dark:text-gray-400"
+                      className="truncate text-sm text-gray-500 dark:text-gray-400"
                       title={out.items?.[0]?.material?.matName}
                     >
                       {out.items?.[0]?.material?.matName}
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-gray-500 dark:text-gray-400 md:hidden">
-                      {out.department ? <span>แผนก: {out.department}</span> : null}
-                      {(out.productionOrderNo || out.workOrderNo) && (
-                        <span className="truncate" title={out.productionOrderNo || out.workOrderNo}>
-                          WO: {out.productionOrderNo || out.workOrderNo}
-                        </span>
-                      )}
-                    </div>
                   </td>
-                  <td className="hidden px-4 py-3.5 text-sm text-gray-700 dark:text-gray-200 md:table-cell">
+                  <td className="px-5 py-4 text-sm text-gray-600 dark:text-gray-300">
                     {out.department || "—"}
                   </td>
                   <td
-                    className="hidden max-w-[140px] truncate px-4 py-3.5 text-sm text-gray-700 dark:text-gray-200 lg:table-cell"
+                    className="max-w-[160px] truncate px-5 py-4 text-sm text-gray-600 dark:text-gray-300"
                     title={out.productionOrderNo || out.workOrderNo || ""}
                   >
                     {out.productionOrderNo || out.workOrderNo || "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right text-sm font-semibold tabular-nums text-gray-900 dark:text-white">
+                  <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-bold tabular-nums text-gray-900 dark:text-white">
                     {parseFloat(String(out.items?.[0]?.issuedQuantity || 0)).toLocaleString()}{" "}
-                    <span className="font-normal text-gray-500 dark:text-gray-400">
+                    <span className="font-normal text-gray-500 dark:text-gray-400 text-xs">
                       {out.items?.[0]?.unit}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 text-center">
+                  <td className="px-5 py-4 text-center">
                     {out.documents && out.documents.length > 0 ? (
                       <button
                         type="button"
                         onClick={() => onPreviewDocuments(out.documents)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-orange-100 px-2.5 py-1.5 text-xs font-medium text-orange-800 transition hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:hover:bg-orange-900/50"
+                        className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-800 transition-all duration-200 hover:bg-orange-200 hover:scale-105 dark:bg-orange-950/50 dark:text-orange-300 dark:hover:bg-orange-900/50"
                       >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                         ดูไฟล์ ({out.documents.length})
                       </button>
                     ) : out.documentFile && out.documentFile !== "/uploads/default.pdf" ? (
@@ -139,12 +134,15 @@ export default function OutcomeTable({
                             ],
                           )
                         }
-                        className="inline-flex items-center gap-1 rounded-lg bg-orange-100 px-2.5 py-1.5 text-xs font-medium text-orange-800 transition hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300"
+                        className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-800 transition-all duration-200 hover:bg-orange-200 hover:scale-105 dark:bg-orange-950/50 dark:text-orange-300 dark:hover:bg-orange-900/50"
                       >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
                         ดูไฟล์
                       </button>
                     ) : (
-                      <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
                     )}
                   </td>
                 </tr>
@@ -155,24 +153,25 @@ export default function OutcomeTable({
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-4">
         {outcomes.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 text-gray-400 py-8">
-            <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
+            <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <div className="text-center">
-              <div className="text-sm font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูล</div>
+              <div className="text-base font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลใบจ่าย</div>
+              <div className="text-sm text-gray-400 mt-1">ลองปรับตัวกรองหรือเพิ่มข้อมูลใหม่</div>
             </div>
           </div>
         ) : outcomes.map((out) => (
-          <div key={out.id} className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-start justify-between gap-3 mb-3">
+          <div key={out.id} className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <div className="flex items-start justify-between gap-3 mb-4">
               <div className="flex-1 min-w-0">
-                <div className="font-mono text-xs font-semibold text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-md mb-1">
+                <div className="font-mono text-xs font-bold text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 px-3 py-1.5 rounded-lg mb-2 inline-block">
                   {out.issueNo}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   {new Date(out.issueDate).toLocaleDateString("th-TH", {
                     day: "numeric",
                     month: "short",
@@ -182,42 +181,42 @@ export default function OutcomeTable({
               </div>
             </div>
             
-            <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
+            <div className="font-semibold text-gray-900 dark:text-white text-base mb-1">
               {out.items?.[0]?.material?.matCode}
             </div>
-            <div className="text-xs text-gray-500 mb-3 line-clamp-1">
+            <div className="text-sm text-gray-500 mb-4 line-clamp-1">
               {out.items?.[0]?.material?.matName}
             </div>
             
-            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
               {out.department && (
-                <div>
-                  <span className="text-gray-400 dark:text-gray-500">แผนก:</span>{' '}
-                  <span className="text-gray-700 dark:text-gray-300">{out.department}</span>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">แผนก</div>
+                  <div className="font-medium text-gray-700 dark:text-gray-300">{out.department}</div>
                 </div>
               )}
               {(out.productionOrderNo || out.workOrderNo) && (
-                <div>
-                  <span className="text-gray-400 dark:text-gray-500">WO:</span>{' '}
-                  <span className="text-gray-700 dark:text-gray-300 line-clamp-1">{out.productionOrderNo || out.workOrderNo}</span>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">Work Order</div>
+                  <div className="font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{out.productionOrderNo || out.workOrderNo}</div>
                 </div>
               )}
-              <div>
-                <span className="text-gray-400 dark:text-gray-500">จำนวน:</span>{' '}
-                <span className="text-gray-700 dark:text-gray-300 tabular-nums font-semibold">
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">จำนวน</div>
+                <div className="font-bold text-gray-900 dark:text-white tabular-nums">
                   {parseFloat(String(out.items?.[0]?.issuedQuantity || 0)).toLocaleString()} {out.items?.[0]?.unit}
-                </span>
+                </div>
               </div>
             </div>
             
-            <div className="flex items-center justify-end pt-3 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center pt-4 border-t border-gray-200 dark:border-gray-700">
               {out.documents && out.documents.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => onPreviewDocuments(out.documents)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 transition-colors"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   ดูไฟล์ ({out.documents.length})
@@ -237,15 +236,15 @@ export default function OutcomeTable({
                       ],
                     )
                   }
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 transition-colors"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   ดูไฟล์
                 </button>
               ) : (
-                <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                <span className="w-full text-center text-sm text-gray-400 dark:text-gray-500 py-3">ไม่มีเอกสารแนบ</span>
               )}
             </div>
           </div>

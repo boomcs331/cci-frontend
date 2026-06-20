@@ -987,38 +987,17 @@ export default function PCSchedulePage() {
             </div>
           </div>
           <div className="-mx-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04] dark:border-slate-700 dark:bg-gray-950/40 dark:ring-white/[0.06] sm:mx-0">
-            <table className="w-full min-w-[980px] table-auto text-left">
-              <thead>
-                <tr className="border-b border-slate-200 bg-gradient-to-r from-slate-100 via-slate-50 to-white dark:border-slate-700 dark:from-slate-800 dark:via-slate-800/90 dark:to-slate-900/80">
-                  <th className="sticky left-0 z-[1] whitespace-nowrap border-r border-slate-200/80 bg-slate-100/95 px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800/95 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    รหัสแผน
-                  </th>
-                  <th className="min-w-[140px] px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    ชื่อแผน
-                  </th>
-                  <th className="min-w-[160px] px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    รหัสชิ้นงาน
-                  </th>
-                  <th className="whitespace-nowrap px-3 py-3.5 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    วันที่ / เวลา
-                  </th>
-                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    สถานะ
-                  </th>
-                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    สินค้า
-                  </th>
-                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    Material
-                  </th>
-                  <th className="px-3 py-3.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 sm:px-4 sm:text-sm">
-                    จัดการ
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="space-y-3">
                 {plans.length === 0 ? (
-                  <TableEmptyRow colSpan={8} />
+                  <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
+                    <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <div className="text-center">
+                      <div className="text-base font-medium text-gray-600 dark:text-gray-300">ไม่พบแผนการผลิต</div>
+                      <div className="text-sm text-gray-400 mt-1">ลองปรับตัวกรองหรือเพิ่มแผนใหม่</div>
+                    </div>
+                  </div>
                 ) : (
                   plans.map((plan) => {
                     const workpieces = planWorkpieceEntries(plan);
@@ -1029,108 +1008,97 @@ export default function PCSchedulePage() {
                       "border-teal-200/80 bg-teal-50 text-teal-900 dark:border-teal-500/30 dark:bg-teal-950/45 dark:text-teal-100",
                     ];
                     return (
-                  <tr
-                    key={plan.id}
-                    className="border-l-4 border-l-transparent transition-colors hover:border-l-indigo-400 hover:bg-indigo-50/25 dark:hover:bg-indigo-950/15"
-                  >
-                    <td className="sticky left-0 z-[1] whitespace-nowrap border-r border-slate-100 bg-white/95 px-3 py-3.5 dark:border-slate-800 dark:bg-gray-950/95 sm:px-4">
-                      <span className="inline-flex rounded-md border border-slate-200 bg-slate-100 px-2 py-1 font-mono text-xs font-semibold tracking-tight text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-                        {plan.planCode}
-                      </span>
-                    </td>
-                    <td className="max-w-[220px] px-3 py-3.5 text-sm font-medium text-gray-900 dark:text-white sm:max-w-xs sm:px-4" title={plan.planName}>
-                      {plan.planName}
-                    </td>
-                    <td className="max-w-[220px] px-3 py-3.5 sm:px-4">
-                      {workpieces.length === 0 ? (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {workpieces.map((wp, wi) => (
-                            <span
-                              key={wp.code}
-                              title={wp.name ? `${wp.name}` : wp.code}
-                              className={`inline-flex max-w-[9rem] truncate rounded-md border px-2 py-0.5 font-mono text-[11px] font-semibold shadow-sm ${badgeTone[wi % badgeTone.length]}`}
-                            >
-                              {wp.code}
-                            </span>
-                          ))}
+                      <div
+                        key={plan.id}
+                        onClick={() => handleViewDetail(plan)}
+                        className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-md transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="font-mono text-sm font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">
+                                {plan.planCode}
+                              </span>
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                                plan.status === "draft" ? "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-400" :
+                                plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :
+                                plan.status === "confirmed" ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400" :
+                                "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+                              }`}>{statusConfig[plan.status].label}</span>
+                            </div>
+                            <div className="font-semibold text-gray-900 dark:text-white text-sm mb-1">{plan.planName}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                              {new Date(plan.planDate).toLocaleDateString("th-TH", {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })} • {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'} น.
+                            </div>
+                            {workpieces.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {workpieces.slice(0, 3).map((wp, wi) => (
+                                  <span
+                                    key={wp.code}
+                                    title={wp.name ? `${wp.name}` : wp.code}
+                                    className={`inline-flex max-w-[9rem] truncate rounded-md border px-2 py-0.5 font-mono text-[11px] font-semibold shadow-sm ${badgeTone[wi % badgeTone.length]}`}
+                                  >
+                                    {wp.code}
+                                  </span>
+                                ))}
+                                {workpieces.length > 3 && (
+                                  <span className="text-xs text-gray-400 dark:text-gray-500">+{workpieces.length - 3}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <div className="text-right">
+                              <div className="text-xs text-gray-400 dark:text-gray-500">สินค้า</div>
+                              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{plan.items?.length || 0}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-gray-400 dark:text-gray-500">Material</div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">{plan.items?.reduce((acc, item) => acc + (item.bom?.length || 0), 0) || 0}</div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {plan.status === "draft" && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleEdit(plan); }}
+                                    className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:text-blue-400 dark:hover:bg-blue-900/30 transition-all duration-200 hover:scale-105"
+                                    title="แก้ไข"
+                                  >
+                                    <FontAwesomeIcon icon={faPenToSquare} className="h-4 w-4" aria-hidden />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleReserve(plan.id); }}
+                                    className="p-2 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-100 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 transition-all duration-200 hover:scale-105"
+                                    title="จอง"
+                                  >
+                                    <FontAwesomeIcon icon={faBookmark} className="h-4 w-4" aria-hidden />
+                                  </button>
+                                </>
+                              )}
+                              {(plan.status === "reserved" || plan.status === "confirmed") && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); router.push(`/pc/schedule/${plan.id}`); }}
+                                  className="p-2 rounded-lg text-gray-400 hover:text-violet-600 hover:bg-violet-100 dark:hover:text-violet-400 dark:hover:bg-violet-900/30 transition-all duration-200 hover:scale-105"
+                                  title="รายละเอียด"
+                                >
+                                  <FontAwesomeIcon icon={faClipboardList} className="h-4 w-4" aria-hidden />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3.5 text-sm text-gray-900 dark:text-white sm:px-4">
-                      {new Date(plan.planDate).toLocaleDateString("th-TH", {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                      <br />
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {plan.planTime ? plan.planTime.substring(0, 5) : '00:00'} น.
-                      </span>
-                    </td>
-                    <td className="px-3 py-3.5 text-center sm:px-4">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                        plan.status === "draft" ? "bg-gray-100 text-gray-700 dark:bg-gray-500/15 dark:text-gray-400" :
-                        plan.status === "reserved" ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400" :
-                        plan.status === "confirmed" ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400" :
-                        "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
-                      }`}>{statusConfig[plan.status].label}</span>
-                    </td>
-                    <td className="px-3 py-3.5 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">{plan.items?.length || 0}</td>
-                    <td className="px-3 py-3.5 text-center text-sm tabular-nums text-gray-900 dark:text-white sm:px-4">
-                      {plan.items?.reduce((acc, item) => acc + (item.bom?.length || 0), 0) || 0}
-                    </td>
-                    <td className="px-2 py-3.5 text-center sm:px-4">
-                      <div className="mx-auto flex max-w-[300px] flex-wrap items-center justify-center gap-1.5">
-                        {plan.status === "draft" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(plan)}
-                              className={`${SCH.smOutline} ${SCH.focus} border-blue-200/90 bg-gradient-to-b from-white to-blue-50/90 text-blue-900 hover:border-blue-300 hover:to-blue-100 focus-visible:ring-blue-400 dark:border-blue-500/35 dark:from-blue-950/30 dark:to-blue-900/40 dark:text-blue-100`}
-                            >
-                              <FontAwesomeIcon icon={faPenToSquare} className="h-3.5 w-3.5 opacity-90" aria-hidden />
-                              แก้ไข
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleReserve(plan.id)}
-                              className={`${SCH.smOutline} ${SCH.focus} border-amber-200/90 bg-gradient-to-b from-white to-amber-50/90 text-amber-950 hover:border-amber-300 hover:to-amber-100 focus-visible:ring-amber-400 dark:border-amber-500/35 dark:from-amber-950/30 dark:to-amber-900/40 dark:text-amber-100`}
-                            >
-                              <FontAwesomeIcon icon={faBookmark} className="h-3.5 w-3.5 opacity-90" aria-hidden />
-                              จอง
-                            </button>
-                          </>
-                        )}
-                        {(plan.status === "reserved" || plan.status === "confirmed") && (
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/pc/schedule/${plan.id}`)}
-                            className={`${SCH.smOutline} ${SCH.focus} border-violet-200/90 bg-gradient-to-b from-white to-violet-50/90 text-violet-900 hover:border-violet-300 hover:to-violet-100 hover:shadow focus-visible:ring-violet-400 dark:border-violet-500/35 dark:from-violet-950/30 dark:to-violet-900/40 dark:text-violet-100`}
-                          >
-                            <FontAwesomeIcon icon={faClipboardList} className="h-3.5 w-3.5 opacity-90" aria-hidden />
-                            รายละเอียด
-                          </button>
-                        )}
-                        {plan.status === "reserved" && (
-                          <button
-                            type="button"
-                            onClick={() => handleExportPDF(plan)}
-                            className={`${SCH.smOutline} ${SCH.focus} border-emerald-200/90 bg-gradient-to-b from-white to-emerald-50/90 text-emerald-900 hover:border-emerald-300 hover:to-emerald-100 hover:shadow focus-visible:ring-emerald-400 dark:border-emerald-500/35 dark:from-emerald-950/30 dark:to-emerald-900/40 dark:text-emerald-100`}
-                          >
-                            <FontAwesomeIcon icon={faPrint} className="h-3.5 w-3.5 opacity-90" aria-hidden />
-                            พิมพ์ แผนผลิต
-                          </button>
-                        )}
                       </div>
-                    </td>
-                  </tr>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </div>
           </div>
           
           {pagination && (

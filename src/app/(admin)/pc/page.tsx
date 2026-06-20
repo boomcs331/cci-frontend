@@ -687,137 +687,121 @@ export default function PCPage() {
           </span>
           <PaginationSelector currentLimit={limit} />
         </div>
-        <div className="overflow-x-auto w-full hidden md:block">
-          <table className="w-full text-sm min-w-full">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-14">#</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-16">รูป</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">รหัส</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">ชื่อวัตถุดิบ</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">หน่วย</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">ที่เก็บ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">โมเดล</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">ขนาดล็อต</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-24">สถานะ</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-24">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-              {loading ? (
-                <tr>
-                  <td colSpan={10} className="py-16">
-                    <div className="flex flex-col items-center gap-3 text-gray-400">
-                      <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                      <span className="text-sm">กำลังโหลด...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : !apiResponse?.data || apiResponse.data.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="py-16">
-                    <div className="flex flex-col items-center gap-3 text-gray-400">
-                      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                      <div className="text-center">
-                        <div className="text-sm font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลวัตถุดิบ</div>
-                        <div className="text-xs text-gray-400 mt-1">ลองปรับคำค้นหาหรือเพิ่มวัตถุดิบใหม่</div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ) : apiResponse.data.map((material, idx) => {
-                if (!material) return null;
-                const wpPath = resolveWorkpieceImagePath(material);
-                const rowNum = (page - 1) * limit + idx + 1;
-                return (
-                  <tr key={material.id} className="group hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors">
-                    <td className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 font-mono">{rowNum}</td>
-                    <td className="px-4 py-3">
+        <div className="w-full">
+          {/* Desktop List View */}
+          <div className="hidden md:block space-y-3">
+            {loading ? (
+              <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
+                <svg className="w-16 h-16 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                <span className="text-sm">กำลังโหลด...</span>
+              </div>
+            ) : !apiResponse?.data || apiResponse.data.length === 0 ? (
+              <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
+                <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <div className="text-center">
+                  <div className="text-base font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลวัตถุดิบ</div>
+                  <div className="text-sm text-gray-400 mt-1">ลองปรับคำค้นหาหรือเพิ่มวัตถุดิบใหม่</div>
+                </div>
+              </div>
+            ) : apiResponse.data.map((material, idx) => {
+              if (!material) return null;
+              const wpPath = resolveWorkpieceImagePath(material);
+              const rowNum = (page - 1) * limit + idx + 1;
+              return (
+                <div 
+                  key={material.id} 
+                  onClick={() => handleEdit(material)}
+                  className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200 cursor-pointer"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0">
                       <WorkpieceImage path={wpPath} alt={material.matName || material.matCode} size="md"
                         onPreview={(src) => setImagePreview({ src, title: material.matName || material.matCode, subtitle: material.matCode })} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md">
-                        {material.matCode}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">{material.matName || '-'}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{rowNum}</span>
+                        <span className="font-mono text-sm font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md">
+                          {material.matCode}
+                        </span>
+                        {material.isActive ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>ใช้งาน
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                            <span className="w-1 h-1 rounded-full bg-gray-400"></span>ปิดใช้
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-semibold text-gray-900 dark:text-white text-sm mb-1">{material.matName || '-'}</div>
                       {material.materialsType?.name && (
-                        <div className="text-xs text-gray-400 mt-0.5">{material.materialsType.name}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{material.materialsType.name}</div>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 min-w-[40px]">
-                        {material.unitMaster?.name || material.unit || '-'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{material.defaultLocation?.name || '-'}</span>
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{material.model?.name || '-'}</span>
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                        {material.lotSize?.toLocaleString() || '0'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {material.isActive ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ใช้งาน
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>ปิดใช้
-                        </span>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="text-right">
+                        <div className="text-xs text-gray-400 dark:text-gray-500">หน่วย</div>
+                        <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">{material.unitMaster?.name || material.unit || '-'}</div>
+                      </div>
+                      {material.defaultLocation?.name && (
+                        <div className="text-right hidden lg:block">
+                          <div className="text-xs text-gray-400 dark:text-gray-500">ที่เก็บ</div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">{material.defaultLocation.name}</div>
+                        </div>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => handleEdit(material)}
+                      {material.lotSize != null && (
+                        <div className="text-right hidden xl:block">
+                          <div className="text-xs text-gray-400 dark:text-gray-500">ขนาดล็อต</div>
+                          <div className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{material.lotSize.toLocaleString()}</div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleEdit(material); }}
+                          className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:text-blue-400 dark:hover:bg-blue-900/30 transition-all duration-200 hover:scale-105"
                           title="แก้ไข"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-100 dark:hover:text-blue-400 dark:hover:bg-blue-900/30 transition-all">
+                        >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
-                        <button onClick={() => handleDelete(material)}
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(material); }}
+                          className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-900/30 transition-all duration-200 hover:scale-105"
                           title="ลบ"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-900/30 transition-all">
+                        >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
         {/* Mobile Card View */}
-        <div className="md:hidden p-4 space-y-3">
+        <div className="md:hidden p-4 space-y-4">
           {loading ? (
-            <div className="flex flex-col items-center gap-3 text-gray-400 py-8">
-              <svg className="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
+              <svg className="w-16 h-16 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
               <span className="text-sm">กำลังโหลด...</span>
             </div>
           ) : !apiResponse?.data || apiResponse.data.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 text-gray-400 py-8">
-              <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
+              <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               <div className="text-center">
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลวัตถุดิบ</div>
-                <div className="text-xs text-gray-400 mt-1">ลองปรับคำค้นหาหรือเพิ่มวัตถุดิบใหม่</div>
+                <div className="text-base font-medium text-gray-600 dark:text-gray-300">ไม่พบข้อมูลวัตถุดิบ</div>
+                <div className="text-sm text-gray-400 mt-1">ลองปรับคำค้นหาหรือเพิ่มวัตถุดิบใหม่</div>
               </div>
             </div>
           ) : apiResponse.data.map((material, idx) => {
@@ -825,72 +809,74 @@ export default function PCPage() {
             const wpPath = resolveWorkpieceImagePath(material);
             const rowNum = (page - 1) * limit + idx + 1;
             return (
-              <div key={material.id} className="bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-start gap-3">
+              <div key={material.id} className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-start gap-4 mb-4">
                   <WorkpieceImage path={wpPath} alt={material.matName || material.matCode} size="md"
                     onPreview={(src) => setImagePreview({ src, title: material.matName || material.matCode, subtitle: material.matCode })} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center justify-between gap-2 mb-2">
                       <span className="font-mono text-xs text-gray-400 dark:text-gray-500">#{rowNum}</span>
-                      <span className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20 px-2 py-0.5 rounded-md">
-                        {material.matCode}
-                      </span>
-                    </div>
-                    <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">{material.matName || '-'}</div>
-                    {material.materialsType?.name && (
-                      <div className="text-xs text-gray-400 mb-2">{material.materialsType.name}</div>
-                    )}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-                        {material.unitMaster?.name || material.unit || '-'}
-                      </span>
                       {material.isActive ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                           <span className="w-1 h-1 rounded-full bg-emerald-500"></span>ใช้งาน
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
                           <span className="w-1 h-1 rounded-full bg-gray-400"></span>ปิดใช้
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {material.defaultLocation?.name && (
-                        <div>
-                          <span className="text-gray-400 dark:text-gray-500">ที่เก็บ:</span>{' '}
-                          <span className="text-gray-700 dark:text-gray-300">{material.defaultLocation.name}</span>
-                        </div>
-                      )}
-                      {material.model?.name && (
-                        <div>
-                          <span className="text-gray-400 dark:text-gray-500">โมเดล:</span>{' '}
-                          <span className="text-gray-700 dark:text-gray-300">{material.model.name}</span>
-                        </div>
-                      )}
-                      {material.lotSize != null && (
-                        <div>
-                          <span className="text-gray-400 dark:text-gray-500">ขนาดล็อต:</span>{' '}
-                          <span className="text-gray-700 dark:text-gray-300 tabular-nums">{material.lotSize.toLocaleString()}</span>
-                        </div>
-                      )}
+                    <div className="font-mono text-xs font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-lg inline-block mb-1">
+                      {material.matCode}
                     </div>
+                    <div className="font-semibold text-gray-900 dark:text-white text-base mb-1">{material.matName || '-'}</div>
+                    {material.materialsType?.name && (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{material.materialsType.name}</div>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                
+                <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">หน่วย</div>
+                    <div className="font-medium text-gray-700 dark:text-gray-300">{material.unitMaster?.name || material.unit || '-'}</div>
+                  </div>
+                  {material.defaultLocation?.name && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">ที่เก็บ</div>
+                      <div className="font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{material.defaultLocation.name}</div>
+                    </div>
+                  )}
+                  {material.model?.name && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">โมเดล</div>
+                      <div className="font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{material.model.name}</div>
+                    </div>
+                  )}
+                  {material.lotSize != null && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">ขนาดล็อต</div>
+                      <div className="font-bold text-gray-900 dark:text-white tabular-nums">{material.lotSize.toLocaleString()}</div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <button onClick={() => handleEdit(material)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 transition-colors">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     แก้ไข
                   </button>
                   <button onClick={() => handleDelete(material)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/30 dark:hover:bg-red-900/50 transition-colors">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-900/30 dark:hover:bg-red-900/50 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     ลบ
                   </button>
                 </div>
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 
@@ -943,19 +929,21 @@ export default function PCPage() {
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                 รูปภาพชิ้นงาน <span className="text-red-500">*</span>
               </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
-                onChange={(e) => setAddWorkpieceFromInput(e.target.files?.[0] ?? null)}
-              />
+              <div className="w-full">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="w-full h-10 text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-1.5 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
+                  onChange={(e) => setAddWorkpieceFromInput(e.target.files?.[0] ?? null)}
+                />
+              </div>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
               <div className="mt-2">
                 <WorkpieceImage
                   src={addWorkpiecePreviewUrl}
                   path={null}
                   size="lg"
-                  className="!h-auto !w-auto max-h-32"
+                  className="w-64 max-h-32"
                   onPreview={(src) =>
                     setImagePreview({ src, title: formData.name || formData.matCode || "รูปชิ้นงาน" })
                   }
@@ -1284,7 +1272,7 @@ export default function PCPage() {
                       path={editWorkpiecePreviewUrl ? null : editingMaterial ? resolveWorkpieceImagePath(editingMaterial) : null}
                       alt={editingMaterial?.matName || editingMaterial?.matCode || '-'}
                       size="lg"
-                      className="!h-auto !w-auto max-h-32"
+                      className="w-64 max-h-32"
                       onPreview={(src) =>
                         setImagePreview({
                           src,
@@ -1294,12 +1282,14 @@ export default function PCPage() {
                       }
                     />
                   </div>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
-                    onChange={(e) => setEditWorkpieceFromInput(e.target.files?.[0] ?? null)}
-                  />
+                  <div className="w-full">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="w-full h-10 text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-1.5 file:text-xs file:font-medium file:text-blue-700 hover:file:bg-blue-100 dark:text-gray-300 dark:file:bg-blue-950/50 dark:file:text-blue-300"
+                      onChange={(e) => setEditWorkpieceFromInput(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">เว้นว่างเพื่อคงรูปเดิม — JPEG, PNG หรือ WebP ไม่เกิน 5 MB</p>
                 </div>
               </div>
