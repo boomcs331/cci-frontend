@@ -2,14 +2,36 @@
 
 import React, { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import { useSearchParams, useRouter } from "next/navigation";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faClipboardList,
+  faFileExcel,
+  faFilePdf,
+  faIndustry,
+  faRotateRight,
+} from "@fortawesome/free-solid-svg-icons";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
+import { createPaginationHrefBuilder } from "@/lib/pagination";
+import { PcTransactionPageHeader } from "@/components/pc/transactions/PcTransactionPageHeader";
+import { PcTransactionActionButton } from "@/components/pc/transactions/PcTransactionActionButton";
+import {
+  PcTransactionFilterCard,
+  PcFilterField,
+  PcFilterSearchInput,
+  INPUT_CLS,
+} from "@/components/pc/transactions/PcTransactionFilterCard";
+import { PcTransactionDataCard } from "@/components/pc/transactions/PcTransactionDataCard";
+import { PcTransactionLoading } from "@/components/pc/transactions/PcTransactionLoading";
+import { ProductionOrderCard } from "@/components/production/ProductionOrderCard";
 import { fetchProductionOrders } from "@/services/productionOrdersService";
 import { useClientHydrated } from "@/hooks/useClientHydrated";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
   getActiveDepartmentId,
   getUserDepartmentCode,
@@ -19,18 +41,28 @@ import {
 import type { ProductionOrderDetail, ProductionOrderDeptBacklog } from "@/types/production";
 import { exportPdf, exportXlsx, type ExportColumn } from "@/utils/export";
 
-function statusBadgeClass(status: string): string {
+type StatusCategory = "inProgress" | "completed" | "cancelled";
+
+function classifyStatus(status: string): StatusCategory {
   const s = status.toLowerCase();
   if (s.includes("complete") || s.includes("done") || s.includes("closed") || s.includes("เสร็จ")) {
-    return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+    return "completed";
   }
   if (s.includes("cancel") || s.includes("ยกเลิก")) {
+    return "cancelled";
+  }
+  return "inProgress";
+}
+
+function statusBadgeClass(status: string): string {
+  const category = classifyStatus(status);
+  if (category === "completed") {
+    return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+  }
+  if (category === "cancelled") {
     return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
   }
-  if (s.includes("progress") || s.includes("active") || s.includes("open") || s.includes("กำลัง")) {
-    return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-  }
-  return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+  return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
 }
 
 function ProductionOrdersPageContent() {
@@ -38,6 +70,7 @@ function ProductionOrdersPageContent() {
   const page = parseInt(searchParams.get("page") || "1", 10);
   const limit = parseInt(searchParams.get("limit") || "20", 10);
   const statusFilter = (searchParams.get("status") || "").toLowerCase();
+  const router = useRouter();
 
   const [data, setData] = useState<{
     orders: ProductionOrderDetail[];
@@ -54,6 +87,15 @@ function ProductionOrdersPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [listTick, setListTick] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 400);
+
+  const paginationHref = useMemo(
+    () => createPaginationHrefBuilder(searchParams, limit),
+    [searchParams.toString(), limit],
+  );
 
   useEffect(() => {
     const onSessionUpdate = () => setListTick((t) => t + 1);
@@ -92,10 +134,31 @@ function ProductionOrdersPageContent() {
   }, [page, limit, hydrated, activeDeptId, listTick]);
 
   const filteredOrders = useMemo<ProductionOrderDetail[]>(() => {
+    let orders = data?.orders ?? [];
+    if (statusFilter) {
+      orders = orders.filter((o) => (o.status || "").toLowerCase() === statusFilter);
+    }
+    if (debouncedSearch.trim()) {
+      const term = debouncedSearch.toLowerCase();
+      orders = orders.filter(
+        (o) =>
+          o.orderNo.toLowerCase().includes(term) ||
+          (o.product?.productCode ?? "").toLowerCase().includes(term) ||
+          (o.product?.productName ?? "").toLowerCase().includes(term),
+      );
+    }
+    return orders;
+  }, [data?.orders, statusFilter, debouncedSearch]);
+
+  const stats = useMemo(() => {
     const orders = data?.orders ?? [];
-    if (!statusFilter) return orders;
-    return orders.filter((o) => (o.status || "").toLowerCase() === statusFilter);
-  }, [data?.orders, statusFilter]);
+    return {
+      total: orders.length,
+      inProgress: orders.filter((o) => classifyStatus(o.status) === "inProgress").length,
+      completed: orders.filter((o) => classifyStatus(o.status) === "completed").length,
+      cancelled: orders.filter((o) => classifyStatus(o.status) === "cancelled").length,
+    };
+  }, [data?.orders]);
 
   const exportColumns = useMemo<ExportColumn<ProductionOrderDetail>[]>(
     () => [
@@ -136,181 +199,199 @@ function ProductionOrdersPageContent() {
     }).catch((e) => console.error(e));
   };
 
+  const handleRefresh = () => {
+    setListTick((t) => t + 1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set("status", value);
+    } else {
+      params.delete("status");
+    }
+    params.set("page", "1");
+    router.push(`/production/production-orders?${params.toString()}`);
+  };
+
+  const hasActiveFilters = Boolean(searchTerm || statusFilter || filterDateFrom || filterDateTo);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("status");
+    params.set("page", "1");
+    router.push(`/production/production-orders?${params.toString()}`);
+  };
+
   if (loading) {
-    return (
-      <div>
-        <PageBreadcrumb pageTitle="คำสั่งผลิต / QR ล็อต" />
-        <ComponentCard title="รายการคำสั่งผลิต">
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">กำลังโหลด...</div>
-        </ComponentCard>
-      </div>
-    );
+    return <PcTransactionLoading pageTitle="คำสั่งผลิต / QR ล็อต" variant="production" />;
   }
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="คำสั่งผลิต / QR ล็อต" />
-      <div className="space-y-6">
-        <ComponentCard title={`รายการคำสั่งผลิต (${data?.total ?? 0})`}>
-          {data?.departmentScope?.filtered ? (
-            <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-100">
-              <p className="font-medium">
-                {data.departmentScope.message ??
-                  `แสดงเฉพาะงานคงค้างของแผนก ${data.departmentScope.departmentCode ?? userDeptCode ?? "—"}`}
-              </p>
-              <p className="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
-                แสดงเฉพาะแผนกที่เลือกใช้งานตอน login
-                {userDeptCode ? ` (${userDeptCode})` : ""}
-                — ล็อตคงค้างในขั้นที่แผนกนี้รับผิดชอบ
-              </p>
-            </div>
-          ) : showAdminAll ? (
-            <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-              ผู้ดูแลระบบ: แสดงคำสั่งผลิตทั้งหมด
-            </p>
-          ) : null}
+    <div className="w-full space-y-6 px-3 pb-8 sm:px-4 lg:px-6">
+      <PcTransactionPageHeader
+        variant="production"
+        pageTitle="คำสั่งผลิต / QR ล็อต"
+        description="ติดตามคำสั่งผลิต สถานะล็อต และ QR สำหรับแต่ละสินค้า"
+        icon={<FontAwesomeIcon icon={faIndustry} />}
+        stats={[
+          { label: "ทั้งหมด", value: (data?.total ?? 0).toLocaleString() },
+          { label: "กำลังผลิต", value: stats.inProgress.toLocaleString() },
+          { label: "เสร็จสิ้น", value: stats.completed.toLocaleString() },
+          { label: "ยกเลิก", value: stats.cancelled.toLocaleString() },
+        ]}
+        actions={
+          <>
+            <PcTransactionActionButton variant="production" tone="secondary" onClick={handleRefresh}>
+              <FontAwesomeIcon icon={faRotateRight} className="h-4 w-4" />
+              รีเฟรช
+            </PcTransactionActionButton>
+            <PcTransactionActionButton
+              variant="production"
+              tone="secondary"
+              onClick={handleExportXlsx}
+              disabled={filteredOrders.length === 0}
+            >
+              <FontAwesomeIcon icon={faFileExcel} className="h-4 w-4" />
+              Export XLSX
+            </PcTransactionActionButton>
+            <PcTransactionActionButton
+              variant="production"
+              tone="secondary"
+              onClick={handleExportPdf}
+              disabled={filteredOrders.length === 0}
+            >
+              <FontAwesomeIcon icon={faFilePdf} className="h-4 w-4" />
+              Export PDF
+            </PcTransactionActionButton>
+          </>
+        }
+      />
 
-          <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
-            <PaginationSelector currentLimit={limit} />
-            <div className="flex flex-wrap items-center gap-2">
-              {statusFilter ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-                  กรองสถานะ: {statusFilter}
-                  <Link
-                    href="/production/production-orders"
-                    className="text-[10px] underline text-blue-700 hover:text-blue-900 dark:text-blue-300"
-                  >
-                    ล้าง
-                  </Link>
-                </span>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleExportXlsx}
-                disabled={filteredOrders.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
-              >
-                Export XLSX
-              </button>
-              <button
-                type="button"
-                onClick={handleExportPdf}
-                disabled={filteredOrders.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
-              >
-                Export PDF
-              </button>
-            </div>
-          </div>
-
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            ค่าใน QR ล็อตใช้รูปแบบเดียวกับวัตถุดิบ:{" "}
-            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 rounded">
-              QR-{"{"}lotNo{"}"}-{"{"}timestamp{"}"}-{"{"}สุ่ม6ตัว{"}"}
-            </code>
-          </p>
-
-          {error && <div className="py-4 text-red-600 dark:text-red-400">{error}</div>}
-
-          {!error && data ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-max w-full table-auto">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-800">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                        เลขที่
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                        สินค้า
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                        จำนวน
-                      </th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                        ล็อต/QR
-                      </th>
-                      {data.departmentScope?.filtered ? (
-                        <>
-                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                            ล็อตค้าง
-                          </th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                            กระบวนการ
-                          </th>
-                        </>
-                      ) : null}
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
-                        สถานะ
-                      </th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap sticky right-0 bg-gray-50 dark:bg-gray-800">
-                        จัดการ
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredOrders.length === 0 ? (
-                      <TableEmptyRow colSpan={data.departmentScope?.filtered ? 8 : 6} />
-                    ) : (
-                      filteredOrders.map((o) => (
-                      <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white whitespace-nowrap">
-                          {o.orderNo}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                          <span className="whitespace-nowrap font-medium">{o.product?.productCode}</span>
-                          <span className="text-gray-500 dark:text-gray-400">
-                            {" "}
-                            — {o.product?.productName ?? `#${o.productId}`}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">
-                          {o.orderQuantity}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-center text-gray-900 dark:text-white whitespace-nowrap">
-                          {o.totalLots}
-                        </td>
-                        {data.departmentScope?.filtered ? (
-                          <>
-                            <td className="px-4 py-3 text-sm text-center font-semibold text-indigo-700 dark:text-indigo-300 whitespace-nowrap">
-                              {o.deptBacklogLotCount ?? 0}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-mono text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                              {(o.deptBacklogProcessCodes ?? []).join(", ") || "—"}
-                            </td>
-                          </>
-                        ) : null}
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span
-                            className={`inline-block px-2 py-1 text-xs rounded-full ${statusBadgeClass(o.status)}`}
-                          >
-                            {o.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap sticky right-0 bg-white dark:bg-gray-900">
-                          <Link
-                            href={`/production/production-orders/${o.id}`}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            ดู / พิมพ์ QR
-                          </Link>
-                        </td>
-                      </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <PaginationFooter
-                page={data.page}
-                limit={data.limit}
-                total={data.total}
-                totalPages={data.totalPages}
+      <PcTransactionFilterCard
+        variant="production"
+        hasActiveFilters={hasActiveFilters}
+        onReset={hasActiveFilters ? clearFilters : undefined}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <PcFilterField label="ค้นหา" className="sm:col-span-2 lg:col-span-1">
+            <PcFilterSearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="เลขที่คำสั่งผลิต, รหัสสินค้า, ชื่อสินค้า"
+            />
+          </PcFilterField>
+          <PcFilterField label="สถานะ">
+            <select
+              value={statusFilter}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={INPUT_CLS}
+            >
+              <option value="">ทุกสถานะ</option>
+              <option value="inprogress">กำลังผลิต</option>
+              <option value="completed">เสร็จสิ้น</option>
+              <option value="cancelled">ยกเลิก</option>
+            </select>
+          </PcFilterField>
+          <PcFilterField label="วันที่เริ่ม">
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                value={filterDateFrom ? dayjs(filterDateFrom) : null}
+                onChange={(newValue) => setFilterDateFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: 'small',
+                    sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                  },
+                  popper: { sx: { zIndex: 999999 } },
+                  dialog: { sx: { zIndex: 999999 } },
+                }}
               />
-            </>
-          ) : null}
-        </ComponentCard>
-      </div>
+            </LocalizationProvider>
+          </PcFilterField>
+          <PcFilterField label="วันที่สิ้นสุด">
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                value={filterDateTo ? dayjs(filterDateTo) : null}
+                onChange={(newValue) => setFilterDateTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: 'small',
+                    sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.375rem', height: '40px' } },
+                  },
+                  popper: { sx: { zIndex: 999999 } },
+                  dialog: { sx: { zIndex: 999999 } },
+                }}
+              />
+            </LocalizationProvider>
+          </PcFilterField>
+        </div>
+      </PcTransactionFilterCard>
+
+      <PcTransactionDataCard
+        variant="production"
+        title={`รายการคำสั่งผลิต (${data?.total ?? 0})`}
+        description="ค่าใน QR ล็อตใช้รูปแบบเดียวกับวัตถุดิบ: QR-{lotNo}-{timestamp}-{สุ่ม6ตัว}"
+        toolbar={<PaginationSelector currentLimit={limit} />}
+        footer={
+          data ? (
+            <PaginationFooter
+              page={data.page}
+              limit={data.limit}
+              total={data.total}
+              totalPages={data.totalPages}
+              hrefBuilder={paginationHref}
+              summaryLocale="th"
+            />
+          ) : null
+        }
+      >
+        {data?.departmentScope?.filtered ? (
+          <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-100">
+            <p className="font-medium">
+              {data.departmentScope.message ??
+                `แสดงเฉพาะงานคงค้างของแผนก ${data.departmentScope.departmentCode ?? userDeptCode ?? "—"}`}
+            </p>
+            <p className="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
+              แสดงเฉพาะแผนกที่เลือกใช้งานตอน login
+              {userDeptCode ? ` (${userDeptCode})` : ""}
+              — ล็อตคงค้างในขั้นที่แผนกนี้รับผิดชอบ
+            </p>
+          </div>
+        ) : showAdminAll ? (
+          <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
+            
+          </p>
+        ) : null}
+
+        {error && <div className="py-4 text-red-600 dark:text-red-400">{error}</div>}
+
+        {!error && data ? (
+          <>
+            {filteredOrders.length === 0 ? (
+              <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                <FontAwesomeIcon icon={faClipboardList} className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
+                <p className="text-sm">ไม่พบคำสั่งผลิต</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredOrders.map((o) => (
+                  <ProductionOrderCard
+                    key={o.id}
+                    order={o}
+                    showDeptBacklog={data.departmentScope?.filtered}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        ) : null}
+      </PcTransactionDataCard>
     </div>
   );
 }
@@ -319,12 +400,7 @@ export default function ProductionOrdersListPage() {
   return (
     <Suspense
       fallback={
-        <div>
-          <PageBreadcrumb pageTitle="คำสั่งผลิต / QR ล็อต" />
-          <ComponentCard title="รายการคำสั่งผลิต">
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">กำลังโหลด...</div>
-          </ComponentCard>
-        </div>
+        <PcTransactionLoading pageTitle="คำสั่งผลิต / QR ล็อต" variant="production" />
       }
     >
       <ProductionOrdersPageContent />

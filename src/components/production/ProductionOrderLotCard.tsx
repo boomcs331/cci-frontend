@@ -90,7 +90,7 @@ type Props = {
   allFlowSteps: ProductProductionStepRow[];
   userDepartmentCode?: string | null;
   isAdmin?: boolean;
-  onLotUpdated?: () => void;
+  onLotUpdated?: (lotId: number) => void;
   /** default เปิด — ควบคุมจากหน้ารายละเอียดใบสั่ง */
   expanded?: boolean;
   onToggleExpanded?: () => void;
@@ -264,7 +264,7 @@ export default function ProductionOrderLotCard({
       setSplitModalOpen(false);
       await reloadStation();
       await reloadStepQuantities();
-      onLotUpdated?.();
+      onLotUpdated?.(lot.id);
     } catch (err) {
       setSplitError(err instanceof Error ? err.message : "แบ่งล็อตไม่สำเร็จ");
     } finally {
@@ -291,7 +291,7 @@ export default function ProductionOrderLotCard({
       setCloseStepModalOpen(false);
       await reloadStation();
       await reloadStepQuantities();
-      onLotUpdated?.();
+      onLotUpdated?.(lot.id);
     } catch (err) {
       setStepError(err instanceof Error ? err.message : "ปิดขั้นตอนไม่สำเร็จ");
     } finally {
@@ -301,7 +301,7 @@ export default function ProductionOrderLotCard({
 
   return (
     <>
-    <article className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 shadow-sm overflow-hidden flex flex-col">
+    <article id={`lot-${lot.id}`} className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 shadow-sm overflow-hidden flex flex-col">
       <div
         className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/50 ${
           onToggleExpanded ? "cursor-pointer select-none" : ""

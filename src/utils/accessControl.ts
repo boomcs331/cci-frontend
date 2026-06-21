@@ -100,14 +100,6 @@ const ROUTE_POLICIES: RoutePolicy[] = [
     allowedDepartments: ['WE', 'PC', 'PD'],
   },
   {
-    matcher: /^\/pc\/reservations(\/|$)/,
-    requiredPermissions: [PERMISSIONS.PRODUCTION_PLANS_RESERVE],
-  },
-  {
-    matcher: /^\/pc\/(production-step-scan|production-tracking)(\/|$)/,
-    requiredPermissions: [PERMISSIONS.PRODUCTION_ORDERS_READ],
-  },
-  {
     matcher: /^\/pc\/stock(\/|$)/,
     requiredPermissions: [PERMISSIONS.MATERIAL_READ],
     allowedDepartments: ['WE', 'PC', 'PD'],

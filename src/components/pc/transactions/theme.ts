@@ -1,4 +1,4 @@
-export type PcTransactionVariant = "income" | "outcome";
+export type PcTransactionVariant = "income" | "outcome" | "production";
 
 export const TRANSACTION_THEME: Record<
   PcTransactionVariant,
@@ -40,6 +40,19 @@ export const TRANSACTION_THEME: Record<
       "border border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20",
     accentText: "text-orange-100",
     tableHeader: "bg-orange-50/80 dark:bg-orange-950/25",
+    statLabel: "text-orange-100/90",
+  },
+  production: {
+    gradient: "bg-orange-600 dark:bg-orange-800",
+    iconBg: "bg-white/20 text-white backdrop-blur-sm",
+    iconText: "text-white",
+    ring: "ring-orange-500/25",
+    primaryBtn:
+      "bg-white text-orange-800 shadow-lg shadow-black/10 hover:bg-orange-50 dark:bg-white dark:text-orange-900 dark:hover:bg-orange-50",
+    secondaryBtn:
+      "border border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20",
+    accentText: "text-orange-100",
+    tableHeader: "bg-orange-50/80 dark:bg-orange-950/30",
     statLabel: "text-orange-100/90",
   },
 };

@@ -23,11 +23,15 @@ export function PcTransactionDataCard({
   const accentBar =
     variant === "income"
       ? "from-success-500 to-emerald-400"
+      : variant === "production"
+      ? "bg-orange-500"
       : "from-orange-500 to-amber-400";
+
+  const isGradient = !accentBar.startsWith("bg-") || accentBar.includes("to-");
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
-      <div className={`h-1 bg-gradient-to-r ${accentBar}`} aria-hidden />
+      <div className={`h-1 ${isGradient ? "bg-gradient-to-r" : ""} ${accentBar}`} aria-hidden />
       <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg">

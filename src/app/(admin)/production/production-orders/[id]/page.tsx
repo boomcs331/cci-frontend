@@ -207,6 +207,8 @@ export default function ProductionOrderDetailPage() {
   const [collapsedLotIds, setCollapsedLotIds] = useState<Set<number>>(
     () => new Set(),
   );
+  /** เก็บ ID ของล็อตที่กำลังโฟกัสอยู่ก่อน reload */
+  const [focusedLotId, setFocusedLotId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!id || Number.isNaN(id)) return;
@@ -262,6 +264,28 @@ export default function ProductionOrderDetailPage() {
       return next.size === prev.size ? prev : next;
     });
   }, [lots]);
+
+  useEffect(() => {
+    if (focusedLotId && lots.length > 0) {
+      const lotExists = lots.some((l) => l.id === focusedLotId);
+      if (lotExists) {
+        setCollapsedLotIds((prev) => {
+          const next = new Set(prev);
+          next.delete(focusedLotId);
+          return next;
+        });
+        setTimeout(() => {
+          const element = document.getElementById(`lot-${focusedLotId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            setFocusedLotId(null);
+          }
+        }, 100);
+      } else {
+        setFocusedLotId(null);
+      }
+    }
+  }, [focusedLotId, lots]);
 
   const stats = useMemo(() => lotProgressStats(lots), [lots]);
   const productImagePath = order?.product ? resolveProductImagePath(order.product) : null;
@@ -561,7 +585,10 @@ export default function ProductionOrderDetailPage() {
                       allFlowSteps={allFlowSteps}
                       userDepartmentCode={userDeptCode}
                       isAdmin={isAdminUser}
-                      onLotUpdated={() => void load()}
+                      onLotUpdated={(lotId) => {
+                        setFocusedLotId(lotId);
+                        void load();
+                      }}
                       expanded={!collapsedLotIds.has(lot.id)}
                       onToggleExpanded={() => toggleLotCollapsed(lot.id)}
                     />
