@@ -2,6 +2,8 @@
 
 import { use, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPrint, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { ProductionPlanReservationPrintDocument } from '@/components/pc/production-plans/ProductionPlanReservationPrintDocument';
 import '@/components/pc/production-plans/production-plan-reservation-print.css';
 import { apiFetch } from '@/utils/api';
@@ -65,52 +67,43 @@ export default function ReservationPlanPrintPage({
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 print:bg-white">
-      <div className="no-print mx-auto max-w-3xl px-4 py-4">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">พิมพ์แผนการผลิต</h1>
-            <p className="text-sm text-gray-600">
-              แผน #{id} — ใช้ปุ่มพิมพ์หรือบันทึกเป็น PDF จากเบราว์เซอร์
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
-            >
-              <svg
-                className="h-5 w-5 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden
+      <div className="no-print mx-auto max-w-[210mm] px-4 py-4 space-y-4">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="h-1 bg-orange-500" />
+          <div className="flex flex-col gap-4 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">พิมพ์แผนการผลิต</h1>
+              <p className="text-sm text-gray-600">
+                แผน #{id} — ใช้ปุ่มพิมพ์หรือบันทึกเป็น PDF จากเบราว์เซอร์
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-orange-700"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                />
-              </svg>
-              พิมพ์ / PDF
-            </button>
-            <Link
-              href={`/pc/schedule/reservations/${id}`}
-              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            >
-              กลับรายละเอียด
-            </Link>
+                <FontAwesomeIcon icon={faPrint} className="h-4 w-4" />
+                พิมพ์ / PDF
+              </button>
+              <Link
+                href={`/pc/schedule/reservations/${id}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50"
+              >
+                <FontAwesomeIcon icon={faArrowLeft} className="h-4 w-4" />
+                กลับรายละเอียด
+              </Link>
+            </div>
           </div>
         </div>
 
         {loading && (
-          <p className="rounded border border-gray-200 bg-white p-4 text-sm text-gray-600">
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-600">
             กำลังโหลดข้อมูลแผน…
-          </p>
+          </div>
         )}
         {error && !loading && (
-          <div className="rounded border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
             {error}
             <div className="mt-3">
               <Link
@@ -125,8 +118,10 @@ export default function ReservationPlanPrintPage({
       </div>
 
       {data && !loading && (
-        <div className="print-root mx-auto max-w-[210mm] bg-white px-3 py-2 print:max-w-none print:p-0 print:shadow-none">
-          <ProductionPlanReservationPrintDocument data={data} />
+        <div className="mx-auto max-w-[210mm] px-4">
+          <div className="print-root rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm print:max-w-none print:rounded-none print:border-0 print:shadow-none">
+            <ProductionPlanReservationPrintDocument data={data} />
+          </div>
         </div>
       )}
     </div>

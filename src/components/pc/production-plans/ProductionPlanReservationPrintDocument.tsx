@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { PlanDetail, PlanItem, Reservation } from '@/utils/productionPlanReservationDetail';
-import { reservationMaterialQr } from '@/utils/productionPlanReservationDetail';
 import {
   formatMaterialIssuedByDisplay,
   resolveStoredUserLabel,
@@ -215,34 +214,53 @@ export function ProductionPlanReservationPrintDocument({
               <th>Lot Number</th>
               <th>Lot PD No.</th>
               <th className="pp-num">จำนวน</th>
-              <th>QR (ข้อความ)</th>
             </tr>
           </thead>
           <tbody>
             {reservations.length === 0 ? (
               <tr>
-                <td colSpan={6} className="pp-center">
+                <td colSpan={5} className="pp-center">
                   ไม่มีข้อมูล Lot
                 </td>
               </tr>
             ) : (
-              reservations.map((r: Reservation, idx: number) => {
-                const qr = reservationMaterialQr(r);
-                return (
-                  <tr key={`${r.materialId}-${idx}-${r.lotNumber ?? ''}`}>
-                    <td>{r.materialCode}</td>
-                    <td>{r.materialName}</td>
-                    <td>{r.lotNumber || '—'}</td>
-                    <td>{r.lotPdNo || '—'}</td>
-                    <td className="pp-num">
-                      {Number(r.reservedQuantity).toLocaleString('th-TH', {
-                        maximumFractionDigits: 4,
-                      })}
-                    </td>
-                    <td className="mono">{qr || '—'}</td>
-                  </tr>
-                );
-              })
+              (() => {
+                const grouped = reservations.reduce((acc, r) => {
+                  const key = `${r.materialId}-${r.materialCode}-${r.materialName}`;
+                  if (!acc[key]) {
+                    acc[key] = {
+                      materialId: r.materialId,
+                      materialCode: r.materialCode,
+                      materialName: r.materialName,
+                      lots: [],
+                    };
+                  }
+                  acc[key].lots.push(r);
+                  return acc;
+                }, {} as Record<string, { materialId: number; materialCode: string; materialName: string; lots: Reservation[] }>);
+
+                return Object.values(grouped).map((group, gIdx) => (
+                  <React.Fragment key={`group-${gIdx}`}>
+                    {group.lots.map((r, idx) => (
+                      <tr key={`${r.materialId}-${idx}-${r.lotNumber ?? ''}`} className={idx === 0 && gIdx > 0 ? 'pp-group-border' : ''}>
+                        {idx === 0 ? (
+                          <>
+                            <td rowSpan={group.lots.length} className="pp-center">{group.materialCode}</td>
+                            <td rowSpan={group.lots.length} className="pp-center">{group.materialName}</td>
+                          </>
+                        ) : null}
+                        <td className="pp-center">{r.lotNumber || '—'}</td>
+                        <td className="pp-center">{r.lotPdNo || '—'}</td>
+                        <td className="pp-center pp-num">
+                          {Number(r.reservedQuantity).toLocaleString('th-TH', {
+                            maximumFractionDigits: 4,
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ));
+              })()
             )}
           </tbody>
         </table>

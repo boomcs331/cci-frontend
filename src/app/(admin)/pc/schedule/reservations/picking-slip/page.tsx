@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import TableEmptyRow from "@/components/common/TableEmptyRow";
+import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -901,8 +902,18 @@ export default function PickingSlipPage() {
                                       <td className="px-3 py-2 text-center font-medium text-amber-800 dark:text-amber-200 tabular-nums">
                                         {idx + 1}
                                       </td>
-                                      <td className="px-3 py-2 font-mono text-xs text-gray-900 dark:text-white break-all max-w-[200px]">
-                                        {r.qrCode || "—"}
+                                      <td className="px-3 py-2 align-middle">
+                                        {r.qrCode ? (
+                                          <div className="flex flex-col items-center gap-1 py-1">
+                                            <QRCodeGenerator
+                                              value={r.qrCode}
+                                              size={56}
+                                              className="mx-auto block rounded border border-gray-200 bg-white p-0.5 dark:border-gray-600"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <span className="text-gray-400">—</span>
+                                        )}
                                       </td>
                                       <td className="px-3 py-2 text-gray-900 dark:text-white">
                                         {r.lotNumber || "—"}

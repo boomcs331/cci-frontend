@@ -67,10 +67,11 @@
 
 .pp-print table.pp-table th {
   font-weight: 600;
+  text-align: center;
 }
 
 .pp-print table.pp-table .pp-num {
-  text-align: right;
+  text-align: center;
   white-space: nowrap;
 }
 

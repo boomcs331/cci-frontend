@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowRight, faBox, faClipboardList, faQrcode } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRight, faBox, faClipboardList, faQrcode, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+import QRCodeGenerator from "@/components/common/QRCodeGenerator";
 import type { ProductionOrderDetail } from "@/types/production";
 
 interface ProductionOrderCardProps {
@@ -26,6 +27,7 @@ function statusBadgeClass(status: string): string {
 }
 
 export function ProductionOrderCard({ order, showDeptBacklog = false }: ProductionOrderCardProps) {
+  const [showQRCodes, setShowQRCodes] = useState(false);
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-orange-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700">
       <div className="flex flex-col gap-4">
@@ -92,6 +94,36 @@ export function ProductionOrderCard({ order, showDeptBacklog = false }: Producti
             </div>
           </div>
         ) : null}
+
+        {order.lots && order.lots.length > 0 && (
+          <div className="border-t border-gray-100 pt-3 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setShowQRCodes(!showQRCodes)}
+              className="flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+            >
+              <FontAwesomeIcon icon={showQRCodes ? faChevronUp : faChevronDown} className="h-3 w-3" />
+              {showQRCodes ? 'ซ่อน' : 'แสดง'} QR Codes ({order.lots.length})
+            </button>
+            {showQRCodes && (
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                {order.lots.slice(0, 6).map((lot) => (
+                  <div key={lot.id} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
+                    <QRCodeGenerator value={lot.qrCode} size={60} className="rounded border border-gray-200 dark:border-gray-700 bg-white p-1" />
+                    <p className="text-[10px] font-mono text-gray-600 dark:text-gray-400 text-center truncate w-full">
+                      {lot.lotNo}
+                    </p>
+                  </div>
+                ))}
+                {order.lots.length > 6 && (
+                  <div className="flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
+                    +{order.lots.length - 6} อื่นๆ
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <Link
           href={`/production/production-orders/${order.id}`}
