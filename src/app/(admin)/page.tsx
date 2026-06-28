@@ -360,22 +360,26 @@ interface KpiLinkCardProps {
 
 function KpiLinkCard({ title, value, subtitle, icon, href }: KpiLinkCardProps) {
   const content = (
-    <div className="flex h-full min-h-36 flex-col justify-between rounded-lg border border-gray-200 bg-white p-4 transition group-hover:border-brand-300 group-hover:shadow-theme-sm dark:border-gray-800 dark:bg-white/[0.03] dark:group-hover:border-brand-700">
-      <div className="flex items-start justify-between gap-3">
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{title}</span>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-50 text-base dark:bg-gray-800">
+    <div className="flex h-full min-h-36 flex-col group/card relative overflow-hidden justify-between rounded-xl border border-gray-200/80 bg-gradient-to-br from-white via-gray-50/50 to-brand-50/30 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-500/10 dark:border-gray-700/80 dark:from-gray-800 dark:via-gray-800 dark:to-brand-950/20 dark:hover:shadow-brand-500/5">
+      <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-brand-500 via-purple-500 to-blue-500 opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
+          {subtitle ? (
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p>
+          ) : null}
+        </div>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 text-xl text-brand-600 shadow-sm dark:from-brand-500/25 dark:to-brand-950/40 dark:text-brand-400">
           {icon}
         </span>
       </div>
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-2xl font-semibold text-gray-900 dark:text-white">{value}</p>
-          {subtitle ? (
-            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{subtitle}</p>
-          ) : null}
+      {href ? (
+        <div className="mt-4 flex items-center gap-2 text-xs font-medium text-brand-600 opacity-0 transition-all duration-300 group-hover/card:opacity-100 dark:text-brand-400">
+          <span>ดูรายละเอียด</span>
+          <FontAwesomeIcon icon={faArrowRight} className="translate-x-0 transition-transform duration-300 group-hover/card:translate-x-1" />
         </div>
-        {href ? <FontAwesomeIcon icon={faArrowRight} className="mb-1 text-xs text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500" /> : null}
-      </div>
+      ) : null}
     </div>
   );
   if (!href) return content;
@@ -397,12 +401,13 @@ interface DashboardPanelProps {
 function ComponentCard({ title, desc, description, children, className = "" }: DashboardPanelProps) {
   const supportingText = description ?? desc;
   return (
-    <section className={`rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] ${className}`}>
-      <div className="border-b border-gray-100 px-4 py-4 dark:border-gray-800 sm:px-5">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
-        {supportingText ? <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">{supportingText}</p> : null}
+    <section className={`overflow-hidden rounded-xl border border-gray-200/80 bg-white dark:border-gray-700/80 dark:bg-gray-800 ${className}`}>
+      <div className="h-1 w-full bg-gradient-to-r from-brand-500 via-purple-500 to-blue-500" />
+      <div className="px-5 pb-4 pt-5">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h2>
+        {supportingText ? <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{supportingText}</p> : null}
       </div>
-      <div className="p-4 sm:p-5">{children}</div>
+      <div className="px-5 pb-5">{children}</div>
     </section>
   );
 }
@@ -793,11 +798,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 pb-6">
-      <header className="flex flex-col gap-3 border-b border-gray-200 pb-5 dark:border-gray-800 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase text-brand-600 dark:text-brand-400">Dashboard</p>
-          <h1 className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">ภาพรวมการดำเนินงาน</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
+      <header className="relative overflow-hidden flex flex-col gap-4 rounded-xl border border-gray-200/80 bg-gradient-to-br from-white via-gray-50/50 to-brand-50/30 p-6 dark:border-gray-700/80 dark:from-gray-800 dark:via-gray-800 dark:to-brand-950/20 md:flex-row md:items-end md:justify-between">
+        <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-brand-500 via-purple-500 to-blue-500" />
+        <div className="relative z-10">
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">Dashboard</p>
+          <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">ภาพรวมการดำเนินงาน</h1>
+          <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
             ติดตามแผน คำสั่งผลิต วัตถุดิบ และรายการคลังตามสิทธิ์และแผนกที่เลือก
           </p>
         </div>
@@ -810,7 +816,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div data-testid="dashboard-command-bar" className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-800 dark:bg-white/[0.03] xl:flex-row xl:items-end xl:justify-between">
+      <div data-testid="dashboard-command-bar" className="flex flex-col gap-4 rounded-xl border border-gray-200/80 bg-gradient-to-br from-white via-gray-50/50 to-brand-50/30 p-5 text-sm dark:border-gray-700/80 dark:from-gray-800 dark:via-gray-800 dark:to-brand-950/20 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 flex-1">
           <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300">ช่วงเวลาสำหรับแผนและคำสั่งผลิต</p>
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="เลือกช่วงเวลา">
