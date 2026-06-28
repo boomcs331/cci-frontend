@@ -7,10 +7,7 @@ import ComponentCard from "@/components/common/ComponentCard";
 import TableEmptyRow from "@/components/common/TableEmptyRow";
 import LotTraceReportList from "@/components/production/LotTraceReportList";
 import { apiFetch } from "@/utils/api";
-import {
-  fetchLotStepTraceReport,
-  type LotStepTraceReportFilters,
-} from "@/services/productionOrdersService";
+import { productionOrdersService, type LotStepTraceReportFilters } from "@/services/productionOrdersService";
 import type { LotStepQuantitiesPayload } from "@/types/productionLotStepQuantities";
 import {
   LOT_TRACE_TABLE_HEADERS,
@@ -97,7 +94,7 @@ export default function ProductionLotTraceReportPage() {
         page: activePage,
         limit,
       };
-      const result = await fetchLotStepTraceReport(filters);
+      const result = await productionOrdersService.fetchLotStepTraceReport(filters);
       setGroups(result.data ?? []);
       setTotal(result.total ?? 0);
       setTotalPages(result.totalPages ?? 0);

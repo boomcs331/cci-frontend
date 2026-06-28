@@ -141,7 +141,7 @@ export default function ProductionLotBatchPanel({
     refresh();
   }, [planId, itemIndex, processStepLabels, refresh]);
 
-  const packSize = useMemo(() => parseFloat(packSizeInput.replace(",", ".")), [packSizeInput]);
+  const packSize = parseFloat(packSizeInput.replace(",", "."));
   const previewCount =
     packSize > 0 && totalQty > 0 ? Math.ceil(totalQty / packSize) : 0;
 

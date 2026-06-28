@@ -29,7 +29,7 @@ import {
 import { PcTransactionDataCard } from "@/components/pc/transactions/PcTransactionDataCard";
 import { PcTransactionLoading } from "@/components/pc/transactions/PcTransactionLoading";
 import { ProductionOrderCard } from "@/components/production/ProductionOrderCard";
-import { fetchProductionOrders } from "@/services/productionOrdersService";
+import { productionOrdersService } from "@/services/productionOrdersService";
 import { useClientHydrated } from "@/hooks/useClientHydrated";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
@@ -110,7 +110,7 @@ function ProductionOrdersPageContent() {
       setLoading(true);
       setError(null);
       try {
-        const r = await fetchProductionOrders(page, limit);
+        const r = await productionOrdersService.fetchList(page, limit);
         if (!cancelled) {
           const normalized: typeof r = {
             orders: Array.isArray(r.orders) ? r.orders : Array.isArray((r as any).data) ? (r as any).data : [],

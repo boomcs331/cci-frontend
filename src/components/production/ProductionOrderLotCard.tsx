@@ -18,12 +18,7 @@ import {
 import { processStepBadgeClass } from "@/utils/productionProcessDisplay";
 import { resolveLotStepBadgeForUser } from "@/utils/productionDepartmentFilter";
 import { processStepDisplayName } from "@/utils/productionProcessDisplay";
-import {
-  advanceLotStepAtStation,
-  fetchLotStation,
-  fetchLotStepQuantities,
-  splitProductionLot,
-} from "@/services/productionOrdersService";
+import { productionOrdersService } from "@/services/productionOrdersService";
 import type { LotStationPayload } from "@/types/productionLotStation";
 import type { LotStepQuantitiesPayload } from "@/types/productionLotStepQuantities";
 import type {
@@ -137,7 +132,7 @@ export default function ProductionOrderLotCard({
     setStationLoading(true);
     setStepError(null);
     try {
-      const data = await fetchLotStation(lot.qrCode);
+      const data = await productionOrdersService.fetchLotStation(lot.qrCode);
       setStation(data);
     } catch (err) {
       setStation(null);
@@ -155,7 +150,7 @@ export default function ProductionOrderLotCard({
     setStepQtyLoading(true);
     setStepQtyError(null);
     try {
-      const data = await fetchLotStepQuantities(lot.qrCode);
+      const data = await productionOrdersService.fetchLotStepQuantities(lot.qrCode);
       setStepQty(data);
     } catch (err) {
       setStepQty(null);
@@ -256,7 +251,7 @@ export default function ProductionOrderLotCard({
     setSplitBusy(true);
     setSplitError(null);
     try {
-      await splitProductionLot(lot.qrCode, {
+      await productionOrdersService.splitLot(lot.qrCode, {
         releasedQuantity: qty,
         reason,
         operator: getOperator(),
@@ -284,7 +279,7 @@ export default function ProductionOrderLotCard({
     setStepBusy(true);
     setStepError(null);
     try {
-      await advanceLotStepAtStation(station, {
+      await productionOrdersService.advanceLotStepAtStation(station, {
         operator: getOperator(),
         remarks: remarks || undefined,
       });

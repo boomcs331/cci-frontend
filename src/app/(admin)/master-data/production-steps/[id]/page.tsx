@@ -17,7 +17,7 @@ import { apiFetch } from "@/utils/api";
 export default function MasterDataProductProductionStepsEditorPage() {
   const params = useParams();
   const productIdRaw = params.id;
-  const productId = useMemo(() => Number(productIdRaw), [productIdRaw]);
+  const productId = Number(productIdRaw);
 
   const [product, setProduct] = useState<any>(null);
   const [bomsCount, setBomsCount] = useState<number>(0);

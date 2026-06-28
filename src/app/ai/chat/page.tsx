@@ -22,7 +22,7 @@ export default function AiChatPage() {
   const [isSending, setIsSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
+  const canSend = input.trim().length > 0 && !isSending;
 
   const scrollToBottom = () => {
     const el = scrollRef.current;

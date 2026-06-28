@@ -189,6 +189,30 @@ export class ApiError extends Error {
 }
 
 /**
+ * Build URLSearchParams for pagination with optional filters
+ */
+export function buildPaginationParams(
+  page: number,
+  limit: number,
+  filters?: Record<string, unknown> | { [key: string]: unknown } | object,
+): URLSearchParams {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  });
+
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, String(value));
+      }
+    });
+  }
+
+  return params;
+}
+
+/**
  * Fetch และ parse JSON response โดยโยน ApiError เมื่อไม่ใช่ 2xx
  */
 export async function apiFetchJson<T = unknown>(

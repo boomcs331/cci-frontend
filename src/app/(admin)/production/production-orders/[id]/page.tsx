@@ -7,7 +7,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import ProductionOrderLotCard from "@/components/production/ProductionOrderLotCard";
 import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
-import { fetchProductionOrder } from "@/services/productionOrdersService";
+import { productionOrdersService } from "@/services/productionOrdersService";
 import { getProductProductionSteps } from "@/services/productProductionStepsService";
 import { printProductionOrderKanbanTags } from "@/utils/productionOrderKanbanPrint";
 import {
@@ -215,7 +215,7 @@ export default function ProductionOrderDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const o = await fetchProductionOrder(id);
+      const o = await productionOrdersService.fetchDetail(id);
       setOrder(o);
       try {
         const steps = await getProductProductionSteps(o.productId);

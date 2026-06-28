@@ -1,5 +1,5 @@
 // Material Service - API calls for materials
-import { apiFetchJson, getApiUrl } from '@/utils/api';
+import { apiFetchJson, getApiUrl, buildPaginationParams } from '@/utils/api';
 import type { Material, MaterialType, MaterialFilters } from '../types/material';
 import type { Location } from '../types/material';
 import type { Supplier } from '../types/material';
@@ -18,23 +18,11 @@ export const materialService = {
    * Get materials with pagination and filters
    */
   getPaginated: async (
-    page: number = 1, 
-    limit: number = 10, 
+    page: number = 1,
+    limit: number = 10,
     filters?: MaterialFilters
   ): Promise<PaginatedResponse<Material>> => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, String(value));
-        }
-      });
-    }
-
+    const params = buildPaginationParams(page, limit, filters);
     return apiFetchJson<PaginatedResponse<Material>>(`/materials?${params}`);
   },
 

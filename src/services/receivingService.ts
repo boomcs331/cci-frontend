@@ -1,5 +1,5 @@
 // Receiving Service - API calls for material receiving
-import { apiFetchJson } from '@/utils/api';
+import { apiFetchJson, buildPaginationParams } from '@/utils/api';
 import type { Receiving, CreateReceivingPayload, ReceivingFilters } from '../types/receiving';
 import type { ApiResponse, PaginatedResponse } from '../types/api';
 
@@ -12,19 +12,7 @@ export const receivingService = {
     limit: number = 10,
     filters?: ReceivingFilters
   ): Promise<PaginatedResponse<Receiving>> => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, String(value));
-        }
-      });
-    }
-
+    const params = buildPaginationParams(page, limit, filters);
     return apiFetchJson<PaginatedResponse<Receiving>>(`/materials/transactions/receivings?${params}`);
   },
 
