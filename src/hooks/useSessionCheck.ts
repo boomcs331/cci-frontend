@@ -76,10 +76,19 @@ export function useSessionCheck() {
           }
           const data = (await response.json()) as { menus?: MenuItem[] };
           if (Array.isArray(data.menus)) {
-            setSession({
-              ...session,
-              menus: data.menus,
-            });
+            // Only update session if menus have actually changed
+            const currentMenus = session.menus || [];
+            const newMenus = data.menus;
+            
+            // Compare menus to prevent unnecessary updates
+            const menusChanged = JSON.stringify(currentMenus) !== JSON.stringify(newMenus);
+            
+            if (menusChanged) {
+              setSession({
+                ...session,
+                menus: newMenus,
+              });
+            }
           }
         })
         .catch(() => undefined);
