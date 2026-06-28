@@ -6,20 +6,21 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRightFromBracket,
   faArrowRightToBracket,
+  faArrowRight,
   faArrowRotateRight,
   faBoxesStacked,
   faChartLine,
   faClipboardCheck,
   faClockRotateLeft,
   faCubesStacked,
+  faDownload,
   faIndustry,
   faListCheck,
   faPeopleCarryBox,
   faQrcode,
+  faTriangleExclamation,
   faWarehouse,
 } from "@fortawesome/free-solid-svg-icons";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
 import { OverviewHubSection, type OverviewHubItem } from "@/components/overview/OverviewHubSection";
 import { dashboardFetch } from "@/utils/dashboardFetch";
 import { getUserMenus } from "@/utils/session";
@@ -359,21 +360,50 @@ interface KpiLinkCardProps {
 
 function KpiLinkCard({ title, value, subtitle, icon, href }: KpiLinkCardProps) {
   const content = (
-    <ComponentCard title={title} className="h-full transition group-hover:border-brand-500/40">
-      <div className="flex items-center justify-between">
-        <p className="text-3xl font-semibold text-gray-900 dark:text-white">{value}</p>
-        <span className="text-xl">{icon}</span>
+    <div className="flex h-full min-h-36 flex-col justify-between rounded-lg border border-gray-200 bg-white p-4 transition group-hover:border-brand-300 group-hover:shadow-theme-sm dark:border-gray-800 dark:bg-white/[0.03] dark:group-hover:border-brand-700">
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{title}</span>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gray-50 text-base dark:bg-gray-800">
+          {icon}
+        </span>
       </div>
-      {subtitle ? (
-        <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
-      ) : null}
-    </ComponentCard>
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-2xl font-semibold text-gray-900 dark:text-white">{value}</p>
+          {subtitle ? (
+            <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{subtitle}</p>
+          ) : null}
+        </div>
+        {href ? <FontAwesomeIcon icon={faArrowRight} className="mb-1 text-xs text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500" /> : null}
+      </div>
+    </div>
   );
   if (!href) return content;
   return (
     <Link href={href} className="group block h-full">
       {content}
     </Link>
+  );
+}
+
+interface DashboardPanelProps {
+  title: string;
+  desc?: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function ComponentCard({ title, desc, description, children, className = "" }: DashboardPanelProps) {
+  const supportingText = description ?? desc;
+  return (
+    <section className={`rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] ${className}`}>
+      <div className="border-b border-gray-100 px-4 py-4 dark:border-gray-800 sm:px-5">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
+        {supportingText ? <p className="mt-1 text-sm leading-5 text-gray-500 dark:text-gray-400">{supportingText}</p> : null}
+      </div>
+      <div className="p-4 sm:p-5">{children}</div>
+    </section>
   );
 }
 
@@ -762,51 +792,73 @@ export default function DashboardPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <PageBreadcrumb pageTitle="Dashboard" />
+    <div className="space-y-5 pb-6">
+      <header className="flex flex-col gap-3 border-b border-gray-200 pb-5 dark:border-gray-800 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase text-brand-600 dark:text-brand-400">Dashboard</p>
+          <h1 className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">ภาพรวมการดำเนินงาน</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
+            ติดตามแผน คำสั่งผลิต วัตถุดิบ และรายการคลังตามสิทธิ์และแผนกที่เลือก
+          </p>
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
+          {lastUpdated
+            ? `อัปเดตล่าสุด ${lastUpdated.toLocaleTimeString("th-TH")}`
+            : loading
+              ? "กำลังโหลดข้อมูลล่าสุด"
+              : "ยังไม่ได้โหลดข้อมูล"}
+        </div>
+      </header>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 text-sm dark:border-gray-700 dark:bg-white/[0.03] md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">ช่วงเวลา:</span>
+      <div data-testid="dashboard-command-bar" className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4 text-sm dark:border-gray-800 dark:bg-white/[0.03] xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-300">ช่วงเวลาสำหรับแผนและคำสั่งผลิต</p>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="เลือกช่วงเวลา">
           {TIME_RANGE_OPTIONS.map((opt) => (
             <button
               key={opt.key}
               type="button"
               onClick={() => setRangeKey(opt.key)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+              aria-pressed={rangeKey === opt.key}
+              className={`min-h-9 rounded-md px-3 text-xs font-medium transition ${
                 rangeKey === opt.key
-                  ? "bg-brand-500 text-white"
-                  : "border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800/60"
+                  ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+                  : "border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
               }`}
             >
               {opt.label}
             </button>
           ))}
+          </div>
           {rangeKey === "custom" && (
-            <div className="flex items-center gap-2 pl-2">
+            <div className="mt-3 grid max-w-lg grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
+                  label="จากวันที่"
                   value={customFrom ? dayjs(customFrom) : null}
                   onChange={(newValue) => setCustomFrom(newValue ? newValue.format('YYYY-MM-DD') : '')}
                   slotProps={{
                     textField: {
                       size: 'small',
-                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.25rem', height: '32px' } },
+                      fullWidth: true,
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', minHeight: '40px' } },
                     },
                     popper: { sx: { zIndex: 999999 } },
                     dialog: { sx: { zIndex: 999999 } },
                   }}
                 />
               </LocalizationProvider>
-              <span className="text-xs text-gray-500">ถึง</span>
+              <span className="hidden text-xs text-gray-500 sm:block">ถึง</span>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <DatePicker
+                  label="ถึงวันที่"
                   value={customTo ? dayjs(customTo) : null}
                   onChange={(newValue) => setCustomTo(newValue ? newValue.format('YYYY-MM-DD') : '')}
                   slotProps={{
                     textField: {
                       size: 'small',
-                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.25rem', height: '32px' } },
+                      fullWidth: true,
+                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', minHeight: '40px' } },
                     },
                     popper: { sx: { zIndex: 999999 } },
                     dialog: { sx: { zIndex: 999999 } },
@@ -816,12 +868,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {lastUpdated
-              ? `อัปเดตล่าสุด: ${lastUpdated.toLocaleTimeString("th-TH")}`
-              : "ยังไม่ได้โหลดข้อมูล"}
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
           <label className="flex cursor-pointer items-center gap-2 text-gray-700 dark:text-gray-200">
             <input
               type="checkbox"
@@ -829,114 +876,134 @@ export default function DashboardPage() {
               onChange={(e) => setAutoRefresh(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-400"
             />
-            Auto refresh (60s)
+            อัปเดตอัตโนมัติ 60 วินาที
           </label>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
           <button
             type="button"
             onClick={() => void handleDownloadReport().catch((e) => console.error(e))}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-3 text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
           >
-            Download Report
+            <FontAwesomeIcon icon={faDownload} />
+            ดาวน์โหลดรายงาน
           </button>
           <button
             type="button"
             onClick={() => void load(false)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800/60"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand-500 px-3 text-white hover:bg-brand-600 disabled:opacity-60"
           >
             <FontAwesomeIcon icon={faArrowRotateRight} className={refreshing ? "animate-spin" : ""} />
             รีเฟรช
           </button>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-          {error}
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <FontAwesomeIcon icon={faTriangleExclamation} className="mt-0.5" />
+            <span>{error}</span>
+          </div>
+          <button type="button" onClick={() => void load(false)} className="self-start font-semibold underline underline-offset-4 sm:self-auto">
+            ลองอีกครั้ง
+          </button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4">
+      <section data-testid="dashboard-metrics" aria-labelledby="dashboard-metrics-title">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="dashboard-metrics-title" className="text-base font-semibold text-gray-900 dark:text-white">ตัวชี้วัดสำคัญ</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">ภาพรวมสถานะปัจจุบันตามขอบเขตข้อมูลของแต่ละระบบ</p>
+          </div>
+          <span className="text-xs text-gray-400">แผนและคำสั่งผลิตอิงช่วงเวลาที่เลือก</span>
+        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiLinkCard
           title="แผนการผลิต"
-          value={stats.plansTotal}
-          subtitle={`Reserved ${stats.plansReserved} / Confirmed ${stats.plansConfirmed}`}
+          value={loading ? "—" : stats.plansTotal}
+          subtitle={`จองแล้ว ${stats.plansReserved} / ยืนยันแล้ว ${stats.plansConfirmed}`}
           icon={<FontAwesomeIcon icon={faClipboardCheck} className="text-brand-500" />}
           href="/pc/schedule/reservations"
         />
         <KpiLinkCard
           title="คำสั่งผลิต"
-          value={stats.ordersTotal}
-          subtitle={`Open ${stats.openOrders} รายการ`}
+          value={loading ? "—" : stats.ordersTotal}
+          subtitle={`กำลังดำเนินการ ${stats.openOrders} รายการ`}
           icon={<FontAwesomeIcon icon={faQrcode} className="text-blue-light-500" />}
           href="/production/production-orders"
         />
         <KpiLinkCard
           title="ล็อตในคิว"
-          value={stats.totalLots}
-          subtitle="จากคำสั่งผลิตหน้าแรก 10 รายการ"
+          value={loading ? "—" : stats.totalLots}
+          subtitle="จากคำสั่งผลิตที่โหลดสูงสุด 100 รายการ"
           icon={<FontAwesomeIcon icon={faCubesStacked} className="text-success-500" />}
           href="/production/production-orders?page=1&limit=10"
         />
         <KpiLinkCard
           title="ยอดจองขายรวม"
-          value={stats.salesReservedQty.toLocaleString()}
-          subtitle="สินค้าที่ถูกจองขาย"
+          value={loading ? "—" : stats.salesReservedQty.toLocaleString()}
+          subtitle="ยอดสะสมปัจจุบัน ไม่อิงช่วงเวลา"
           icon={<FontAwesomeIcon icon={faBoxesStacked} className="text-orange-500" />}
           href="/production/sales-reservations"
         />
         <KpiLinkCard
           title="แผนใกล้ครบกำหนด"
-          value={stats.upcomingPlans}
+          value={loading ? "—" : stats.upcomingPlans}
           subtitle="ภายใน 7 วัน (ยังไม่ confirmed)"
           icon={<FontAwesomeIcon icon={faClockRotateLeft} className="text-warning-500" />}
           href="/pc/schedule/reservations"
         />
         <KpiLinkCard
           title="วัตถุดิบใกล้หมด"
-          value={stats.lowStockMaterials}
-          subtitle="available ≤ min stock"
+          value={loading ? "—" : stats.lowStockMaterials}
+          subtitle="คงเหลือพร้อมใช้ต่ำกว่าหรือเท่ากับขั้นต่ำ"
           icon={<FontAwesomeIcon icon={faWarehouse} className="text-red-500" />}
           href="/pc/stock"
         />
         <KpiLinkCard
           title="รายการรับเข้า"
-          value={stats.receivingsTotal}
-          subtitle="ใบรับวัตถุดิบทั้งหมด"
+          value={loading ? "—" : stats.receivingsTotal}
+          subtitle="ใบรับวัตถุดิบทั้งหมดในระบบ"
           icon={<FontAwesomeIcon icon={faArrowRightToBracket} className="text-success-500" />}
           href="/pc/income"
         />
         <KpiLinkCard
           title="รายการจ่ายออก"
-          value={stats.issuesTotal}
-          subtitle="ใบจ่ายวัตถุดิบทั้งหมด"
+          value={loading ? "—" : stats.issuesTotal}
+          subtitle="ใบจ่ายวัตถุดิบทั้งหมดในระบบ"
           icon={<FontAwesomeIcon icon={faArrowRightFromBracket} className="text-orange-500" />}
           href="/pc/outcome"
         />
       </div>
+      </section>
 
-      <ComponentCard title="แนวโน้มตามช่วงเวลา" desc="นับจำนวนแผนและคำสั่งผลิตในแต่ละวัน">
+      <section data-testid="dashboard-trends" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <ComponentCard title="แนวโน้มแผนและคำสั่งผลิต" desc="นับจำนวนกิจกรรมในแต่ละวันตามช่วงเวลาที่เลือก">
         <TrendLineChart
           categories={trendCategories}
           series={[
-            { name: "Plans", data: trendPlans },
-            { name: "Orders", data: trendOrders },
+            { name: "แผน", data: trendPlans },
+            { name: "คำสั่งผลิต", data: trendOrders },
           ]}
         />
       </ComponentCard>
 
-      <ComponentCard title="ยอดคำสั่งผลิตแยกตามสถานะ" desc="แสดงยอดที่เปิดและยอดที่เสร็จสิ้นในแต่ละวัน">
+      <ComponentCard title="แนวโน้มสถานะคำสั่งผลิต" desc="เปรียบเทียบงานที่กำลังดำเนินการและเสร็จสิ้น">
         <TrendLineChart
           categories={trendCategories}
           series={[
-            { name: "Open Orders", data: trendOpenOrders },
-            { name: "Completed Orders", data: trendCompletedOrders },
+            { name: "กำลังดำเนินการ", data: trendOpenOrders },
+            { name: "เสร็จสิ้น", data: trendCompletedOrders },
           ]}
         />
       </ComponentCard>
+      </section>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div data-testid="dashboard-operations" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ComponentCard title="สถานะแผนล่าสุด" desc="ติดตามแผนที่เพิ่งสร้างหรืออัปเดตล่าสุด">
           {loading ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">กำลังโหลด...</p>
@@ -992,7 +1059,7 @@ export default function DashboardPage() {
         </ComponentCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ComponentCard title="สัดส่วนสถานะแผน" desc="จากแผนทั้งหมดในระบบ">
           <StatusDonutChart
             labels={planStatusRows.map((r) => r.label)}
@@ -1008,21 +1075,21 @@ export default function DashboardPage() {
       </div>
 
       <ComponentCard
-        title="Top Reserved Materials (Bar)"
+        title="วัตถุดิบที่ถูกจองสูงสุด"
         desc="เปรียบเทียบยอดจองสูงสุดเพื่อดูวัตถุดิบที่ถูกใช้งานหนัก"
       >
         <TopBarChart
           categories={topReservedMaterials.map((m) => `${m.materialCode} ${m.materialName}`)}
           series={[
             {
-              name: "Reserved",
+              name: "ยอดจอง",
               data: topReservedMaterials.map((m) => Number(m.totalReserved || 0)),
             },
           ]}
         />
       </ComponentCard>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div data-testid="dashboard-alerts" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ComponentCard title="แผนใกล้ครบกำหนด (7 วัน)" desc="จัดลำดับตามวันที่แผน">
           {upcomingPlans.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">ไม่มีแผนใกล้ครบกำหนด</p>
@@ -1077,9 +1144,9 @@ export default function DashboardPage() {
         </ComponentCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <ComponentCard
-          title="Production Detail"
+          title="รายละเอียดงานผลิต"
           desc="สรุปสถานะของแผนและคำสั่งผลิต เพื่อช่วยติดตามคอขวดงานผลิต"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1145,14 +1212,14 @@ export default function DashboardPage() {
         </ComponentCard>
 
         <ComponentCard
-          title="Material Detail"
+          title="รายละเอียดวัตถุดิบ"
           desc="ติดตามวัตถุดิบที่จองสูงสุดและจำนวนแผนที่กำลังใช้วัตถุดิบ"
         >
           <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-200">
                 <FontAwesomeIcon icon={faWarehouse} className="text-orange-500" />
-                Top Reserved Materials
+                วัตถุดิบที่ถูกจองสูงสุด
               </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">
                 แผนที่เกี่ยวข้อง {reservedPlanCodeCount}
@@ -1201,6 +1268,7 @@ export default function DashboardPage() {
         </ComponentCard>
       </div>
 
+      <div data-testid="dashboard-shortcuts">
       <OverviewHubSection
         title="ทางลัดเมนูหลัก"
         sectionDescription="เปิดใช้งานงานประจำได้เร็วขึ้นตามสิทธิ์ที่ได้รับ"
@@ -1218,6 +1286,7 @@ export default function DashboardPage() {
               ]
         }
       />
+      </div>
     </div>
   );
 }

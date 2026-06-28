@@ -55,7 +55,7 @@ export function ProductionPlanReservationPrintDocument({
 }: {
   data: PlanDetail;
 }) {
-  const sessionUser = useMemo(() => getSession()?.user, []);
+  const sessionUser = getSession()?.user;
   const materialIssuedByLabel = formatMaterialIssuedByDisplay(data, sessionUser);
 
   const materialRows = useMemo(() => {

@@ -122,7 +122,7 @@ export default function ProductionOrderLotCard({
   const [stepQtyLoading, setStepQtyLoading] = useState(false);
   const [stepQtyError, setStepQtyError] = useState<string | null>(null);
   const [closeStepModalOpen, setCloseStepModalOpen] = useState(false);
-  const sessionUser = useMemo(() => getSession()?.user, []);
+  const sessionUser = getSession()?.user;
 
   const getOperator = useCallback((): string => {
     const username = getSession()?.user?.username?.trim();

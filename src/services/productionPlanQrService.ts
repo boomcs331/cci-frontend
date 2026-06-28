@@ -1,4 +1,4 @@
-import { getApiUrl } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 export interface GenerateProductQrOrdersBody {
   planItemIds?: number[];
@@ -50,22 +50,21 @@ export async function generateProductQrOrders(
   planId: number,
   body: GenerateProductQrOrdersBody,
 ): Promise<GenerateProductQrOrdersResponse> {
-  const res = await fetch(
-    getApiUrl(`/production-plans/${planId}/generate-product-qr-orders`),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-  );
-  const raw = await res.json().catch(() => ({}));
+  const res = await apiFetch(`/production-plans/${planId}/generate-product-qr-orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
   if (!res.ok) {
+    const raw = await res.json().catch(() => ({}));
     const msg =
       (raw as { message?: string | string[] })?.message ?? res.statusText;
     const text = Array.isArray(msg) ? msg.join(", ") : String(msg);
     throw new Error(text || "generate-product-qr-orders failed");
   }
-  return raw as GenerateProductQrOrdersResponse;
+
+  return res.json() as Promise<GenerateProductQrOrdersResponse>;
 }
 
 /** ดึงรหัสแถวแผนจาก item — รองรับ planItemId หรือ id จาก backend */

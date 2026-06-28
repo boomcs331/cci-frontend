@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import type { ProductionOrderLot, ProductProductionStepRow } from "@/types/production";
 import {
   lotOperatorForProcess,
@@ -58,7 +58,7 @@ export default function ProductionLotKanbanFlowTable({
   flowSteps,
   compact = false,
 }: Props) {
-  const sessionUser = useMemo(() => getSession()?.user, []);
+  const sessionUser = getSession()?.user;
   const ordered = [...flowSteps].sort((a, b) => a.stepOrder - b.stepOrder || a.id - b.id);
   if (ordered.length === 0) return null;
 

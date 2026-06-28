@@ -16,6 +16,7 @@ import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { createPaginationHrefBuilder } from "@/lib/pagination";
 import { apiFetch } from "@/utils/api";
+import { getSession } from "@/utils/session";
 import OutcomeTable from "@/components/pc/outcome/OutcomeTable";
 import { PcTransactionPageHeader } from "@/components/pc/transactions/PcTransactionPageHeader";
 import { PcTransactionActionButton } from "@/components/pc/transactions/PcTransactionActionButton";
@@ -126,15 +127,8 @@ export default function PCOutcomePage() {
       }
     })();
 
-    const session = localStorage.getItem("session");
-    if (session) {
-      try {
-        const parsed = JSON.parse(session);
-        setCurrentUser(parsed.user?.username || "admin");
-      } catch {
-        /* ignore */
-      }
-    }
+    const session = getSession();
+    setCurrentUser(session?.user?.username ?? "admin");
 
     return () => {
       cancelled = true;

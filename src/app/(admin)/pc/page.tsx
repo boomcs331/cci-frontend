@@ -12,6 +12,7 @@ import {
 import PaginationSelector from "@/components/pagination/PaginationSelector";
 import PaginationFooter from "@/components/pagination/PaginationFooter";
 import { apiFetch } from "@/utils/api";
+import { getSession } from "@/utils/session";
 import { resolveWorkpieceImagePath } from "@/utils/workpieceImage";
 import WorkpieceImage from "@/components/pc/shared/WorkpieceImage";
 import WorkpieceImagePreviewModal from "@/components/pc/shared/WorkpieceImagePreviewModal";
@@ -482,15 +483,8 @@ export default function PCPage() {
   
   useEffect(() => {
     const getSessionData = () => {
-      try {
-        const session = localStorage.getItem('session');
-        if (session) {
-          const parsedSession = JSON.parse(session);
-          setCurrentUser(parsedSession.user?.username || 'admin');
-        }
-      } catch (error) {
-        console.error('Failed to parse session:', error);
-      }
+      const session = getSession();
+      setCurrentUser(session?.user?.username ?? 'admin');
     };
     getSessionData();
   }, []);
