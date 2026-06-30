@@ -797,7 +797,7 @@ export default function DashboardPage() {
   ]);
 
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-6 pb-6">
       <header className="relative overflow-hidden flex flex-col gap-4 rounded-xl border border-gray-200/80 bg-gradient-to-br from-white via-gray-50/50 to-brand-50/30 p-6 dark:border-gray-700/80 dark:from-gray-800 dark:via-gray-800 dark:to-brand-950/20 md:flex-row md:items-end md:justify-between">
         <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-brand-500 via-purple-500 to-blue-500" />
         <div className="relative z-10">
@@ -889,7 +889,7 @@ export default function DashboardPage() {
             type="button"
             onClick={() => void handleDownloadReport().catch((e) => console.error(e))}
             disabled={loading}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-3 text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-gray-300/80 bg-gradient-to-br from-white to-gray-50 px-4 text-sm font-medium text-gray-700 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300 hover:text-brand-600 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none dark:border-gray-600/80 dark:from-gray-800 dark:to-gray-900 dark:text-gray-200 dark:hover:border-brand-600 dark:hover:text-brand-400"
           >
             <FontAwesomeIcon icon={faDownload} />
             ดาวน์โหลดรายงาน
@@ -898,7 +898,7 @@ export default function DashboardPage() {
             type="button"
             onClick={() => void load(false)}
             disabled={refreshing}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand-500 px-3 text-white hover:bg-brand-600 disabled:opacity-60"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 px-4 text-sm font-medium text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:from-brand-600 hover:to-brand-700 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             <FontAwesomeIcon icon={faArrowRotateRight} className={refreshing ? "animate-spin" : ""} />
             รีเฟรช
@@ -920,14 +920,14 @@ export default function DashboardPage() {
       )}
 
       <section data-testid="dashboard-metrics" aria-labelledby="dashboard-metrics-title">
-        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="dashboard-metrics-title" className="text-base font-semibold text-gray-900 dark:text-white">ตัวชี้วัดสำคัญ</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">ภาพรวมสถานะปัจจุบันตามขอบเขตข้อมูลของแต่ละระบบ</p>
+            <h2 id="dashboard-metrics-title" className="text-lg font-bold text-gray-900 dark:text-white">ตัวชี้วัดสำคัญ</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">ภาพรวมสถานะปัจจุบันตามขอบเขตข้อมูลของแต่ละระบบ</p>
           </div>
-          <span className="text-xs text-gray-400">แผนและคำสั่งผลิตอิงช่วงเวลาที่เลือก</span>
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">แผนและคำสั่งผลิตอิงช่วงเวลาที่เลือก</span>
         </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiLinkCard
           title="แผนการผลิต"
           value={loading ? "—" : stats.plansTotal}
@@ -987,7 +987,7 @@ export default function DashboardPage() {
       </div>
       </section>
 
-      <section data-testid="dashboard-trends" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <section data-testid="dashboard-trends" className="grid grid-cols-1 gap-5 xl:grid-cols-2">
       <ComponentCard title="แนวโน้มแผนและคำสั่งผลิต" desc="นับจำนวนกิจกรรมในแต่ละวันตามช่วงเวลาที่เลือก">
         <TrendLineChart
           categories={trendCategories}
@@ -1009,7 +1009,7 @@ export default function DashboardPage() {
       </ComponentCard>
       </section>
 
-      <div data-testid="dashboard-operations" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div data-testid="dashboard-operations" className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <ComponentCard title="สถานะแผนล่าสุด" desc="ติดตามแผนที่เพิ่งสร้างหรืออัปเดตล่าสุด">
           {loading ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">กำลังโหลด...</p>
@@ -1021,15 +1021,15 @@ export default function DashboardPage() {
                 <Link
                   key={plan.id}
                   href={`/pc/schedule/reservations/${plan.id}`}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/60"
+                  className="group flex items-center justify-between rounded-xl border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300 dark:border-gray-700/80 dark:from-gray-800 dark:to-gray-900/50 dark:hover:border-brand-700"
                 >
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{plan.planCode}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{plan.planCode}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {plan.planDate ? new Date(plan.planDate).toLocaleDateString("th-TH") : "—"}
                     </p>
                   </div>
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                  <span className="rounded-full bg-gradient-to-br from-gray-100 to-gray-50 px-3 py-1 text-xs font-medium text-gray-700 dark:from-gray-800 dark:to-gray-900 dark:text-gray-300">
                     {(plan.status || "unknown").toUpperCase()}
                   </span>
                 </Link>
@@ -1049,15 +1049,15 @@ export default function DashboardPage() {
                 <Link
                   key={order.id}
                   href={`/production/production-orders/${order.id}`}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/60"
+                  className="group flex items-center justify-between rounded-xl border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300 dark:border-gray-700/80 dark:from-gray-800 dark:to-gray-900/50 dark:hover:border-brand-700"
                 >
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{order.orderNo}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">{order.orderNo}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       Lots {order.totalLots} • {order.status}
                     </p>
                   </div>
-                  <FontAwesomeIcon icon={faChartLine} className="text-gray-400" />
+                  <FontAwesomeIcon icon={faChartLine} className="text-gray-400 group-hover:text-brand-500 dark:group-hover:text-brand-400 transition-colors" />
                 </Link>
               ))}
             </div>
@@ -1065,7 +1065,7 @@ export default function DashboardPage() {
         </ComponentCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <ComponentCard title="สัดส่วนสถานะแผน" desc="จากแผนทั้งหมดในระบบ">
           <StatusDonutChart
             labels={planStatusRows.map((r) => r.label)}
@@ -1150,7 +1150,7 @@ export default function DashboardPage() {
         </ComponentCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <ComponentCard
           title="รายละเอียดงานผลิต"
           desc="สรุปสถานะของแผนและคำสั่งผลิต เพื่อช่วยติดตามคอขวดงานผลิต"

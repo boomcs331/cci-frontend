@@ -527,23 +527,17 @@ export default function PCPage() {
   return (
     <PageContainer>
       {/* ── Header ── */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-600 to-blue-500 rounded-2xl p-6 mb-6 text-white shadow-lg shadow-blue-500/20">
-        <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 80% 50%, white 0%, transparent 60%)'}} />
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="relative overflow-hidden rounded-xl border border-gray-200/80 bg-gradient-to-br from-white via-gray-50/50 to-brand-50/30 p-6 mb-8 dark:border-gray-700/80 dark:from-gray-800 dark:via-gray-800 dark:to-brand-950/20">
+        <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-brand-500 via-purple-500 to-blue-500" />
+        <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight">วัตถุดิบ</h1>
-            </div>
-            <p className="text-blue-100 text-sm">จัดการและตรวจสอบวัตถุดิบทั้งหมดในระบบ</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">Production Control</p>
+            <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">วัตถุดิบ</h1>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">จัดการและตรวจสอบวัตถุดิบทั้งหมดในระบบ</p>
             <div className="flex items-center gap-4 mt-3">
-              <div className="flex items-center gap-1.5 text-sm text-blue-100">
+              <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                <span>ทั้งหมด <strong className="text-white">{apiResponse?.pagination?.total ?? apiResponse?.data?.length ?? 0}</strong> รายการ</span>
+                <span>ทั้งหมด <strong className="text-gray-900 dark:text-white">{apiResponse?.pagination?.total ?? apiResponse?.data?.length ?? 0}</strong> รายการ</span>
               </div>
             </div>
           </div>
@@ -552,7 +546,7 @@ export default function PCPage() {
               setFormData({ matCode: '', matTypeId: 1, defaultLocationId: 1, supplierId: 0, modelId: 0, deliveryTypeId: 0, unitId: 0, loadingPointId: 0, processLineId: 0, name: '', description: '', lr: '', lotSize: 0, scale: '', minStock: 0, createBy: currentUser });
               setShowAddModal(true);
             }}
-            className="inline-flex items-center gap-2 bg-white text-blue-600 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-50 transition-all shadow-md hover:shadow-lg active:scale-95 shrink-0"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:from-brand-600 hover:to-brand-700 active:scale-95 shrink-0"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             เพิ่มวัตถุดิบ
@@ -561,24 +555,26 @@ export default function PCPage() {
       </div>
 
       {/* ── Quick Actions ── */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <a href="/pc/income" className="group flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-600 transition-all">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 transition-colors shrink-0">
-            <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <a href="/pc/income" className="group relative overflow-hidden flex items-center gap-4 rounded-xl border border-gray-200/80 bg-gradient-to-br from-white to-emerald-50/30 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-300 dark:border-gray-700/80 dark:from-gray-800 dark:to-emerald-950/20 dark:hover:border-emerald-600">
+          <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-500 to-emerald-400 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-600 shadow-sm group-hover:from-emerald-200 group-hover:to-emerald-100 transition-colors shrink-0 dark:from-emerald-500/25 dark:to-emerald-950/40 dark:text-emerald-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
           </div>
-          <div>
+          <div className="flex-1">
             <div className="font-semibold text-gray-900 dark:text-white text-sm">รับเข้า</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">บันทึกการรับวัตถุดิบเข้าคลัง</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">บันทึกการรับวัตถุดิบเข้าคลัง</div>
           </div>
           <svg className="w-4 h-4 text-gray-400 ml-auto group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </a>
-        <a href="/pc/outcome" className="group flex items-center gap-4 bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-orange-300 dark:hover:border-orange-600 transition-all">
-          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-900/30 group-hover:bg-orange-100 dark:group-hover:bg-orange-900/50 transition-colors shrink-0">
-            <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+        <a href="/pc/outcome" className="group relative overflow-hidden flex items-center gap-4 rounded-xl border border-gray-200/80 bg-gradient-to-br from-white to-orange-50/30 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-orange-300 dark:border-gray-700/80 dark:from-gray-800 dark:to-orange-950/20 dark:hover:border-orange-600">
+          <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-orange-500 to-orange-400 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 text-orange-600 shadow-sm group-hover:from-orange-200 group-hover:to-orange-100 transition-colors shrink-0 dark:from-orange-500/25 dark:to-orange-950/40 dark:text-orange-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
           </div>
-          <div>
+          <div className="flex-1">
             <div className="font-semibold text-gray-900 dark:text-white text-sm">จ่ายออก</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">จ่ายวัตถุดิบตามแผน (FIFO)</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">จ่ายวัตถุดิบตามแผน (FIFO)</div>
           </div>
           <svg className="w-4 h-4 text-gray-400 ml-auto group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </a>
@@ -599,18 +595,18 @@ export default function PCPage() {
       )}
 
       {/* ── Filter Card ── */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 mb-6">
+      <div className="relative overflow-hidden rounded-xl border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 p-5 mb-8 dark:border-gray-700/80 dark:from-gray-800 dark:to-gray-900/50">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" /></svg>
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">ค้นหาและกรอง</span>
             {(searchValue || unitValue || statusValue) && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">มีตัวกรอง</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">มีตัวกรอง</span>
             )}
           </div>
           {(searchValue || unitValue || statusValue) && (
             <button onClick={() => { setSearchValue(''); setUnitValue(''); setStatusValue(''); window.history.replaceState({}, '', `?page=1&limit=${limit}`); getMaterials(1, limit).then(setApiResponse); }}
-              className="text-xs text-red-500 hover:text-red-700 font-medium flex items-center gap-1 transition-colors">
+              className="text-xs text-brand-500 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium flex items-center gap-1 transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               ล้างตัวกรอง
             </button>
@@ -671,8 +667,8 @@ export default function PCPage() {
       </div>
 
       {/* ── Material Table ── */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="relative overflow-hidden rounded-xl border border-gray-200/80 bg-gradient-to-br from-white to-gray-50/50 dark:border-gray-700/80 dark:from-gray-800 dark:to-gray-900/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-gray-200/80 dark:border-gray-700/80">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
             รายการวัตถุดิบทั้งหมด
             {apiResponse?.pagination?.total != null && (
@@ -683,7 +679,7 @@ export default function PCPage() {
         </div>
         <div className="w-full">
           {/* Desktop List View */}
-          <div className="hidden md:block space-y-3">
+          <div className="hidden md:block space-y-4">
             {loading ? (
               <div className="flex flex-col items-center gap-4 text-gray-400 py-12">
                 <svg className="w-16 h-16 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -707,10 +703,10 @@ export default function PCPage() {
               const wpPath = resolveWorkpieceImagePath(material);
               const rowNum = (page - 1) * limit + idx + 1;
               return (
-                <div 
-                  key={material.id} 
+                <div
+                  key={material.id}
                   onClick={() => handleEdit(material)}
-                  className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200 cursor-pointer"
+                  className="group relative overflow-hidden bg-gradient-to-br from-white to-gray-50/50 rounded-xl border border-gray-200/80 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-brand-300 dark:from-gray-800 dark:to-gray-900/50 dark:border-gray-700/80 dark:hover:border-brand-600 cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex-shrink-0">
@@ -1119,7 +1115,7 @@ export default function PCPage() {
           </div>
               
               <div className="flex gap-3 pt-4">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
+                <button type="submit" className="flex-1 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 py-2.5 px-4 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:from-brand-600 hover:to-brand-700">
                   บันทึก
                 </button>
                 <button 
@@ -1459,7 +1455,7 @@ export default function PCPage() {
               </div>
               
               <div className="flex gap-3 pt-4">
-                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
+                <button type="submit" className="flex-1 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 py-2.5 px-4 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:from-brand-600 hover:to-brand-700">
                   อัปเดต
                 </button>
                 <button
@@ -1480,7 +1476,7 @@ export default function PCPage() {
         title="ยืนยันการลบ"
         size="sm"
       >
-        <div className="mb-6">
+        <div className="mb-8">
           <p className="text-gray-700 dark:text-gray-300">
             คุณต้องการลบวัตถุดิบ <strong>{deletingMaterial?.matCode}</strong> หรือไม่?
           </p>
