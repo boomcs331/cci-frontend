@@ -517,38 +517,49 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed flex flex-col top-0 left-0 bg-gradient-to-b from-white to-gray-50 shadow-2xl text-gray-900 h-screen transition-all duration-300 ease-in-out z-[100000] lg:z-40 border-r border-gray-100/50
-        lg:top-[20px] lg:left-[20px] lg:h-[calc(100vh-20px)] lg:rounded-r-2xl lg:border lg:border-gray-100/50 lg:translate-x-0
-        ${isExpanded || isMobileOpen
-          ? "w-[260px] px-5"
-          : isHovered
-            ? "w-[260px] px-5"
-            : "lg:w-[90px] lg:px-2 w-[260px] px-5"
+      className={`fixed flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200
+        ${
+          isExpanded || isMobileOpen
+            ? "w-[290px]"
+            : isHovered
+            ? "w-[290px]"
+            : "w-[90px]"
         }
-        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:translate-x-0`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex items-center ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
-          }`}
+        className={`py-8 flex ${
+          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+        }`}
       >
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="flex-shrink-0 relative">
-            <div className="absolute inset-0 bg-blue-500/10 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <Link href="/">
+          {isExpanded || isHovered || isMobileOpen ? (
+            <>
+              <Image
+                className="dark:hidden"
+                src="/images/logo/logo.svg"
+                alt="Logo"
+                width={150}
+                height={40}
+              />
+              <Image
+                className="hidden dark:block"
+                src="/images/logo/logo-dark.svg"
+                alt="Logo"
+                width={150}
+                height={40}
+              />
+            </>
+          ) : (
             <Image
               src="/images/logo/logo-icon.svg"
               alt="Logo"
               width={32}
               height={32}
-              className="relative"
             />
-          </div>
-          {(isExpanded || isHovered || isMobileOpen) && (
-            <div className="flex flex-col">
-              <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">CPS</span>
-              <span className="text-sm font-medium text-gray-500 tracking-wide">Backoffice</span>
-            </div>
           )}
         </Link>
       </div>
@@ -557,10 +568,11 @@ const AppSidebar: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 font-semibold tracking-wider ${!isExpanded && !isHovered
-                  ? "lg:justify-center"
-                  : "justify-start"
-                  }`}
+                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                  !isExpanded && !isHovered
+                    ? "lg:justify-center"
+                    : "justify-start"
+                }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
                   "Menu"
