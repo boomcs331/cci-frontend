@@ -20,6 +20,27 @@ export interface PlanningBatch {
     byErrorCode: Record<string, number>;
     skippedRows: number;
   };
+  // Optional fields for versioned replace/restore (backward-compatible additions)
+  version?: number;
+  replacesBatchId?: number | null;
+  warningRows?: number;
+  committedBy?: string | null;
+  committedAt?: string | null;
+  restoredBy?: string | null;
+  restoredAt?: string | null;
+}
+
+export type PlanningIssueSeverity = "ERROR" | "WARNING" | "INFO";
+
+export interface PlanningValidationIssue {
+  id: number;
+  rowNumber: number;
+  fieldName: string | null;
+  fieldValue: string | null;
+  errorCode: string;
+  message: string;
+  severity: PlanningIssueSeverity;
+  details?: Record<string, unknown>;
 }
 
 export interface PlanningError {
@@ -233,6 +254,22 @@ export const salesPlanningService = {
     return parseEnvelope<{ message: string }>(res);
   },
 
+  // Confirm a validated batch and activate it as the new committed version
+  async commitBatch(batchId: number): Promise<PlanningBatch> {
+    const res = await apiFetch(`/sales-planning/import/${batchId}/commit`, {
+      method: "POST",
+    });
+    return parseEnvelope<PlanningBatch>(res);
+  },
+
+  // Restore a superseded batch back to committed status
+  async restoreBatch(batchId: number): Promise<PlanningBatch> {
+    const res = await apiFetch(`/sales-planning/import/${batchId}/restore`, {
+      method: "POST",
+    });
+    return parseEnvelope<PlanningBatch>(res);
+  },
+
   // Get import history
   async getImportHistory(options?: {
     skip?: number;
@@ -262,6 +299,22 @@ export const salesPlanningService = {
   }): Promise<PlanningDataResponse> {
     const res = await apiFetch(`/sales-planning${buildQuery(options || {})}`);
     return parseEnvelope<PlanningDataResponse>(res);
+  },
+
+  // Export active planning data (filtered) to Excel
+  async exportPlanningData(options?: {
+    year?: number;
+    month?: number;
+    customerCode?: string;
+    productCode?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Blob> {
+    const res = await apiFetch(`/sales-planning/export${buildQuery(options || {})}`);
+    if (!res.ok) {
+      throw new Error(`Failed to export planning data (${res.status})`);
+    }
+    return res.blob();
   },
 
   // Get planning row by ID
