@@ -1,9 +1,18 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import React, { useState, useCallback, useMemo } from "react";
+import {
+  PageContainer,
+  PageHeader,
+  ContentCard,
+  SearchCard,
+  FormField,
+  ActionButton,
+  DataTable,
+  StatusBadge,
+  LoadingState,
+  type Column,
+} from "@/components/shared";
 import { apiFetch } from "@/utils/api";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -61,6 +70,9 @@ type TraceForward = {
       materialCode: string | null;
       materialName: string | null;
       issuingTypeName: string | null;
+      status?: string | null;
+      totalQuantity?: number | null;
+      unit?: string | null;
     } | null;
   }>;
 };
@@ -165,7 +177,7 @@ function buildExportRows(result: TraceResult): Record<string, unknown>[] {
       เลขที่จ่าย: h.issuingNo,
       วันที่จ่าย: formatThDateTime(h.issuingDate),
       วัตถุดิบหัวใบจ่าย: `${h.materialCode ?? ""} ${h.materialName ?? ""}`,
-      จำนวนรวมใบจ่าย: h.totalQuantity,
+      จำนวนรวมใบจ่าย: (h as any).totalQuantity,
       Lot: line.lot?.lotNo ?? "",
       จำนวนที่ใช้: line.quantity,
       หน่วย: line.unit ?? "",
@@ -362,7 +374,7 @@ export default function PCTraceabilityPage() {
       <div>
         <dt className="text-gray-500 dark:text-gray-400">จำนวนรวม</dt>
         <dd className="text-gray-900 dark:text-white">
-          {formatNum(h.totalQuantity)} {h.unit ?? ""}
+          {formatNum(h.totalQuantity ?? 0)} {h.unit ?? ""}
         </dd>
       </div>
       <div>
@@ -388,232 +400,223 @@ export default function PCTraceabilityPage() {
     </dl>
   );
 
+  const linesColumns: Column<TraceLine>[] = [
+    {
+      key: "lotNo",
+      title: "Lot",
+      render: (_, line) => (
+        <span className="font-medium whitespace-nowrap">{line.lot?.lotNo ?? "-"}</span>
+      ),
+    },
+    {
+      key: "quantity",
+      title: "จำนวนที่ใช้",
+      align: "right",
+      render: (_, line) => (
+        <span className="whitespace-nowrap">
+          {formatNum(line.quantity)} {line.unit ?? ""}
+        </span>
+      ),
+    },
+    {
+      key: "material",
+      title: "วัตถุดิบ (Lot)",
+      render: (_, line) => (
+        <span>{line.lot?.materialCode} — {line.lot?.materialName}</span>
+      ),
+    },
+    {
+      key: "receivingNo",
+      title: "ใบรับ",
+      render: (_, line) => (
+        <span className="whitespace-nowrap">{line.receiving?.receivingNo ?? "-"}</span>
+      ),
+    },
+    {
+      key: "receivingDate",
+      title: "วันที่รับ",
+      render: (_, line) => (
+        <span className="whitespace-nowrap">{formatThDateTime(line.receiving?.receivingDate)}</span>
+      ),
+    },
+    {
+      key: "supplier",
+      title: "ผู้ขาย",
+      render: (_, line) => (
+        <span className="text-xs">
+          {line.receiving?.supplier
+            ? `${line.receiving.supplier.code} — ${line.receiving.supplier.name}`
+            : "-"}
+        </span>
+      ),
+    },
+  ];
+
   const renderLinesTable = (lines: TraceLine[]) => (
-    <div className="overflow-x-auto">
-      <table className="w-full table-auto text-sm">
-        <thead>
-          <tr className="bg-gray-50 dark:bg-gray-800 text-left">
-            <th className="px-3 py-2">Lot</th>
-            <th className="px-3 py-2 text-right">จำนวนที่ใช้</th>
-            <th className="px-3 py-2">วัตถุดิบ (Lot)</th>
-            <th className="px-3 py-2">ใบรับ</th>
-            <th className="px-3 py-2">วันที่รับ</th>
-            <th className="px-3 py-2">ผู้ขาย</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-          {lines.length === 0 ? (
-            <TableEmptyRow
-              colSpan={6}
-              message="ไม่มีรายการผูก Lot — สอบกลับไม่สมบูรณ์"
-            />
-          ) : (
-            lines.map((line) => (
-              <tr key={line.issuingLotId}>
-                <td className="px-3 py-2 font-medium whitespace-nowrap">
-                  {line.lot?.lotNo ?? "-"}
-                </td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">
-                  {formatNum(line.quantity)} {line.unit ?? ""}
-                </td>
-                <td className="px-3 py-2">
-                  {line.lot?.materialCode} — {line.lot?.materialName}
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  {line.receiving?.receivingNo ?? "-"}
-                </td>
-                <td className="px-3 py-2 whitespace-nowrap">
-                  {formatThDateTime(line.receiving?.receivingDate)}
-                </td>
-                <td className="px-3 py-2 text-xs">
-                  {line.receiving?.supplier
-                    ? `${line.receiving.supplier.code} — ${line.receiving.supplier.name}`
-                    : "-"}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={linesColumns}
+      data={lines}
+      rowKey="issuingLotId"
+      emptyMessage="ไม่มีรายการผูก Lot — สอบกลับไม่สมบูรณ์"
+    />
   );
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="รายงานการสอบกลับ" />
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            การสอบกลับวัตถุดิบ (Traceability)
-          </h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            สอบจาก Lot/QR, ใบจ่าย หรือเลขคำสั่งผลิต — ดูโซ่ใบรับและการใช้งาน
-          </p>
+    <PageContainer>
+      <PageHeader
+        title="รายงานการสอบกลับ"
+        description="สอบจาก Lot/QR, ใบจ่าย หรือเลขคำสั่งผลิต — ดูโซ่ใบรับและการใช้งาน"
+      />
+
+      <SearchCard>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <ActionButton
+            type="button"
+            variant={mode === "lot" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => {
+              setMode("lot");
+              setError(null);
+              setResult(null);
+            }}
+          >
+            จาก Lot / QR
+          </ActionButton>
+          <ActionButton
+            type="button"
+            variant={mode === "issuing" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => {
+              setMode("issuing");
+              setError(null);
+              setResult(null);
+            }}
+          >
+            จากใบจ่าย
+          </ActionButton>
+          <ActionButton
+            type="button"
+            variant={mode === "productionOrder" ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => {
+              setMode("productionOrder");
+              setError(null);
+              setResult(null);
+            }}
+          >
+            จากคำสั่งผลิต
+          </ActionButton>
         </div>
 
-        <ComponentCard title="ค้นหา">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("lot");
-                setError(null);
-                setResult(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                mode === "lot"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-              }`}
-            >
-              จาก Lot / QR
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("issuing");
-                setError(null);
-                setResult(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                mode === "issuing"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-              }`}
-            >
-              จากใบจ่าย
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("productionOrder");
-                setError(null);
-                setResult(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                mode === "productionOrder"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-              }`}
-            >
-              จากคำสั่งผลิต
-            </button>
+        {mode === "lot" ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              label="Lot No."
+              name="lotNo"
+              value={lotNo}
+              onChange={(value) => setLotNo(String(value))}
+              placeholder="ระบุ Lot (ถ้ามี)"
+            />
+            <FormField
+              label="QR code"
+              name="qrCode"
+              value={qrCode}
+              onChange={(value) => setQrCode(String(value))}
+              placeholder="หรือวาง QR"
+            />
+            <div className="flex items-end">
+              <ActionButton
+                type="button"
+                variant="primary"
+                loading={loading}
+                className="w-full"
+                onClick={search}
+              >
+                ค้นหา
+              </ActionButton>
+            </div>
           </div>
-
-          {mode === "lot" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  Lot No.
-                </label>
-                <input
-                  value={lotNo}
-                  onChange={(e) => setLotNo(e.target.value)}
-                  placeholder="ระบุ Lot (ถ้ามี)"
-                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  QR code
-                </label>
-                <input
-                  value={qrCode}
-                  onChange={(e) => setQrCode(e.target.value)}
-                  placeholder="หรือวาง QR"
-                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={search}
-                  disabled={loading}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg"
-                >
-                  {loading ? "กำลังค้นหา..." : "ค้นหา"}
-                </button>
-              </div>
+        ) : mode === "issuing" ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <FormField
+                label="เลขที่ใบจ่าย (issuing_no)"
+                name="issuingNo"
+                value={issuingNo}
+                onChange={(value) => setIssuingNo(String(value))}
+                placeholder="เช่น ISS-2026-0001"
+              />
             </div>
-          ) : mode === "issuing" ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  เลขที่ใบจ่าย (issuing_no)
-                </label>
-                <input
-                  value={issuingNo}
-                  onChange={(e) => setIssuingNo(e.target.value)}
-                  placeholder="เช่น ISS-2026-0001"
-                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={search}
-                  disabled={loading}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg"
-                >
-                  {loading ? "กำลังค้นหา..." : "ค้นหา"}
-                </button>
-              </div>
+            <div className="flex items-end">
+              <ActionButton
+                type="button"
+                variant="primary"
+                loading={loading}
+                className="w-full"
+                onClick={search}
+              >
+                ค้นหา
+              </ActionButton>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
-                  เลขที่คำสั่งผลิต (order_no)
-                </label>
-                <input
-                  value={productionOrderNo}
-                  onChange={(e) => setProductionOrderNo(e.target.value)}
-                  placeholder="เลขที่ตรงกับ production_orders.order_no"
-                  className="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={search}
-                  disabled={loading}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg"
-                >
-                  {loading ? "กำลังค้นหา..." : "ค้นหา"}
-                </button>
-              </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <FormField
+                label="เลขที่คำสั่งผลิต (order_no)"
+                name="productionOrderNo"
+                value={productionOrderNo}
+                onChange={(value) => setProductionOrderNo(String(value))}
+                placeholder="เลขที่ตรงกับ production_orders.order_no"
+              />
             </div>
-          )}
-
-          {error && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-4 py-3 text-sm">
-              {error}
+            <div className="flex items-end">
+              <ActionButton
+                type="button"
+                variant="primary"
+                loading={loading}
+                className="w-full"
+                onClick={search}
+              >
+                ค้นหา
+              </ActionButton>
             </div>
-          )}
-        </ComponentCard>
-
-        {result && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => exportTraceExcel(result)}
-              className="h-11 px-6 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
-            >
-              Excel
-            </button>
-            <button
-              type="button"
-              onClick={() => void exportTracePdf(result).catch((e) => console.error(e))}
-              className="h-11 px-6 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
-            >
-              PDF
-            </button>
           </div>
         )}
+      </SearchCard>
+
+      {error && (
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
+
+      {loading && (
+        <LoadingState message="กำลังค้นหาข้อมูลสอบกลับ…" />
+      )}
+
+      {result && (
+        <div className="flex flex-wrap gap-2">
+          <ActionButton
+            type="button"
+            variant="success"
+            onClick={() => exportTraceExcel(result)}
+          >
+            Excel
+          </ActionButton>
+          <ActionButton
+            type="button"
+            variant="danger"
+            onClick={() => void exportTracePdf(result).catch((e) => console.error(e))}
+          >
+            PDF
+          </ActionButton>
+        </div>
+      )}
 
         {result?.direction === "forward" && (
           <>
-            <ComponentCard title="สรุป Lot (จุดเริ่ม — สอบไปข้างหน้า)">
+            <ContentCard title="สรุป Lot (จุดเริ่ม — สอบไปข้างหน้า)">
               <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="text-gray-500 dark:text-gray-400">Lot No.</dt>
@@ -650,9 +653,9 @@ export default function PCTraceabilityPage() {
                   </dd>
                 </div>
               </dl>
-            </ComponentCard>
+            </ContentCard>
 
-            <ComponentCard title="ต้นทาง — ใบรับเข้า">
+            <ContentCard title="ต้นทาง — ใบรับเข้า">
               {result.receiving ? (
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>
@@ -691,80 +694,93 @@ export default function PCTraceabilityPage() {
               ) : (
                 <p className="text-sm text-gray-500">ไม่พบข้อมูลใบรับ</p>
               )}
-            </ComponentCard>
+            </ContentCard>
 
-            <ComponentCard
+            <ContentCard
               title={`การนำไปใช้ — ใบจ่าย (${result.usages.length})`}
             >
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-800 text-left">
-                      <th className="px-3 py-2">ใบจ่าย</th>
-                      <th className="px-3 py-2">วันที่จ่าย</th>
-                      <th className="px-3 py-2 text-right">จำนวนดึง</th>
-                      <th className="px-3 py-2">วัตถุดิบ (ปลายทางจ่าย)</th>
-                      <th className="px-3 py-2">WO / เครื่อง</th>
-                      <th className="px-3 py-2">คำสั่งผลิต</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {result.usages.length === 0 ? (
-                      <TableEmptyRow
-                        colSpan={6}
-                        message="ยังไม่มีรายการจ่ายจาก Lot นี้"
-                      />
-                    ) : (
-                      result.usages.map((u) => (
-                        <tr key={u.issuingLotId}>
-                          <td className="px-3 py-2 font-medium whitespace-nowrap">
-                            {u.issuing?.issuingNo ?? "-"}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            {formatThDateTime(u.issuing?.issuingDate)}
-                          </td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
-                            {formatNum(u.quantity)} {u.unit ?? ""}
-                          </td>
-                          <td className="px-3 py-2">
-                            {u.issuing?.materialCode} — {u.issuing?.materialName}
-                            {u.issuing?.issuingTypeName
-                              ? ` (${u.issuing.issuingTypeName})`
-                              : ""}
-                          </td>
-                          <td className="px-3 py-2 text-xs">
-                            {u.issuing?.workOrderNo ?? "-"}
-                            {u.issuing?.machineNo ? ` / ${u.issuing.machineNo}` : ""}
-                          </td>
-                          <td className="px-3 py-2">
-                            {u.issuing?.productionOrderId != null
-                              ? `#${u.issuing.productionOrderId}`
-                              : "-"}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </ComponentCard>
+              <DataTable
+                columns={[
+                  {
+                    key: "issuingNo",
+                    title: "ใบจ่าย",
+                    render: (_, u) => (
+                      <span className="font-medium whitespace-nowrap">{u.issuing?.issuingNo ?? "-"}</span>
+                    ),
+                  },
+                  {
+                    key: "issuingDate",
+                    title: "วันที่จ่าย",
+                    render: (_, u) => (
+                      <span className="whitespace-nowrap">{formatThDateTime(u.issuing?.issuingDate)}</span>
+                    ),
+                  },
+                  {
+                    key: "quantity",
+                    title: "จำนวนดึง",
+                    align: "right",
+                    render: (_, u) => (
+                      <span className="whitespace-nowrap">
+                        {formatNum(u.quantity)} {u.unit ?? ""}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "material",
+                    title: "วัตถุดิบ (ปลายทางจ่าย)",
+                    render: (_, u) => (
+                      <span>
+                        {u.issuing?.materialCode} — {u.issuing?.materialName}
+                        {u.issuing?.issuingTypeName
+                          ? ` (${u.issuing.issuingTypeName})`
+                          : ""}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "workOrder",
+                    title: "WO / เครื่อง",
+                    render: (_, u) => (
+                      <span className="text-xs">
+                        {u.issuing?.workOrderNo ?? "-"}
+                        {u.issuing?.machineNo ? ` / ${u.issuing.machineNo}` : ""}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "productionOrderId",
+                    title: "คำสั่งผลิต",
+                    render: (_, u) => (
+                      <span>
+                        {u.issuing?.productionOrderId != null
+                          ? `#${u.issuing.productionOrderId}`
+                          : "-"}
+                      </span>
+                    ),
+                  },
+                ]}
+                data={result.usages}
+                rowKey="issuingLotId"
+                emptyMessage="ยังไม่มีรายการจ่ายจาก Lot นี้"
+              />
+            </ContentCard>
           </>
         )}
 
         {result?.direction === "backward" && (
           <>
-            <ComponentCard title="สรุปใบจ่าย (จุดเริ่ม — สอบย้อนกลับ)">
+            <ContentCard title="สรุปใบจ่าย (จุดเริ่ม — สอบย้อนกลับ)">
               {renderIssuingSummary(result.issuing)}
-            </ComponentCard>
-            <ComponentCard title={`Lot รับเข้าที่ใช้ (${result.lines.length})`}>
+            </ContentCard>
+            <ContentCard title={`Lot รับเข้าที่ใช้ (${result.lines.length})`}>
               {renderLinesTable(result.lines)}
-            </ComponentCard>
+            </ContentCard>
           </>
         )}
 
         {result?.direction === "production-order" && (
           <>
-            <ComponentCard title="คำสั่งผลิต">
+            <ContentCard title="คำสั่งผลิต">
               <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="text-gray-500 dark:text-gray-400">เลขที่</dt>
@@ -792,31 +808,30 @@ export default function PCTraceabilityPage() {
                   </dd>
                 </div>
               </dl>
-            </ComponentCard>
+            </ContentCard>
 
             {result.issuings.length === 0 ? (
-              <ComponentCard title="ใบจ่ายที่ผูกคำสั่งผลิต">
+              <ContentCard title="ใบจ่ายที่ผูกคำสั่งผลิต">
                 <p className="text-sm text-gray-500">
                   ยังไม่มีใบจ่ายที่ระบุ production_order_id ตรงกับคำสั่งนี้
                 </p>
-              </ComponentCard>
+              </ContentCard>
             ) : (
               result.issuings.map((block) => (
                 <React.Fragment key={block.issuing.id}>
-                  <ComponentCard title={`ใบจ่าย ${block.issuing.issuingNo}`}>
+                  <ContentCard title={`ใบจ่าย ${block.issuing.issuingNo}`}>
                     {renderIssuingSummary(block.issuing)}
-                  </ComponentCard>
-                  <ComponentCard
+                  </ContentCard>
+                  <ContentCard
                     title={`Lot รับเข้าที่ใช้ — ${block.issuing.issuingNo} (${block.lines.length})`}
                   >
                     {renderLinesTable(block.lines)}
-                  </ComponentCard>
+                  </ContentCard>
                 </React.Fragment>
               ))
             )}
           </>
         )}
-      </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { PageContainer, PageHeader, ContentCard, LoadingState } from '@/components/shared';
+import { PageContainer, PageHeader, ContentCard, LoadingState, DataTable, type Column } from '@/components/shared';
 import { apiFetch } from '@/utils/api';
 
 interface ReservationDetail {
@@ -64,36 +64,20 @@ export default function ReservationsPage() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 {item.materialName} - จอง {item.totalReserved} {item.unit}
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-800">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">แผน</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-white">QR/Lot</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-white">จำนวน</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {item.details.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-                          ไม่มีข้อมูล
-                        </td>
-                      </tr>
-                    ) : (
-                      item.details.map((d, i) => (
-                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{d.planCode}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{d.lotNumber || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {d.quantity} {item.unit}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                columns={[
+                  { key: "planCode", title: "แผน" },
+                  { key: "lotNumber", title: "QR/Lot", render: (_, d) => d.lotNumber || "-" },
+                  {
+                    key: "quantity",
+                    title: "จำนวน",
+                    align: "right",
+                    render: (_, d) => `${d.quantity} ${item.unit}`,
+                  },
+                ] as Column<ReservationDetail>[]}
+                data={item.details}
+                emptyMessage="ไม่มีข้อมูล"
+              />
             </div>
           ))
         )}

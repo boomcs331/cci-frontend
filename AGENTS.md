@@ -11,11 +11,13 @@ Primary instruction source for AI agents working on this project.
 2. Read `.project-ai/architecture.md` — understand data flow
 3. Read `.project-ai/coding-rules.md` — understand conventions
 4. Read `.project-ai/domain-rules.md` — understand business rules
-5. Identify affected modules and files
-6. Make a minimal plan
-7. Implement with targeted changes only
-8. Verify: `pnpm build` must pass
-9. Summarize impact
+5. Read `docs/PROJECT-WIKI.md` — understand project part relationships
+6. Read `docs/frontend-api-wiki.md` — understand backend API contracts
+7. Identify affected modules and files
+8. Make a minimal plan
+9. Implement with targeted changes only
+10. Verify: `pnpm build` must pass
+11. Summarize impact
 
 ---
 

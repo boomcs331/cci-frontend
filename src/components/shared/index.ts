@@ -5,6 +5,7 @@ export { PageHeader } from './layout/PageHeader';
 // Card Components
 export { ContentCard } from './card/ContentCard';
 export { InfoCard } from './card/InfoCard';
+export type { InfoCardVariant } from './card/InfoCard';
 
 // Search Components
 export { SearchCard } from './search/SearchCard';
@@ -32,3 +33,5 @@ export { ErrorState } from './feedback/ErrorState';
 export { BaseModal } from './modal/BaseModal';
 export { ConfirmModal } from './modal/ConfirmModal';
 export type { ConfirmModalType } from './modal/ConfirmModal';
+export { AlertModal } from './modal/AlertModal';
+export type { AlertModalVariant } from './modal/AlertModal';

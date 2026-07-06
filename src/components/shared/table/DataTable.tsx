@@ -6,6 +6,7 @@ export interface Column<T extends Record<string, any>> {
   render?: (value: any, row: T, index: number) => React.ReactNode;
   sortable?: boolean;
   width?: string;
+  align?: 'left' | 'center' | 'right';
 }
 
 interface DataTableProps<T extends Record<string, any>> {
@@ -23,6 +24,17 @@ interface DataTableProps<T extends Record<string, any>> {
  * DataTable - Standard data table component
  * Supports dynamic columns, loading state, empty state, and row click
  */
+const getAlignClass = (align?: 'left' | 'center' | 'right') => {
+  switch (align) {
+    case 'center':
+      return 'text-center';
+    case 'right':
+      return 'text-right';
+    default:
+      return 'text-left';
+  }
+};
+
 export function DataTable<T extends Record<string, any>>({
   columns,
   data,
@@ -78,7 +90,7 @@ export function DataTable<T extends Record<string, any>>({
                 <th
                   key={column.key}
                   style={{ width: column.width }}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  className={`px-6 py-3 ${getAlignClass(column.align)} text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider`}
                 >
                   {column.title}
                 </th>
@@ -96,7 +108,7 @@ export function DataTable<T extends Record<string, any>>({
                 `}
               >
                 {columns.map((column) => (
-                  <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  <td key={column.key} className={`px-6 py-4 whitespace-nowrap text-sm ${getAlignClass(column.align)} text-gray-900 dark:text-white`}>
                     {column.render
                       ? column.render((row as any)[column.key], row, index)
                       : (row as any)[column.key]}

@@ -5,3 +5,4 @@ export * from './authService';
 export * from './productProductionStepsService';
 export * from './productionOrdersService';
 export * from './productionPlanQrService';
+export * from './reservationsService';

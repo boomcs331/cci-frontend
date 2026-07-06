@@ -40,7 +40,7 @@ import {
   PC_ERROR_FALLBACK_MESSAGES,
 } from "@/lib/pc";
 import { useToast } from "@/context/ToastContext";
-import { BaseModal } from "@/components/shared";
+import { AlertModal } from "@/components/shared";
 
 export default function PCIncomePage() {
   const { show: showToast } = useToast();
@@ -509,16 +509,13 @@ export default function PCIncomePage() {
         receiving={selectedReceiving}
       />
 
-      <BaseModal
+      <AlertModal
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
-        title={alertModal?.title ?? ""}
-        size="sm"
-      >
-        <div className="text-gray-700 dark:text-gray-300">
-          {alertModal?.message}
-        </div>
-      </BaseModal>
+        variant={alertModal?.variant ?? "info"}
+        title={alertModal?.title}
+        message={alertModal?.message}
+      />
     </div>
   );
 }

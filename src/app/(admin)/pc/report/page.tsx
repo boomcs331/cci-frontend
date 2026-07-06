@@ -1,8 +1,14 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import ComponentCard from "@/components/common/ComponentCard";
-import TableEmptyRow from "@/components/common/TableEmptyRow";
+import {
+  PageContainer,
+  PageHeader,
+  ContentCard,
+  SearchCard,
+  FormField,
+  ActionButton,
+  LoadingState,
+} from "@/components/shared";
 import { apiFetch } from "@/utils/api";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -12,10 +18,6 @@ import {
   registerThaiFontOnDoc,
   THAI_PDF_FONT,
 } from "@/utils/jspdf-thai-font";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs from "dayjs";
 
 interface TransactionReport {
   materialId: number;
@@ -326,121 +328,82 @@ export default function PCReportPage() {
   };
 
   return (
-    <div>
-      <PageBreadcrumb pageTitle="รายงาน" />
-      <div className="space-y-6">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            รายงานการรับเข้า-จ่ายออกวัตถุดิบ
-          </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            แยกตามรหัสวัตถุดิบเป็น Stock Card — ตารางครบทุกฟิลด์ — คงเหลือสะสมต่อใบรับตามลำดับแถว
-          </p>
-        </div>
+    <PageContainer>
+      <PageHeader
+        title="รายงานการรับเข้า-จ่ายออกวัตถุดิบ"
+        description="แยกตามรหัสวัตถุดิบเป็น Stock Card — ตารางครบทุกฟิลด์ — คงเหลือสะสมต่อใบรับตามลำดับแถว"
+      />
 
-        <ComponentCard title="ค้นหา">
-          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                วันที่เริ่มต้น
-              </label>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  value={startDate ? dayjs(startDate) : null}
-                  onChange={(newValue) => setStartDate(newValue ? newValue.format('YYYY-MM-DD') : '')}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'small',
-                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
-                    },
-                    popper: { sx: { zIndex: 999999 } },
-                    dialog: { sx: { zIndex: 999999 } },
-                  }}
-                />
-              </LocalizationProvider>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                วันที่สิ้นสุด
-              </label>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  value={endDate ? dayjs(endDate) : null}
-                  onChange={(newValue) => setEndDate(newValue ? newValue.format('YYYY-MM-DD') : '')}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'small',
-                      sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '44px' } },
-                    },
-                    popper: { sx: { zIndex: 999999 } },
-                    dialog: { sx: { zIndex: 999999 } },
-                  }}
-                />
-              </LocalizationProvider>
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                วัตถุดิบ
-              </label>
-              <select
-                value={materialId}
-                onChange={(e) => setMaterialId(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              >
-                <option value="">ทั้งหมด</option>
-                {materials.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.matCode} - {m.matName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                onClick={handleSearch}
-                className="h-11 flex-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-              >
-                ค้นหา
-              </button>
-              <button
-                onClick={handleReset}
-                className="h-11 flex-1 rounded-lg bg-gray-500 text-white hover:bg-gray-600"
-              >
-                รีเซ็ต
-              </button>
-            </div>
+      <SearchCard>
+        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <FormField
+            label="วันที่เริ่มต้น"
+            name="startDate"
+            type="date"
+            value={startDate}
+            onChange={(value) => setStartDate(String(value))}
+          />
+          <FormField
+            label="วันที่สิ้นสุด"
+            name="endDate"
+            type="date"
+            value={endDate}
+            onChange={(value) => setEndDate(String(value))}
+          />
+          <FormField
+            label="วัตถุดิบ"
+            name="materialId"
+            type="select"
+            value={materialId}
+            onChange={(value) => setMaterialId(String(value))}
+            options={[
+              { value: "", label: "ทั้งหมด" },
+              ...materials.map((m) => ({
+                value: String(m.id),
+                label: `${m.matCode} - ${m.matName}`,
+              })),
+            ]}
+          />
+          <div className="flex items-end gap-2">
+            <ActionButton
+              variant="primary"
+              className="flex-1"
+              onClick={handleSearch}
+            >
+              ค้นหา
+            </ActionButton>
+            <ActionButton
+              variant="secondary"
+              className="flex-1"
+              onClick={handleReset}
+            >
+              รีเซ็ต
+            </ActionButton>
           </div>
-        </ComponentCard>
+        </div>
+      </SearchCard>
 
-        <ComponentCard
+        <ContentCard
           title={`Stock Card (${stockCardGroups.length} วัตถุดิบ · ${reports.length} แถว)`}
         >
           {reports.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
-              <button
-                onClick={handleExportExcel}
-                className="h-11 rounded-lg bg-green-600 px-6 text-white hover:bg-green-700"
-              >
+              <ActionButton variant="success" onClick={handleExportExcel}>
                 Excel
-              </button>
-              <button
-                onClick={handleExportCSV}
-                className="h-11 rounded-lg bg-blue-600 px-6 text-white hover:bg-blue-700"
-              >
+              </ActionButton>
+              <ActionButton variant="primary" onClick={handleExportCSV}>
                 CSV
-              </button>
-              <button
+              </ActionButton>
+              <ActionButton
+                variant="danger"
                 onClick={() => void handleExportPDF().catch((e) => console.error(e))}
-                className="h-11 rounded-lg bg-red-600 px-6 text-white hover:bg-red-700"
               >
                 PDF
-              </button>
+              </ActionButton>
             </div>
           )}
           {loading ? (
-            <div className="py-8 text-center">กำลังโหลด...</div>
+            <LoadingState message="กำลังโหลดข้อมูล…" />
           ) : reports.length === 0 ? (
             <div className="w-full overflow-x-auto">
               <table className="w-full min-w-[960px] table-auto text-xs sm:text-sm">
@@ -457,7 +420,14 @@ export default function PCReportPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  <TableEmptyRow colSpan={STOCK_CARD_TABLE_HEADERS.length} />
+                  <tr>
+                    <td
+                      colSpan={STOCK_CARD_TABLE_HEADERS.length}
+                      className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      ไม่มีข้อมูล
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -549,8 +519,7 @@ export default function PCReportPage() {
               ))}
             </div>
           )}
-        </ComponentCard>
-      </div>
-    </div>
+        </ContentCard>
+    </PageContainer>
   );
 }

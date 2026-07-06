@@ -3,8 +3,9 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import TimePicker from "@/components/ui/TimePicker";
 
-export type FormFieldType = 'text' | 'number' | 'email' | 'password' | 'date' | 'select' | 'textarea';
+export type FormFieldType = 'text' | 'number' | 'email' | 'password' | 'date' | 'time' | 'select' | 'textarea';
 
 interface FormFieldProps {
   label: string;
@@ -18,6 +19,8 @@ interface FormFieldProps {
   error?: string;
   options?: { value: string | number; label: string }[];
   className?: string;
+  autoFocus?: boolean;
+  hideLabel?: boolean;
 }
 
 /**
@@ -36,6 +39,8 @@ export const FormField: React.FC<FormFieldProps> = ({
   error,
   options,
   className = '',
+  autoFocus = false,
+  hideLabel = false,
 }) => {
   const inputClassName = `
     w-full px-3 py-2 border rounded-lg
@@ -53,7 +58,7 @@ export const FormField: React.FC<FormFieldProps> = ({
 
   return (
     <div className="flex flex-col">
-      <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+      <label className={`block text-xs font-medium text-gray-500 dark:text-gray-400 ${hideLabel ? 'sr-only' : 'mb-1'}`}>
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -63,6 +68,7 @@ export const FormField: React.FC<FormFieldProps> = ({
           value={value}
           onChange={handleChange}
           disabled={disabled}
+          autoFocus={autoFocus}
           className={inputClassName}
         >
           <option value="">เลือก...</option>
@@ -79,8 +85,15 @@ export const FormField: React.FC<FormFieldProps> = ({
           onChange={handleChange}
           placeholder={placeholder}
           disabled={disabled}
+          autoFocus={autoFocus}
           rows={3}
           className={inputClassName}
+        />
+      ) : type === 'time' ? (
+        <TimePicker
+          value={value ? String(value) : ''}
+          onChange={(time) => { onChange?.(time); }}
+          placeholder={placeholder}
         />
       ) : type === 'date' ? (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -93,6 +106,7 @@ export const FormField: React.FC<FormFieldProps> = ({
                 size: 'small',
                 error: !!error,
                 disabled,
+                autoFocus,
                 sx: { '& .MuiOutlinedInput-root': { borderRadius: '0.5rem', height: '40px' } },
               },
               popper: { sx: { zIndex: 999999 } },
@@ -108,6 +122,7 @@ export const FormField: React.FC<FormFieldProps> = ({
           onChange={handleChange}
           placeholder={placeholder}
           disabled={disabled}
+          autoFocus={autoFocus}
           className={inputClassName}
         />
       )}

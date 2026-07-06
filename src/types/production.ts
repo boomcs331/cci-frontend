@@ -101,6 +101,7 @@ export interface ProductionOrderLot {
   } | null;
   tracking?: {
     id: number;
+    processId?: number | null;
     processCode?: string;
     processName?: string;
     process?: { processCode: string; processName: string } | null;

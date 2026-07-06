@@ -12,7 +12,9 @@ export type StatusType =
   | 'success'
   | 'error'
   | 'warning'
-  | 'info';
+  | 'info'
+  | 'reserved'
+  | 'confirmed';
 
 interface StatusBadgeProps {
   status: StatusType;
@@ -40,6 +42,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     error: { label: 'ข้อผิดพลาด', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
     warning: { label: 'แจ้งเตือน', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
     info: { label: 'ข้อมูล', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+    reserved: { label: 'จองแล้ว', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+    confirmed: { label: 'ยืนยันแล้ว', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
   };
 
   const config = statusConfig[status] || statusConfig.info;

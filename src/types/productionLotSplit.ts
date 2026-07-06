@@ -26,6 +26,7 @@ export type SplitLotTrace = {
 
 export type SplitLotResult = {
   splitTrace?: SplitLotTrace;
+  parent?: {
     id: number;
     lotNo: string;
     orderNoRef?: string | null;
