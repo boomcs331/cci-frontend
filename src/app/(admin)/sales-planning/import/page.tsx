@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageContainer, PageHeader, ContentCard, ActionButton, StatusBadge, DataTable, type Column } from "@/components/shared";
 import { salesPlanningService, type PlanningBatch } from "@/services/sales/salesPlanningService";
+import { ROUTES } from "@/constants/routes";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileExcel, faCloudArrowUp, faDownload, faTrash, faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
@@ -10,6 +12,7 @@ import MonthYearPicker from "@/components/form/month-year-picker";
 import AlertModal from "@/components/common/AlertModal";
 
 export default function SalesPlanningImportPage() {
+  const router = useRouter();
   const [batches, setBatches] = useState<PlanningBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,13 +31,17 @@ export default function SalesPlanningImportPage() {
   const selectedYear = selectedDate.getFullYear();
   const selectedMonth = selectedDate.getMonth() + 1;
 
-  const statusMap: Record<string, 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'warning'> = {
+  const statusMap: Record<string, 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'warning' | 'info' | 'success'> = {
     PENDING: 'pending',
     PROCESSING: 'processing',
-    COMPLETED: 'completed',
-    PARTIAL: 'warning',
+    VALIDATED: 'info',
+    INVALID: 'failed',
+    COMMITTED: 'success',
+    SUPERSEDED: 'warning',
     FAILED: 'failed',
     CANCELLED: 'cancelled',
+    COMPLETED: 'completed',
+    PARTIAL: 'warning',
   };
 
   const columns: Column<PlanningBatch>[] = [
@@ -43,7 +50,7 @@ export default function SalesPlanningImportPage() {
       title: 'Batch Code',
       render: (value, row) => (
         <Link
-          href={`/sales-planning/import/${row.id}`}
+          href={ROUTES.SALES_PLANNING_IMPORT_DETAIL(row.id)}
           className="font-medium text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
         >
           {value}
@@ -129,11 +136,14 @@ export default function SalesPlanningImportPage() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const blob = await salesPlanningService.downloadTemplate();
+      const blob = await salesPlanningService.downloadTemplate({
+        year: selectedYear,
+        month: selectedMonth,
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "sales-planning-template.xlsx";
+      a.download = `sales-planning-template-${selectedYear}-${String(selectedMonth).padStart(2, '0')}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

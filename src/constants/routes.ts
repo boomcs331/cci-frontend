@@ -25,6 +25,11 @@ export const ROUTES = {
   SALES_ORDER_DETAIL: (id: string | number) => `/sales/orders/${id}`,
   SALES_APPROVALS: '/sales/approvals',
 
+  // Sales Planning Module
+  SALES_PLANNING_IMPORT: '/sales-planning/import',
+  SALES_PLANNING_IMPORT_DETAIL: (id: string | number) => `/sales-planning/import/${id}`,
+  SALES_PLANNING_DATA: '/sales-planning/data',
+
   // Users
   USERS: '/users',
   USERS_ADD: '/users/add',

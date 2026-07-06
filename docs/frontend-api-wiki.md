@@ -241,6 +241,11 @@ x-username: <username>           // optional สำหรับ audit log
 | POST | `/sales-planning/import/:batchId/reprocess` | ประมวลผลใหม่ |
 | GET | `/sales-planning/import/:batchId/download` | ดาวน์โหลดไฟล์ต้นฉบับ |
 | POST | `/sales-planning/import/history` | ประวัติการ import |
+| POST | `/sales-planning/import/:batchId/commit` | ยืนยัน batch ที่ผ่านการตรวจสอบแล้ว (VALIDATED → COMMITTED, versioned replace) — ใหม่ตาม `docs/superpowers/specs/2026-07-06-sales-planning-upload-design.md`, รอ backend เปิดใช้งาน |
+| POST | `/sales-planning/import/:batchId/restore` | กู้คืน batch ที่ถูกแทนที่ (SUPERSEDED → COMMITTED) — ใหม่, รอ backend เปิดใช้งาน |
+| GET | `/sales-planning/export` | ส่งออกข้อมูลแผนขายที่ active ตาม filter ปัจจุบันเป็น Excel — ใหม่, รอ backend เปิดใช้งาน |
+
+> `commit`, `restore`, `export` มี service function พร้อมแล้วใน `salesPlanningService.ts` (`commitBatch`, `restoreBatch`, `exportPlanningData`) แต่ยังไม่ถูกเรียกใช้จาก UI จนกว่า backend จะยืนยัน endpoint พร้อมใช้งาน
 
 ---
 

@@ -10,21 +10,25 @@ Current state (verified in codebase):
 
 ---
 
-## Phase 1 — Types & Service Layer
+## Phase 1 — Types & Service Layer ✅ Done (2026-07-07)
 
-- [ ] **T1.1** Add `PlanningValidationIssue` type (spec section 14) and severity union `"ERROR" | "WARNING" | "INFO"`. Keep alongside existing `PlanningError`/`PlanningBatch` types in `salesPlanningService.ts` unless a dedicated `src/types/salesPlanning.ts` is introduced — do not relocate existing types as part of this task (out of scope, avoid unrelated refactor).
-- [ ] **T1.2** Add `commitBatch(batchId: number): Promise<PlanningBatch>` calling `POST /sales-planning/import/:id/commit` (spec 11.2, FR-05, FR-06).
-- [ ] **T1.3** Add `restoreBatch(batchId: number): Promise<PlanningBatch>` calling `POST /sales-planning/import/:id/restore` (spec 11.2, FR-07).
-- [ ] **T1.4** Add `exportPlanningData(filters): Promise<Blob>` calling `GET /sales-planning/export` with the same filter params as `getPlanningData` (spec 11.2, FR-11).
-- [ ] **T1.5** Extend `PlanningBatch` type with optional backward-compatible fields needed by the UI: `version`, `replacesBatchId`, `committedBy`, `committedAt`, `restoredBy`, `restoredAt`, `warningRows` (spec 10.1). All new fields optional to preserve backward compatibility (spec 16).
-- [ ] **T1.6** Extend `PlanningDataResponse`/row types if new dimensions (Model, Gate, Location, Round, Line) are not already represented — confirm against actual backend response before adding fields.
+- [x] **T1.1** Add `PlanningValidationIssue` type (spec section 14) and severity union `"ERROR" | "WARNING" | "INFO"`. Added as `PlanningIssueSeverity` + `PlanningValidationIssue` in `salesPlanningService.ts` alongside existing types (no relocation to `src/types/*`).
+- [x] **T1.2** Add `commitBatch(batchId: number): Promise<PlanningBatch>` calling `POST /sales-planning/import/:id/commit` (spec 11.2, FR-05, FR-06).
+- [x] **T1.3** Add `restoreBatch(batchId: number): Promise<PlanningBatch>` calling `POST /sales-planning/import/:id/restore` (spec 11.2, FR-07).
+- [x] **T1.4** Add `exportPlanningData(filters): Promise<Blob>` calling `GET /sales-planning/export` with the same filter params as `getPlanningData` (spec 11.2, FR-11).
+- [x] **T1.5** Extend `PlanningBatch` type with optional backward-compatible fields: `version`, `replacesBatchId`, `committedBy`, `committedAt`, `restoredBy`, `restoredAt`, `warningRows` (spec 10.1). All optional — backward compatible (spec 16).
+- [ ] **T1.6** Extend `PlanningDataResponse`/row types if new dimensions (Model, Gate, Location, Round, Line) are not already represented — confirm against actual backend response before adding fields. *(Deferred — needs backend confirmation.)*
 
-## Phase 2 — Routing & Access Control
+Docs updated: `docs/frontend-api-wiki.md` §5.2 now lists `commit`/`restore`/`export` endpoints as new, pending backend availability. `pnpm build` verified passing (89/89 routes).
 
-- [ ] **T2.1** Add `SALES_PLANNING_IMPORT`, `SALES_PLANNING_IMPORT_DETAIL`, `SALES_PLANNING_DATA` to `src/constants/routes.ts` `ROUTES` (currently absent — verified gap).
-- [ ] **T2.2** Register `/sales-planning/*` matcher(s) in `src/utils/accessControl.ts` using existing `PERMISSIONS.SALES_ORDER_READ` (view), `PERMISSIONS.SALES_ORDER_IMPORT` (upload/confirm/cancel/reprocess/restore), `PERMISSIONS.SALES_ORDER_EXPORT` (export/download) per spec section 6. Both permission constants already exist — no backend permission changes needed.
-- [ ] **T2.3** Run `pnpm routes:gen` after route constant changes.
-- [ ] **T2.4** Replace any hardcoded `/sales-planning/...` path literals in pages with `ROUTES.*` constants.
+## Phase 2 — Routing & Access Control ✅ Done (2026-07-07)
+
+- [x] **T2.1** Add `SALES_PLANNING_IMPORT`, `SALES_PLANNING_IMPORT_DETAIL`, `SALES_PLANNING_DATA` to `src/constants/routes.ts` `ROUTES`.
+- [x] **T2.2** Register `/^\/sales-planning(\/|$)/` matcher in `src/utils/accessControl.ts` using existing `PERMISSIONS.SALES_ORDER_READ`, `SALES_ORDER_IMPORT`, `SALES_ORDER_EXPORT` (match: any) per spec section 6.
+- [x] **T2.3** Ran `pnpm routes:gen` — wrote 95 routes to `tests/routes.generated.json`.
+- [x] **T2.4** Replaced hardcoded `/sales-planning/...` literals in `import/page.tsx` (Link href) and `import/[batchId]/page.tsx` (router.push after delete) with `ROUTES.*`.
+
+`pnpm build` verified passing (89/89 routes, exit code 0).
 
 ## Phase 3 — `/sales-planning/import` (Upload & History)
 

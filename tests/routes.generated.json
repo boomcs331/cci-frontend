@@ -1,9 +1,14 @@
 {
-  "generatedAt": "2026-04-10T07:27:55.960Z",
+  "generatedAt": "2026-07-06T17:05:45.158Z",
   "routes": [
     {
       "path": "/",
       "sourceFile": "src/app/(admin)/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/ai/chat",
+      "sourceFile": "src/app/ai/chat/page.tsx",
       "requiresAuth": true
     },
     {
@@ -19,6 +24,11 @@
     {
       "path": "/badge",
       "sourceFile": "src/app/(admin)/(ui-elements)/badge/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/balances/overview",
+      "sourceFile": "src/app/(admin)/balances/overview/page.tsx",
       "requiresAuth": true
     },
     {
@@ -132,6 +142,11 @@
       "requiresAuth": true
     },
     {
+      "path": "/master-data/product-production-steps",
+      "sourceFile": "src/app/(admin)/master-data/product-production-steps/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/master-data/product-types",
       "sourceFile": "src/app/(admin)/master-data/product-types/page.tsx",
       "requiresAuth": true
@@ -139,11 +154,6 @@
     {
       "path": "/master-data/product-units",
       "sourceFile": "src/app/(admin)/master-data/product-units/page.tsx",
-      "requiresAuth": true
-    },
-    {
-      "path": "/master-data/product-production-steps",
-      "sourceFile": "src/app/(admin)/master-data/product-production-steps/page.tsx",
       "requiresAuth": true
     },
     {
@@ -192,6 +202,16 @@
       "requiresAuth": true
     },
     {
+      "path": "/pc/overview",
+      "sourceFile": "src/app/(admin)/pc/overview/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/product-stock",
+      "sourceFile": "src/app/(admin)/pc/product-stock/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/pc/production-step-scan",
       "sourceFile": "src/app/(admin)/pc/production-step-scan/page.tsx",
       "requiresAuth": true
@@ -209,6 +229,11 @@
     {
       "path": "/pc/reservations",
       "sourceFile": "src/app/(admin)/pc/reservations/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/pc/sales-reservations",
+      "sourceFile": "src/app/(admin)/pc/sales-reservations/page.tsx",
       "requiresAuth": true
     },
     {
@@ -247,13 +272,38 @@
       "requiresAuth": true
     },
     {
+      "path": "/pc/traceability",
+      "sourceFile": "src/app/(admin)/pc/traceability/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/production/bom-add",
       "sourceFile": "src/app/(admin)/production/bom-add/page.tsx",
       "requiresAuth": true
     },
     {
-      "path": "/production/schedule",
-      "sourceFile": "src/app/(admin)/production/schedule/page.tsx",
+      "path": "/production/dept-step-scan",
+      "sourceFile": "src/app/(admin)/production/dept-step-scan/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/fg-lot-trace-report",
+      "sourceFile": "src/app/(admin)/production/fg-lot-trace-report/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/lot-trace-report",
+      "sourceFile": "src/app/(admin)/production/lot-trace-report/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/overview",
+      "sourceFile": "src/app/(admin)/production/overview/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/product-stock",
+      "sourceFile": "src/app/(admin)/production/product-stock/page.tsx",
       "requiresAuth": true
     },
     {
@@ -282,8 +332,53 @@
       "requiresAuth": true
     },
     {
+      "path": "/production/sales-reservations",
+      "sourceFile": "src/app/(admin)/production/sales-reservations/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/production/schedule",
+      "sourceFile": "src/app/(admin)/production/schedule/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/profile",
       "sourceFile": "src/app/(admin)/(others-pages)/profile/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales-planning/data",
+      "sourceFile": "src/app/(admin)/sales-planning/data/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales-planning/import",
+      "sourceFile": "src/app/(admin)/sales-planning/import/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales-planning/import/1",
+      "sourceFile": "src/app/(admin)/sales-planning/import/[batchId]/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/approvals",
+      "sourceFile": "src/app/(admin)/sales/approvals/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/customers",
+      "sourceFile": "src/app/(admin)/sales/customers/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/dashboard",
+      "sourceFile": "src/app/(admin)/sales/dashboard/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/import",
+      "sourceFile": "src/app/(admin)/sales/import/page.tsx",
       "requiresAuth": true
     },
     {
@@ -292,18 +387,28 @@
       "requiresAuth": true
     },
     {
-      "path": "/sales/orders/new",
-      "sourceFile": "src/app/(admin)/sales/orders/new/page.tsx",
-      "requiresAuth": true
-    },
-    {
       "path": "/sales/orders/1",
       "sourceFile": "src/app/(admin)/sales/orders/[id]/page.tsx",
       "requiresAuth": true
     },
     {
-      "path": "/sales/approvals",
-      "sourceFile": "src/app/(admin)/sales/approvals/page.tsx",
+      "path": "/sales/orders/new",
+      "sourceFile": "src/app/(admin)/sales/orders/new/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/products",
+      "sourceFile": "src/app/(admin)/sales/products/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/sales/reports",
+      "sourceFile": "src/app/(admin)/sales/reports/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/select-department",
+      "sourceFile": "src/app/(full-width-pages)/(auth)/select-department/page.tsx",
       "requiresAuth": true
     },
     {
@@ -337,8 +442,28 @@
       "requiresAuth": true
     },
     {
+      "path": "/users/departments",
+      "sourceFile": "src/app/(admin)/users/departments/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/menus",
+      "sourceFile": "src/app/(admin)/users/menus/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/overview",
+      "sourceFile": "src/app/(admin)/users/overview/page.tsx",
+      "requiresAuth": true
+    },
+    {
       "path": "/users/permissions",
       "sourceFile": "src/app/(admin)/users/permissions/page.tsx",
+      "requiresAuth": true
+    },
+    {
+      "path": "/users/role-permissions",
+      "sourceFile": "src/app/(admin)/users/role-permissions/page.tsx",
       "requiresAuth": true
     },
     {

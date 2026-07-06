@@ -144,6 +144,16 @@ const ROUTE_POLICIES: RoutePolicy[] = [
     permissionMatch: 'any',
     allowedDepartments: ['WE', 'PC', 'PD'],
   },
+  // Sales Planning module pages (Excel import, batch preview/confirm, active data).
+  {
+    matcher: /^\/sales-planning(\/|$)/,
+    requiredPermissions: [
+      PERMISSIONS.SALES_ORDER_READ,
+      PERMISSIONS.SALES_ORDER_IMPORT,
+      PERMISSIONS.SALES_ORDER_EXPORT,
+    ],
+    permissionMatch: 'any',
+  },
   // Sales module pages.
   {
     matcher: /^\/sales\/orders(\/|$)/,

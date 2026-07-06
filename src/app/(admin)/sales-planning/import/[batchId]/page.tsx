@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { salesPlanningService } from '@/services/sales/salesPlanningService';
 import { PlanningBatch, PlanningRow, PlanningError } from '@/services/sales/salesPlanningService';
+import { ROUTES } from '@/constants/routes';
 import {
   PageContainer,
   PageHeader,
@@ -229,7 +230,7 @@ export default function BatchDetailPage() {
     try {
       await salesPlanningService.deleteBatch(batchId);
       alert('ลบ batch สำเร็จ');
-      router.push('/sales-planning/import');
+      router.push(ROUTES.SALES_PLANNING_IMPORT);
     } catch (err) {
       console.error('Failed to delete:', err);
       alert('ลบไม่สำเร็จ');

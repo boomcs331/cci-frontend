@@ -147,9 +147,9 @@ async function parseEnvelope<T>(res: Response): Promise<T> {
 }
 
 export const salesPlanningService = {
-  // Download template
-  async downloadTemplate(): Promise<Blob> {
-    const res = await apiFetch("/sales-planning/template");
+  // Download template; optionally embed period metadata for validation
+  async downloadTemplate(options?: { year?: number; month?: number }): Promise<Blob> {
+    const res = await apiFetch(`/sales-planning/template${buildQuery(options || {})}`);
     if (!res.ok) {
       throw new Error(`Failed to download template (${res.status})`);
     }
